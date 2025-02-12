@@ -32,6 +32,8 @@
 //! # }
 //! ```
 //!
+//! [OpenMetrics text format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format
+//!
 //! # Protobuf format (TODO)
 //!
 //! [OpenMetrics protobuf format] MUST follow the proto3 version of the protocol buffer language and
@@ -43,7 +45,6 @@
 //! TODO
 //!
 //!
-//! [OpenMetrics text format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format
 //! [OpenMetrics protobuf format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format
 //! [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 
