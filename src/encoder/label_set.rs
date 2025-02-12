@@ -23,13 +23,9 @@ pub trait LabelSetEncoder {
 /// # Example
 ///
 /// ```rust
-/// # use std::collections::BTreeMap;
 /// # use openmetrics_client::encoder::EncodeLabelSet;
-/// let labels = BTreeMap::from([
-///     ("method", "GET"),
-///     ("status", "200"),
-/// ]);
-/// // labels implements EncodeLabelSet and can be encoded as a label set
+/// // labels implements `EncodeLabelSet` and can be encoded as a label set
+/// let labels = vec![("method", "GET"), ("status", "200")];
 /// ```
 pub trait EncodeLabelSet {
     /// Encodes this set of labels using the provided [`LabelSetEncoder`].
@@ -134,7 +130,7 @@ pub trait LabelEncoder {
 ///
 /// ```rust
 /// # use openmetrics_client::encoder::EncodeLabel;
-/// let label = ("method", "GET"); // implements EncodeLabel
+/// let label = ("method", "GET"); // implements `EncodeLabel`
 /// ```
 pub trait EncodeLabel {
     /// Encodes this label using the provided [`LabelEncoder`].
@@ -159,6 +155,14 @@ where
 ////////////////////////////////////////////////////////////////////////////////
 
 /// Trait for types that can be encoded as label names.
+///
+/// # Example
+///
+/// ```rust
+/// # use openmetrics_client::encoder::EncodeLabelName;
+/// let name: &str = "name";                   // str implements `EncodeLabelName`
+/// let name: String = String::from("name");   // String implement `EncodeLabelName`
+/// ```
 pub trait EncodeLabelName {
     /// Encodes this type as a label name using the provided [`LabelEncoder`].
     fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result;
@@ -202,9 +206,9 @@ impl_encode_label_name_for_deref! { <T> EncodeLabelName for Arc<T> where T: ?Siz
 ///
 /// ```rust
 /// # use openmetrics_client::encoder::EncodeLabelValue;
-/// let value: &str = "200"; // str implements EncodeLabelValue
-/// let value: i32 = 200;    // integers implement EncodeLabelValue
-/// let value: bool = true;  // bool implements EncodeLabelValue
+/// let value: &str = "200"; // str implements `EncodeLabelValue`
+/// let value: i32 = 200;    // integers implement `EncodeLabelValue`
+/// let value: bool = true;  // bool implements `EncodeLabelValue`
 /// ```
 pub trait EncodeLabelValue {
     /// Encodes this type as a label value using the provided [`LabelEncoder`].

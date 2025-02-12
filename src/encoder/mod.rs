@@ -19,16 +19,15 @@ use crate::metrics::{
 /// - HELP
 /// - UNIT (if any)
 pub trait MetricMetadataEncoder {
-    /// Encodes metadata for a metric and returns a [`MetricEncoder`] to encode the metric itself.
+    /// Encodes metadata of a metric and returns a [`MetricEncoder`] to encode the metric itself.
     ///
     /// # Arguments
     ///
-    /// * `metadata` - The metadata to encode, containing name, help, type and unit
+    /// * `metadata` - The metadata to encode, containing name, type, help and unit
     ///
     /// # Returns
     ///
-    /// Returns a [`MetricEncoder`] that can be used to encode the actual metric values
-    /// after the metadata has been written.
+    /// Returns a [`MetricEncoder`] that can be used to encode the actual metric values.
     fn encode_metadata<'s>(
         &'s mut self,
         metadata: &'s Metadata,
@@ -37,7 +36,7 @@ pub trait MetricMetadataEncoder {
 
 /// Trait for encoding different types of metrics.
 ///
-/// This trait provides methods for encoding all supported metric types in the OpenMetrics format.
+/// This trait provides methods for encoding all supported metric types in the [OpenMetrics specification](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types).
 /// Each method handles a specific metric type with its associated data format.
 pub trait MetricEncoder {
     /// Encodes an unknown metric.

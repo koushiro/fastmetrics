@@ -1,9 +1,6 @@
 use std::fmt;
 
 /// Trait for encoding numeric values in metrics.
-///
-/// This trait provides methods for encoding different numeric types that can be used
-/// in metrics. It supports both integer and floating-point numbers.
 pub trait NumberEncoder {
     /// Encodes a 32-bit signed integer value.
     fn encode_i32(&mut self, value: i32) -> fmt::Result;
