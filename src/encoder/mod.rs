@@ -18,7 +18,6 @@ use crate::metrics::{
 /// - TYPE (gauge, counter, etc.)
 /// - HELP
 /// - UNIT (if any)
-///
 pub trait MetricMetadataEncoder {
     /// Encodes metadata for a metric and returns a [`MetricEncoder`] to encode the metric itself.
     ///
