@@ -7,8 +7,10 @@ use std::{
     sync::{atomic::*, Arc},
 };
 
-pub use crate::metrics::raw::{Atomic, Number};
-use crate::metrics::{MetricType, TypedMetric};
+use crate::metrics::{
+    raw::{Atomic, Number},
+    MetricType, TypedMetric,
+};
 
 /// A marker trait for **gauge** metric value.
 pub trait GaugeValue<Rhs = Self>: Number + AddAssign<Rhs> + SubAssign<Rhs> {

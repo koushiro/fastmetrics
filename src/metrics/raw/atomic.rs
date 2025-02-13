@@ -4,8 +4,8 @@ use crate::metrics::raw::number::Number;
 
 /// Atomic operations for the [Counter] or [Gauge] value.
 ///
-/// [Counter]: super::counter::Counter
-/// [Gauge]: super::gauge::Gauge
+/// [Counter]: crate::metrics::counter::Counter
+/// [Gauge]: crate::metrics::gauge::Gauge
 pub trait Atomic<N: Number>: Default {
     /// Increase the value by `1`.
     #[inline]

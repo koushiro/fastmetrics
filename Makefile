@@ -21,34 +21,39 @@ fmt:
 .PHONY: clippy clippy-release
 # Run rust clippy with debug profile
 clippy:
-	cargo clippy --all --all-targets -- -D warnings
+	cargo clippy --workspace --all-targets -- -D warnings
 # Run rust clippy with release profile
 clippy-release:
-	cargo clippy --release --all --all-targets -- -D warnings
+	cargo clippy --workspace --all-targets --release -- -D warnings
 
 .PHONY: check check-release
 # Check code with debug profile
 check:
-	cargo check
+	cargo check --workspace --all-targets --all-features
 # Check code with release profile
 check-release:
-	cargo check --release
+	cargo check --workspace --all-targets --all-features --release
 
 .PHONY: build build-release
-# Build all binaries with debug profile
+# Build with debug profile
 build:
-	cargo build
-# Build all binaries with release profile
+	cargo build --workspace --all-targets --all-features
+# Build with release profile
 build-release:
-	cargo build --release
+	cargo build --workspace --all-targets --all-features --release
 
 .PHONY: test test-release
-# Run all unit tests with debug profile
+# Run all tests with debug profile
 test:
-	cargo test --lib --all
-# Run all unit tests with release profile
+	cargo test --workspace --all-features
+# Run all tests with release profile
 test-release:
-	cargo test --release --lib --all
+	cargo test --workspace --all-features --release
+
+.PHONY: doc
+# Generate docs
+gen-doc:
+	cargo doc --no-deps --workspace --lib --all-features
 
 .PHONY: help
 # Show help
