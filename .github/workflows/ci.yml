@@ -2,11 +2,9 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -27,8 +25,7 @@ jobs:
         id: cache-taplo
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cargo/bin/taplo
+          path: ~/.cargo/bin/taplo
           key: ${{runner.os}}-taplo-0.9.3
 
       - name: Install taplo-cli if not cached
