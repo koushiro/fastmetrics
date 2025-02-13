@@ -1,0 +1,508 @@
+//! Text exposition format.
+
+use std::{borrow::Cow, fmt, time::Duration};
+
+use crate::{
+    encoder::*,
+    metrics::family::{Metadata, Unit},
+    registry::Registry,
+};
+
+/// Encodes metrics from a registry into the text exposition format.
+///
+/// This function takes a writer and registry and writes all metrics in the
+/// [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
+///
+/// # Arguments
+///
+/// * `writer` - The writer to output the encoded metrics to
+/// * `registry` - The registry containing the registered metrics to encode
+///
+/// # Returns
+///
+/// Returns a `fmt::Result` indicating success or failure of the write operations.
+///
+/// # Example
+///
+/// ```rust
+/// # use openmetrics_client::{
+/// #     format::text,
+/// #     metrics::counter::Counter,
+/// #     registry::Registry,
+/// # };
+/// #
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut registry = Registry::default();
+///
+/// let counter = <Counter>::default();
+/// registry.register("requests", "Number of requests", counter)?;
+///
+/// let mut output = String::new();
+/// text::encode(&mut output, &registry)?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn encode<W>(writer: &mut W, registry: &Registry) -> fmt::Result
+where
+    W: fmt::Write,
+{
+    TextEncoder::<'_, W>::new(writer, registry).encode()
+}
+
+struct TextEncoder<'a, W> {
+    writer: &'a mut W,
+    registry: &'a Registry,
+}
+
+impl<'a, W> TextEncoder<'a, W>
+where
+    W: fmt::Write,
+{
+    fn new(writer: &'a mut W, registry: &'a Registry) -> Self {
+        Self { writer, registry }
+    }
+
+    fn encode(&mut self) -> fmt::Result {
+        self.encode_registry()?;
+        self.encode_eof()
+    }
+
+    fn encode_registry(&mut self) -> fmt::Result {
+        for (metadata, metric) in &self.registry.metrics {
+            let mut metadata_encoder = TextMetricMetadataEncoder::new(&mut self.writer)
+                .with_namespace(self.registry.namespace())
+                .with_const_labels(&self.registry.const_labels);
+            let mut metric_encoder = metadata_encoder.encode_metadata(metadata)?;
+            metric.encode(metric_encoder.as_mut())?
+        }
+        for subsystem in &self.registry.subsystems {
+            TextEncoder::<'_, W>::new(self.writer, subsystem).encode()?;
+        }
+        Ok(())
+    }
+
+    fn encode_eof(&mut self) -> fmt::Result {
+        self.writer.write_str("# EOF\n")
+    }
+}
+
+struct TextMetricMetadataEncoder<'a, W> {
+    writer: &'a mut W,
+    namespace: Option<&'a str>,
+    const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
+}
+
+impl<'a, W> TextMetricMetadataEncoder<'a, W>
+where
+    W: fmt::Write,
+{
+    fn new(writer: &'a mut W) -> TextMetricMetadataEncoder<'a, W> {
+        Self { writer, namespace: None, const_labels: &[] }
+    }
+
+    fn with_namespace(mut self, namespace: Option<&'a str>) -> TextMetricMetadataEncoder<'a, W> {
+        self.namespace = namespace;
+        self
+    }
+
+    fn with_const_labels(
+        mut self,
+        labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
+    ) -> TextMetricMetadataEncoder<'a, W> {
+        self.const_labels = labels;
+        self
+    }
+
+    fn encode_type(&mut self, metadata: &Metadata) -> fmt::Result {
+        self.writer.write_str("# TYPE ")?;
+        self.encode_metric_name(metadata)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(metadata.ty.as_str())?;
+        self.encode_newline()?;
+        Ok(())
+    }
+
+    fn encode_help(&mut self, metadata: &Metadata) -> fmt::Result {
+        self.writer.write_str("# HELP ")?;
+        self.encode_metric_name(metadata)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(&metadata.help)?;
+        self.encode_newline()?;
+        Ok(())
+    }
+
+    fn encode_unit(&mut self, metadata: &Metadata) -> fmt::Result {
+        if let Some(unit) = &metadata.unit {
+            self.writer.write_str("# UNIT ")?;
+            self.encode_metric_name(metadata)?;
+            self.writer.write_str(" ")?;
+            self.writer.write_str(unit.as_str())?;
+            self.encode_newline()?;
+        }
+        Ok(())
+    }
+
+    fn encode_metric_name(&mut self, metadata: &Metadata) -> fmt::Result {
+        TextMetricNameEncoder {
+            writer: self.writer,
+            namespace: self.namespace,
+            name: &metadata.name,
+            unit: metadata.unit.as_ref(),
+        }
+        .encode()
+    }
+
+    fn encode_newline(&mut self) -> fmt::Result {
+        self.writer.write_str("\n")
+    }
+}
+
+impl<W> MetricMetadataEncoder for TextMetricMetadataEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode_metadata<'s>(
+        &'s mut self,
+        metadata: &'s Metadata,
+    ) -> Result<Box<dyn MetricEncoder + 's>, fmt::Error> {
+        self.encode_type(metadata)?;
+        self.encode_help(metadata)?;
+        self.encode_unit(metadata)?;
+
+        Ok(Box::new(TextMetricEncoder::<'s, W> {
+            writer: self.writer,
+            namespace: self.namespace,
+            name: &metadata.name,
+            unit: metadata.unit.as_ref(),
+            const_labels: self.const_labels,
+            family_labels: None,
+        }))
+    }
+}
+
+struct TextMetricEncoder<'a, W> {
+    writer: &'a mut W,
+
+    namespace: Option<&'a str>,
+    name: &'a str,
+    unit: Option<&'a Unit>,
+
+    const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
+    family_labels: Option<&'a dyn EncodeLabelSet>,
+}
+
+impl<W> TextMetricEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode_metric_name(&mut self) -> fmt::Result {
+        TextMetricNameEncoder {
+            writer: self.writer,
+            namespace: self.namespace,
+            name: self.name,
+            unit: self.unit,
+        }
+        .encode()
+    }
+
+    fn encode_suffix(&mut self, suffix: &str) -> fmt::Result {
+        self.writer.write_str("_")?;
+        self.writer.write_str(suffix)?;
+        Ok(())
+    }
+
+    fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
+        if self.const_labels.is_empty()
+            && self.family_labels.is_none()
+            && additional_labels.is_none()
+        {
+            return Ok(());
+        }
+
+        self.writer.write_str("{")?;
+        self.const_labels.encode(&mut TextLabelSetEncoder::new(self.writer))?;
+        if let Some(family_labels) = self.family_labels {
+            if !self.const_labels.is_empty() {
+                self.writer.write_str(",")?;
+            }
+            family_labels.encode(&mut TextLabelSetEncoder::new(self.writer))?;
+        }
+        if let Some(additional_labels) = additional_labels {
+            if !self.const_labels.is_empty() || self.family_labels.is_some() {
+                self.writer.write_str(",")?;
+            }
+            additional_labels.encode(&mut TextLabelSetEncoder::new(self.writer))?;
+        }
+        self.writer.write_str("}")?;
+        Ok(())
+    }
+
+    fn encode_unix_timestamp(&mut self, duration: Duration) -> fmt::Result {
+        self.writer.write_fmt(format_args!(
+            "{}.{}",
+            duration.as_secs(),
+            duration.as_millis() % 1000
+        ))?;
+        Ok(())
+    }
+
+    fn encode_newline(&mut self) -> fmt::Result {
+        self.writer.write_str("\n")?;
+        Ok(())
+    }
+}
+
+impl<W> MetricEncoder for TextMetricEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_label_set(None)?;
+
+        self.writer.write_str(" ")?;
+        value.encode(&mut TextNumberEncoder { writer: self.writer } as _)?;
+        self.encode_newline()?;
+        Ok(())
+    }
+
+    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_label_set(None)?;
+
+        self.writer.write_str(" ")?;
+        value.encode(&mut TextNumberEncoder { writer: self.writer } as _)?;
+        self.encode_newline()?;
+        Ok(())
+    }
+
+    fn encode_counter(
+        &mut self,
+        total: &dyn EncodeCounterValue,
+        created: Option<Duration>,
+    ) -> fmt::Result {
+        // encode `*_total` metric name
+        self.encode_metric_name()?;
+        self.encode_suffix("total")?;
+        self.encode_label_set(None)?;
+
+        self.writer.write_str(" ")?;
+        total.encode(&mut TextNumberEncoder { writer: self.writer } as _)?;
+        self.encode_newline()?;
+
+        // encode `*_created` metric name
+        if let Some(created) = created {
+            self.encode_metric_name()?;
+            self.encode_suffix("created")?;
+            self.encode_label_set(None)?;
+
+            self.writer.write_str(" ")?;
+            self.encode_unix_timestamp(created)?;
+            self.encode_newline()?;
+        }
+        Ok(())
+    }
+
+    fn encode_stateset(&mut self, states: &[(&str, bool)]) -> fmt::Result {
+        for (state, is_active) in states {
+            self.encode_metric_name()?;
+            self.encode_label_set(Some(&[(self.name, *state)]))?;
+
+            self.writer.write_str(" ")?;
+            let mut buffer = itoa::Buffer::new();
+            if *is_active {
+                self.writer.write_str(buffer.format(1))?;
+            } else {
+                self.writer.write_str(buffer.format(0))?;
+            }
+            self.encode_newline()?;
+        }
+        Ok(())
+    }
+
+    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("info")?;
+        self.encode_label_set(Some(label_set))?;
+
+        self.writer.write_str(" ")?;
+        self.writer.write_str(itoa::Buffer::new().format(1))?;
+        self.encode_newline()?;
+        Ok(())
+    }
+
+    fn encode_family<'s>(
+        &'s mut self,
+        label_set: &'s dyn EncodeLabelSet,
+    ) -> Result<Box<dyn MetricEncoder + 's>, fmt::Error> {
+        debug_assert!(self.family_labels.is_none());
+
+        Ok(Box::new(TextMetricEncoder::<'s, W> {
+            writer: self.writer,
+            namespace: self.namespace,
+            name: self.name,
+            unit: self.unit,
+            const_labels: self.const_labels,
+            family_labels: Some(label_set),
+        }))
+    }
+}
+
+struct TextMetricNameEncoder<'a, W> {
+    writer: &'a mut W,
+    namespace: Option<&'a str>,
+    name: &'a str,
+    unit: Option<&'a Unit>,
+}
+
+impl<W> TextMetricNameEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode(&mut self) -> fmt::Result {
+        if let Some(namespace) = self.namespace {
+            self.writer.write_str(namespace)?;
+            self.writer.write_str("_")?;
+        }
+        self.writer.write_str(self.name)?;
+        if let Some(unit) = self.unit {
+            self.writer.write_str("_")?;
+            self.writer.write_str(unit.as_str())?;
+        }
+        Ok(())
+    }
+}
+
+struct TextLabelSetEncoder<'a, W> {
+    writer: &'a mut W,
+    first: bool,
+}
+
+impl<'a, W> TextLabelSetEncoder<'a, W> {
+    fn new(writer: &'a mut W) -> TextLabelSetEncoder<'a, W> {
+        Self { writer, first: true }
+    }
+}
+
+impl<W> LabelSetEncoder for TextLabelSetEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn label_encoder<'s>(&'s mut self) -> Box<dyn LabelEncoder + 's> {
+        let first = self.first;
+        self.first = false;
+        Box::new(TextLabelEncoder { writer: self.writer, first })
+    }
+}
+
+struct TextLabelEncoder<'a, W> {
+    writer: &'a mut W,
+    first: bool,
+}
+
+macro_rules! encode_integer_value_impls {
+    ($($integer:ty),*) => (
+        paste::paste! { $(
+            fn [<encode_ $integer _value>](&mut self, value: $integer) -> fmt::Result {
+                self.writer.write_str("=\"")?;
+                self.writer.write_str(itoa::Buffer::new().format(value))?;
+                self.writer.write_str("\"")?;
+                Ok(())
+            }
+        )* }
+    )
+}
+
+macro_rules! encode_float_value_impls {
+    ($($float:ty),*) => (
+        paste::paste! { $(
+            fn [<encode_ $float _value>](&mut self, value: $float) -> fmt::Result {
+                self.writer.write_str("=\"")?;
+                self.writer.write_str(dtoa::Buffer::new().format(value))?;
+                self.writer.write_str("\"")?;
+                Ok(())
+            }
+        )* }
+    )
+}
+
+impl<W> LabelEncoder for TextLabelEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode_label_name(&mut self, name: &str) -> fmt::Result {
+        if !self.first {
+            self.writer.write_str(",")?;
+        }
+        self.writer.write_str(name)?;
+        Ok(())
+    }
+
+    fn encode_str_value(&mut self, value: &str) -> fmt::Result {
+        self.writer.write_str("=\"")?;
+        self.writer.write_str(value)?;
+        self.writer.write_str("\"")?;
+        Ok(())
+    }
+
+    fn encode_bool_value(&mut self, value: bool) -> fmt::Result {
+        self.writer.write_str("=\"")?;
+        self.writer.write_str(if value { "true" } else { "false" })?;
+        self.writer.write_str("\"")?;
+        Ok(())
+    }
+
+    encode_integer_value_impls! {
+        i8, i16, i32, i64, i128, isize,
+        u8, u16, u32, u64, u128, usize
+    }
+
+    encode_float_value_impls! { f32, f64 }
+
+    fn encode_some_value(&mut self, value: &dyn EncodeLabelValue) -> fmt::Result {
+        value.encode(self)
+    }
+
+    fn encode_none_value(&mut self) -> fmt::Result {
+        self.writer.write_str("\"\"")
+    }
+}
+
+struct TextNumberEncoder<'a, W> {
+    writer: &'a mut W,
+}
+
+macro_rules! encode_integer_number_impls {
+    ($($integer:ty),*) => (
+        paste::paste! { $(
+            fn [<encode_ $integer>](&mut self, value: $integer) -> fmt::Result {
+                self.writer.write_str(itoa::Buffer::new().format(value))?;
+                Ok(())
+            }
+        )* }
+    )
+}
+
+macro_rules! encode_float_number_impls {
+    ($($float:ty),*) => (
+        paste::paste! { $(
+            fn [<encode_ $float>](&mut self, value: $float) -> fmt::Result {
+                self.writer.write_str(dtoa::Buffer::new().format(value))?;
+                Ok(())
+            }
+        )* }
+    )
+}
+
+impl<W> NumberEncoder for TextNumberEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    encode_integer_number_impls! {
+        i32, i64, isize, u32, u64, usize
+    }
+
+    encode_float_number_impls! {
+        f32, f64
+    }
+}
