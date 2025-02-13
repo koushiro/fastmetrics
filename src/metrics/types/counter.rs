@@ -8,8 +8,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-pub use crate::metrics::raw::{Atomic, Number};
-use crate::metrics::{MetricType, TypedMetric};
+use crate::metrics::{
+    raw::{Atomic, Number},
+    MetricType, TypedMetric,
+};
 
 /// A marker trait for **counter** metric value.
 pub trait CounterValue<Rhs = Self>: Number + AddAssign<Rhs> {

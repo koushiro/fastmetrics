@@ -17,10 +17,15 @@
 //!
 //! The main components of this library are:
 //!
-//! - [`Registry`] - Central collection of all metrics
-//! - Metric types in the [`metrics`] module (Counter, Gauge, etc.)
-//! - [`Family`] for collecting metrics with the same label name but different label values
-//! - Text format encoding via [`format::text`]
+//! - [Registry] - Central collection of all metrics
+//! - Metric types in the [metrics] module (Counter, Gauge, etc.)
+//! - [Family] for collecting metrics with the same label name but different label values
+//! - Text format encoding via [format::text]
+//!
+//! [Registry]: crate::registry::Registry
+//! [metrics]: crate::metrics
+//! [Family]: crate::metrics::family::Family
+//! [format::text]: crate::format::text
 //!
 //! # Example
 //!
