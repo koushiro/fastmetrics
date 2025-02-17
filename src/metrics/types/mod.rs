@@ -9,7 +9,6 @@ pub mod unknown;
 
 /// [Open Metrics metric types](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types).
 #[allow(missing_docs)]
-#[non_exhaustive]
 #[derive(Copy, Clone, Debug)]
 pub enum MetricType {
     Unknown,

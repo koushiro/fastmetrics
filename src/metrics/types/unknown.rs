@@ -26,7 +26,7 @@ pub struct Unknown<T> {
 
 impl<T: UnknownValue> Unknown<T> {
     /// Create an [`Unknown`] metric with the given unknown value.
-    pub fn new(value: T) -> Self {
+    pub const fn new(value: T) -> Self {
         Self { value }
     }
 
