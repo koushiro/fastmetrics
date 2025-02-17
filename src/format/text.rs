@@ -3,7 +3,10 @@
 use std::{borrow::Cow, fmt, time::Duration};
 
 use crate::{
-    encoder::*,
+    encoder::{
+        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
+        EncodeUnknownValue, MetricFamilyEncoder as _,
+    },
     metrics::family::{Metadata, Unit},
     registry::Registry,
 };
@@ -46,15 +49,15 @@ pub fn encode<W>(writer: &mut W, registry: &Registry) -> fmt::Result
 where
     W: fmt::Write,
 {
-    TextEncoder::<'_, W>::new(writer, registry).encode()
+    Encoder::<'_, W>::new(writer, registry).encode()
 }
 
-struct TextEncoder<'a, W> {
+struct Encoder<'a, W> {
     writer: &'a mut W,
     registry: &'a Registry,
 }
 
-impl<'a, W> TextEncoder<'a, W>
+impl<'a, W> Encoder<'a, W>
 where
     W: fmt::Write,
 {
@@ -69,14 +72,14 @@ where
 
     fn encode_registry(&mut self) -> fmt::Result {
         for (metadata, metric) in &self.registry.metrics {
-            let mut metadata_encoder = TextMetricMetadataEncoder::new(&mut self.writer)
+            let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
                 .with_namespace(self.registry.namespace())
                 .with_const_labels(&self.registry.const_labels);
-            let mut metric_encoder = metadata_encoder.encode_metadata(metadata)?;
+            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
             metric.encode(metric_encoder.as_mut())?
         }
         for subsystem in &self.registry.subsystems {
-            TextEncoder::<'_, W>::new(self.writer, subsystem).encode()?;
+            Encoder::<'_, W>::new(self.writer, subsystem).encode()?;
         }
         Ok(())
     }
@@ -86,21 +89,21 @@ where
     }
 }
 
-struct TextMetricMetadataEncoder<'a, W> {
+struct MetricFamilyEncoder<'a, W> {
     writer: &'a mut W,
     namespace: Option<&'a str>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
 }
 
-impl<'a, W> TextMetricMetadataEncoder<'a, W>
+impl<'a, W> MetricFamilyEncoder<'a, W>
 where
     W: fmt::Write,
 {
-    fn new(writer: &'a mut W) -> TextMetricMetadataEncoder<'a, W> {
+    fn new(writer: &'a mut W) -> MetricFamilyEncoder<'a, W> {
         Self { writer, namespace: None, const_labels: &[] }
     }
 
-    fn with_namespace(mut self, namespace: Option<&'a str>) -> TextMetricMetadataEncoder<'a, W> {
+    fn with_namespace(mut self, namespace: Option<&'a str>) -> MetricFamilyEncoder<'a, W> {
         self.namespace = namespace;
         self
     }
@@ -108,7 +111,7 @@ where
     fn with_const_labels(
         mut self,
         labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
-    ) -> TextMetricMetadataEncoder<'a, W> {
+    ) -> MetricFamilyEncoder<'a, W> {
         self.const_labels = labels;
         self
     }
@@ -143,7 +146,7 @@ where
     }
 
     fn encode_metric_name(&mut self, metadata: &Metadata) -> fmt::Result {
-        TextMetricNameEncoder {
+        MetricNameEncoder {
             writer: self.writer,
             namespace: self.namespace,
             name: &metadata.name,
@@ -157,19 +160,19 @@ where
     }
 }
 
-impl<W> MetricMetadataEncoder for TextMetricMetadataEncoder<'_, W>
+impl<W> encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_, W>
 where
     W: fmt::Write,
 {
     fn encode_metadata<'s>(
         &'s mut self,
         metadata: &'s Metadata,
-    ) -> Result<Box<dyn MetricEncoder + 's>, fmt::Error> {
+    ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
         self.encode_type(metadata)?;
         self.encode_help(metadata)?;
         self.encode_unit(metadata)?;
 
-        Ok(Box::new(TextMetricEncoder::<'s, W> {
+        Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
             namespace: self.namespace,
             name: &metadata.name,
@@ -180,7 +183,7 @@ where
     }
 }
 
-struct TextMetricEncoder<'a, W> {
+struct MetricEncoder<'a, W> {
     writer: &'a mut W,
 
     namespace: Option<&'a str>,
@@ -191,12 +194,12 @@ struct TextMetricEncoder<'a, W> {
     family_labels: Option<&'a dyn EncodeLabelSet>,
 }
 
-impl<W> TextMetricEncoder<'_, W>
+impl<W> MetricEncoder<'_, W>
 where
     W: fmt::Write,
 {
     fn encode_metric_name(&mut self) -> fmt::Result {
-        TextMetricNameEncoder {
+        MetricNameEncoder {
             writer: self.writer,
             namespace: self.namespace,
             name: self.name,
@@ -220,18 +223,18 @@ where
         }
 
         self.writer.write_str("{")?;
-        self.const_labels.encode(&mut TextLabelSetEncoder::new(self.writer))?;
+        self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         if let Some(family_labels) = self.family_labels {
             if !self.const_labels.is_empty() {
                 self.writer.write_str(",")?;
             }
-            family_labels.encode(&mut TextLabelSetEncoder::new(self.writer))?;
+            family_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         }
         if let Some(additional_labels) = additional_labels {
             if !self.const_labels.is_empty() || self.family_labels.is_some() {
                 self.writer.write_str(",")?;
             }
-            additional_labels.encode(&mut TextLabelSetEncoder::new(self.writer))?;
+            additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         }
         self.writer.write_str("}")?;
         Ok(())
@@ -252,7 +255,7 @@ where
     }
 }
 
-impl<W> MetricEncoder for TextMetricEncoder<'_, W>
+impl<W> encoder::MetricEncoder for MetricEncoder<'_, W>
 where
     W: fmt::Write,
 {
@@ -261,7 +264,7 @@ where
         self.encode_label_set(None)?;
 
         self.writer.write_str(" ")?;
-        value.encode(&mut TextNumberEncoder { writer: self.writer } as _)?;
+        value.encode(&mut UnknownValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
         Ok(())
     }
@@ -271,7 +274,7 @@ where
         self.encode_label_set(None)?;
 
         self.writer.write_str(" ")?;
-        value.encode(&mut TextNumberEncoder { writer: self.writer } as _)?;
+        value.encode(&mut GaugeValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
         Ok(())
     }
@@ -287,7 +290,7 @@ where
         self.encode_label_set(None)?;
 
         self.writer.write_str(" ")?;
-        total.encode(&mut TextNumberEncoder { writer: self.writer } as _)?;
+        total.encode(&mut CounterValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
 
         // encode `*_created` metric name
@@ -304,13 +307,13 @@ where
     }
 
     fn encode_stateset(&mut self, states: &[(&str, bool)]) -> fmt::Result {
-        for (state, is_active) in states {
+        for (state, enabled) in states {
             self.encode_metric_name()?;
             self.encode_label_set(Some(&[(self.name, *state)]))?;
 
             self.writer.write_str(" ")?;
             let mut buffer = itoa::Buffer::new();
-            if *is_active {
+            if *enabled {
                 self.writer.write_str(buffer.format(1))?;
             } else {
                 self.writer.write_str(buffer.format(0))?;
@@ -334,10 +337,10 @@ where
     fn encode_family<'s>(
         &'s mut self,
         label_set: &'s dyn EncodeLabelSet,
-    ) -> Result<Box<dyn MetricEncoder + 's>, fmt::Error> {
+    ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
         debug_assert!(self.family_labels.is_none());
 
-        Ok(Box::new(TextMetricEncoder::<'s, W> {
+        Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
             namespace: self.namespace,
             name: self.name,
@@ -348,14 +351,14 @@ where
     }
 }
 
-struct TextMetricNameEncoder<'a, W> {
+struct MetricNameEncoder<'a, W> {
     writer: &'a mut W,
     namespace: Option<&'a str>,
     name: &'a str,
     unit: Option<&'a Unit>,
 }
 
-impl<W> TextMetricNameEncoder<'_, W>
+impl<W> MetricNameEncoder<'_, W>
 where
     W: fmt::Write,
 {
@@ -373,29 +376,29 @@ where
     }
 }
 
-struct TextLabelSetEncoder<'a, W> {
+struct LabelSetEncoder<'a, W> {
     writer: &'a mut W,
     first: bool,
 }
 
-impl<'a, W> TextLabelSetEncoder<'a, W> {
-    fn new(writer: &'a mut W) -> TextLabelSetEncoder<'a, W> {
+impl<'a, W> LabelSetEncoder<'a, W> {
+    fn new(writer: &'a mut W) -> LabelSetEncoder<'a, W> {
         Self { writer, first: true }
     }
 }
 
-impl<W> LabelSetEncoder for TextLabelSetEncoder<'_, W>
+impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn label_encoder<'s>(&'s mut self) -> Box<dyn LabelEncoder + 's> {
+    fn label_encoder<'s>(&'s mut self) -> Box<dyn encoder::LabelEncoder + 's> {
         let first = self.first;
         self.first = false;
-        Box::new(TextLabelEncoder { writer: self.writer, first })
+        Box::new(LabelEncoder { writer: self.writer, first })
     }
 }
 
-struct TextLabelEncoder<'a, W> {
+struct LabelEncoder<'a, W> {
     writer: &'a mut W,
     first: bool,
 }
@@ -426,7 +429,7 @@ macro_rules! encode_float_value_impls {
     )
 }
 
-impl<W> LabelEncoder for TextLabelEncoder<'_, W>
+impl<W> encoder::LabelEncoder for LabelEncoder<'_, W>
 where
     W: fmt::Write,
 {
@@ -468,10 +471,6 @@ where
     }
 }
 
-struct TextNumberEncoder<'a, W> {
-    writer: &'a mut W,
-}
-
 macro_rules! encode_integer_number_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
@@ -494,12 +493,50 @@ macro_rules! encode_float_number_impls {
     )
 }
 
-impl<W> NumberEncoder for TextNumberEncoder<'_, W>
+struct UnknownValueEncoder<'a, W> {
+    writer: &'a mut W,
+}
+
+impl<W> encoder::UnknownValueEncoder for UnknownValueEncoder<'_, W>
 where
     W: fmt::Write,
 {
     encode_integer_number_impls! {
-        i32, i64, isize, u32, u64, usize
+        i32, i64, isize, u32
+    }
+
+    encode_float_number_impls! {
+        f32, f64
+    }
+}
+
+struct GaugeValueEncoder<'a, W> {
+    writer: &'a mut W,
+}
+
+impl<W> encoder::GaugeValueEncoder for GaugeValueEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    encode_integer_number_impls! {
+        i32, i64, isize, u32
+    }
+
+    encode_float_number_impls! {
+        f32, f64
+    }
+}
+
+struct CounterValueEncoder<'a, W> {
+    writer: &'a mut W,
+}
+
+impl<W> encoder::CounterValueEncoder for CounterValueEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    encode_integer_number_impls! {
+        u32, u64, usize
     }
 
     encode_float_number_impls! {

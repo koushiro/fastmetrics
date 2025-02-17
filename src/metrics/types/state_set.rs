@@ -166,8 +166,8 @@ fn gen_states<T: StateSetValue>(current: &T) -> Vec<(&str, bool)> {
     T::variants()
         .iter()
         .map(|variant| {
-            let is_active = variant == current;
-            (variant.as_str(), is_active)
+            let enabled = variant == current;
+            (variant.as_str(), enabled)
         })
         .collect::<Vec<_>>()
 }
