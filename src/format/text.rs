@@ -1,6 +1,6 @@
 //! Text exposition format.
 
-use std::{borrow::Cow, fmt, time::Duration};
+use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
 
 use crate::{
     encoder::{
@@ -82,8 +82,8 @@ where
         Ok(())
     }
 
-    fn encode_registry_system(&mut self, systems: &[RegistrySystem]) -> fmt::Result {
-        for system in systems {
+    fn encode_registry_system(&mut self, systems: &HashMap<String, RegistrySystem>) -> fmt::Result {
+        for system in systems.values() {
             for (metadata, metric) in &system.metrics {
                 let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
                     .with_namespace(Some(system.namespace()))
@@ -91,7 +91,7 @@ where
                 let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
                 metric.encode(metric_encoder.as_mut())?
             }
-            for subsystem in &system.subsystems {
+            for subsystem in system.subsystems.values() {
                 self.encode_registry_system(&subsystem.subsystems)?
             }
         }

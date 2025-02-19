@@ -38,7 +38,7 @@
 mod errors;
 mod subsystem;
 
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 pub use self::{errors::*, subsystem::*};
 use crate::{
@@ -102,7 +102,7 @@ pub struct Registry {
     namespace: Option<String>,
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     pub(crate) metrics: Vec<(Metadata, Box<dyn EncodeMetric + 'static>)>,
-    pub(crate) subsystems: Vec<RegistrySystem>,
+    pub(crate) subsystems: HashMap<String, RegistrySystem>,
 }
 
 /// A builder for constructing [`Registry`] instances with custom configuration.
@@ -140,7 +140,7 @@ impl RegistryBuilder {
             namespace: self.namespace,
             const_labels: self.const_labels,
             metrics: vec![],
-            subsystems: vec![],
+            subsystems: HashMap::new(),
         }
     }
 }
@@ -184,14 +184,39 @@ impl Registry {
         Ok(self)
     }
 
-    /// Creates a subsystem to register metrics with a given `subsystem` as a part of prefix.
-    pub fn subsystem(&mut self, subsystem: impl Into<String>) -> &mut RegistrySystem {
-        let subsystem = RegistrySystem::builder(subsystem)
-            .with_prefix(self.namespace.clone())
-            .with_const_labels(self.const_labels.clone())
-            .build();
-        self.subsystems.push(subsystem);
-        self.subsystems.last_mut().expect("subsystem must not be none")
+    /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use openmetrics_client::{
+    /// #    metrics::{counter::Counter, gauge::Gauge},
+    /// #    registry::{Registry, RegistryError},
+    /// # };
+    ///
+    /// let mut registry = Registry::builder().with_namespace("myapp").build();
+    ///
+    /// let subsystem1 = registry.subsystem("subsystem1");
+    /// assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+    ///
+    /// let subsystem2 = registry.subsystem("subsystem2");
+    /// assert_eq!(subsystem2.namespace(), "myapp_subsystem2");
+    ///
+    /// let nested_subsystem = registry.subsystem("subsystem1").subsystem("subsystem2");
+    /// assert_eq!(nested_subsystem.namespace(), "myapp_subsystem1_subsystem2");
+    /// ```
+    pub fn subsystem(&mut self, name: impl Into<String>) -> &mut RegistrySystem {
+        let name = name.into();
+        if self.subsystems.contains_key(&name) {
+            self.subsystems.get_mut(&name).expect("subsystem must exist")
+        } else {
+            let subsystem = RegistrySystem::builder(name.clone())
+                .with_prefix(self.namespace.clone())
+                .with_const_labels(self.const_labels.clone())
+                .build();
+            self.subsystems.insert(name.clone(), subsystem);
+            self.subsystems.get_mut(&name).expect("subsystem must exist")
+        }
     }
 
     /// Returns the current `namespace` of [`Registry`].
