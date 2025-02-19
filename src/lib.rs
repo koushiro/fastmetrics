@@ -38,9 +38,10 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create a registry with a namespace and some constant labels
-//! let mut registry = Registry::default()
+//! let mut registry = Registry::builder()
 //!     .with_namespace("myapp")
-//!     .with_const_labels([("env", "prod")]);
+//!     .with_const_labels([("env", "prod")])
+//!     .build();
 //!
 //! // Register a simple counter
 //! let requests = <Counter>::default();
