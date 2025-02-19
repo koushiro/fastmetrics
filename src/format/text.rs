@@ -8,7 +8,7 @@ use crate::{
         EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::family::{Metadata, Unit},
-    registry::Registry,
+    registry::{Registry, RegistrySystem},
 };
 
 /// Encodes metrics from a registry into the text exposition format.
@@ -78,8 +78,22 @@ where
             let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
             metric.encode(metric_encoder.as_mut())?
         }
-        for subsystem in &self.registry.subsystems {
-            Encoder::<'_, W>::new(self.writer, subsystem).encode()?;
+        self.encode_registry_system(&self.registry.subsystems)?;
+        Ok(())
+    }
+
+    fn encode_registry_system(&mut self, systems: &[RegistrySystem]) -> fmt::Result {
+        for system in systems {
+            for (metadata, metric) in &system.metrics {
+                let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
+                    .with_namespace(Some(system.namespace()))
+                    .with_const_labels(&system.const_labels);
+                let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
+                metric.encode(metric_encoder.as_mut())?
+            }
+            for subsystem in &system.subsystems {
+                self.encode_registry_system(&subsystem.subsystems)?
+            }
         }
         Ok(())
     }
@@ -284,7 +298,7 @@ where
         total: &dyn EncodeCounterValue,
         created: Option<Duration>,
     ) -> fmt::Result {
-        // encode `*_total` metric name
+        // encode `*_total` metric
         self.encode_metric_name()?;
         self.encode_suffix("total")?;
         self.encode_label_set(None)?;
@@ -293,7 +307,7 @@ where
         total.encode(&mut CounterValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
 
-        // encode `*_created` metric name
+        // encode `*_created` metric
         if let Some(created) = created {
             self.encode_metric_name()?;
             self.encode_suffix("created")?;

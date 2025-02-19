@@ -14,17 +14,21 @@
 //! #
 //! # fn main() -> Result<(), RegistryError> {
 //!
-//! let mut registry = Registry::default()
+//! let mut registry = Registry::builder()
 //!     .with_namespace("myapp")
-//!     .with_const_labels([("env", "prod")]);
+//!     .with_const_labels([("env", "prod")])
+//!     .build();
+//! assert_eq!(registry.namespace(), Some("myapp"));
 //!
 //! // Create a subsystem for HTTP metrics
 //! let http = registry.subsystem("http");
+//! assert_eq!(http.namespace(), "myapp_http");
 //! // Create a nested subsystem for HTTP server metrics
 //! let server = http.subsystem("server");
+//! assert_eq!(server.namespace(), "myapp_http_server");
 //!
 //! // Register metrics with automatic prefixing:
-//! // This will create: myapp_http_server_requests_total
+//! // This will create a metric called `myapp_http_server_requests_total`
 //! let http_requests = <Counter>::default();
 //! server.register("requests", "Total HTTP requests", http_requests.clone())?;
 //! # Ok(())
@@ -32,10 +36,11 @@
 //! ```
 
 mod errors;
+mod subsystem;
 
 use std::borrow::Cow;
 
-pub use self::errors::*;
+pub use self::{errors::*, subsystem::*};
 use crate::{
     encoder::EncodeMetric,
     metrics::family::{Metadata, Unit},
@@ -66,23 +71,28 @@ use crate::{
 /// # };
 /// #
 /// # fn main() -> Result<(), RegistryError> {
-/// let mut registry = Registry::default().with_namespace("myapp");
+/// // Create a registry with a `myapp` namespace
+/// let mut registry = Registry::builder().with_namespace("myapp").build();
+/// assert_eq!(registry.namespace(), Some("myapp"));
 ///
+/// // Register metrics into the registry
 /// let uptime_seconds = <Gauge>::default();
-/// // Create metrics in the main registry
 /// registry.register("uptime_seconds", "Application uptime", uptime_seconds.clone())?;
 ///
-/// let db_connections = <Gauge>::default();
 /// // Create a subsystem for database metrics
-/// let db = registry.subsystem("db");
+/// let db = registry.subsystem("database");
+/// assert_eq!(db.namespace(), "myapp_database");
+///
+/// // Register metrics into the database subsystem
+/// let db_connections = <Gauge>::default();
 /// db.register("connections", "Active database connections", db_connections.clone())?;
 ///
+/// // Create a nested subsystem with additional constant labels
+/// let mysql = db.subsystem("mysql").with_additional_const_labels([("engine", "innodb")]);
+/// assert_eq!(mysql.namespace(), "myapp_database_mysql");
+///
+/// // Register metrics into the mysql subsystem
 /// let mysql_queries = <Counter>::default();
-/// // Create a nested subsystem with additional labels
-/// let mysql = db.subsystem_with_labels(
-///     "mysql",
-///     [("engine", "innodb")]
-/// );
 /// mysql.register("queries", "Total MySQL queries", mysql_queries.clone())?;
 /// # Ok(())
 /// # }
@@ -92,21 +102,26 @@ pub struct Registry {
     namespace: Option<String>,
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     pub(crate) metrics: Vec<(Metadata, Box<dyn EncodeMetric + 'static>)>,
-    pub(crate) subsystems: Vec<Registry>,
+    pub(crate) subsystems: Vec<RegistrySystem>,
 }
 
-impl Registry {
-    /// Sets the `namespace` of the [`Registry`].
+/// A builder for constructing [`Registry`] instances with custom configuration.
+#[derive(Default)]
+pub struct RegistryBuilder {
+    namespace: Option<String>,
+    const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+}
+
+impl RegistryBuilder {
+    /// Sets a `namespace` prefix for all metrics.
     pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
         self.namespace = Some(namespace.into());
         self
     }
 
-    /// Sets the `constant labels` of the [`Registry`].
+    /// Sets the `constant labels` that apply to all metrics in the registry.
     ///
-    /// **NOTE**:
-    /// Constant labels are only used rarely.
-    /// In particular, do not use them to attach the same labels to all your metrics.
+    /// **NOTE**: constant labels are rarely used.
     pub fn with_const_labels<N, V>(mut self, labels: impl IntoIterator<Item = (N, V)>) -> Self
     where
         N: Into<Cow<'static, str>>,
@@ -117,6 +132,23 @@ impl Registry {
             .map(|(name, value)| (name.into(), value.into()))
             .collect::<Vec<_>>();
         self
+    }
+
+    /// Builds a [`Registry`] instance.
+    pub fn build(self) -> Registry {
+        Registry {
+            namespace: self.namespace,
+            const_labels: self.const_labels,
+            metrics: vec![],
+            subsystems: vec![],
+        }
+    }
+}
+
+impl Registry {
+    /// Creates a [`RegistryBuilder`] to build [`Registry`] instance.
+    pub fn builder() -> RegistryBuilder {
+        RegistryBuilder::default()
     }
 
     /// Registers a metric into [`Registry`].
@@ -152,46 +184,12 @@ impl Registry {
         Ok(self)
     }
 
-    /// Creates a subsystem to register metrics with a given `subsystem` as a common prefix.
-    pub fn subsystem(&mut self, subsystem: impl AsRef<str>) -> &mut Self {
-        let subsystem_name = subsystem.as_ref();
-        let namespace = match &self.namespace {
-            Some(namespace) => format!("{}_{}", namespace, subsystem_name),
-            None => subsystem_name.to_owned(),
-        };
-
-        let subsystem = Registry::default()
-            .with_namespace(namespace)
-            .with_const_labels(self.const_labels.clone());
-        self.subsystems.push(subsystem);
-        self.subsystems.last_mut().expect("subsystem must not be none")
-    }
-
-    /// Creates a subsystem to register metrics with a given `subsystem` as a common prefix and some
-    /// additional `constant labels`.
-    pub fn subsystem_with_labels<N, V>(
-        &mut self,
-        subsystem: impl AsRef<str>,
-        additional_labels: impl IntoIterator<Item = (N, V)>,
-    ) -> &mut Self
-    where
-        N: Into<Cow<'static, str>>,
-        V: Into<Cow<'static, str>>,
-    {
-        let subsystem_name = subsystem.as_ref();
-        let namespace = match &self.namespace {
-            Some(namespace) => format!("{}_{}", namespace, subsystem_name),
-            None => subsystem_name.to_owned(),
-        };
-
-        let additional_labels =
-            additional_labels.into_iter().map(|(name, value)| (name.into(), value.into()));
-        let mut new_const_labels = self.const_labels.clone();
-        new_const_labels.extend(additional_labels);
-
-        let subsystem = Registry::default()
-            .with_namespace(namespace)
-            .with_const_labels(new_const_labels);
+    /// Creates a subsystem to register metrics with a given `subsystem` as a part of prefix.
+    pub fn subsystem(&mut self, subsystem: impl Into<String>) -> &mut RegistrySystem {
+        let subsystem = RegistrySystem::builder(subsystem)
+            .with_prefix(self.namespace.clone())
+            .with_const_labels(self.const_labels.clone())
+            .build();
         self.subsystems.push(subsystem);
         self.subsystems.last_mut().expect("subsystem must not be none")
     }
