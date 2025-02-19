@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     encoder::EncodeMetric,
@@ -45,7 +45,7 @@ pub struct RegistrySystem {
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 
     pub(crate) metrics: Vec<(Metadata, Box<dyn EncodeMetric + 'static>)>,
-    pub(crate) subsystems: Vec<RegistrySystem>,
+    pub(crate) subsystems: HashMap<String, RegistrySystem>,
 }
 
 /// A builder for constructing [`RegistrySystem`] instances with custom configuration.
@@ -87,7 +87,7 @@ impl RegistrySystemBuilder {
             namespace,
             const_labels: self.const_labels,
             metrics: vec![],
-            subsystems: vec![],
+            subsystems: HashMap::new(),
         }
     }
 }
@@ -165,12 +165,17 @@ impl RegistrySystem {
 
     /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut Self {
-        let subsystem = RegistrySystem::builder(name)
-            .with_prefix(Some(self.namespace.clone()))
-            .with_const_labels(self.const_labels.clone())
-            .build();
-        self.subsystems.push(subsystem);
-        self.subsystems.last_mut().expect("subsystem must not be none")
+        let name = name.into();
+        if self.subsystems.contains_key(&name) {
+            self.subsystems.get_mut(&name).expect("subsystem must exist")
+        } else {
+            let subsystem = RegistrySystem::builder(name.clone())
+                .with_prefix(Some(self.namespace.clone()))
+                .with_const_labels(self.const_labels.clone())
+                .build();
+            self.subsystems.insert(name.clone(), subsystem);
+            self.subsystems.get_mut(&name).expect("subsystem must exist")
+        }
     }
 
     /// Returns the current `namespace` of [`RegistrySystem`].
