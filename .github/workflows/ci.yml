@@ -46,6 +46,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "23.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -80,6 +86,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "23.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -97,6 +109,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "23.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate docs
         run: cargo doc --no-deps --workspace --lib --all-features
 
@@ -107,11 +125,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "23.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup MSRV
         run: rustup toolchain install ${MSRV} --no-self-update
 
       - name: Check code
-        run: cargo +${MSRV} check
+        run: cargo +${MSRV} check --all-features
 
   run-tests:
     runs-on: ${{ matrix.os }}
@@ -120,6 +144,12 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "23.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache
         uses: actions/cache@v4
