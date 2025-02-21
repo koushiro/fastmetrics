@@ -21,10 +21,10 @@ fmt:
 .PHONY: clippy clippy-release
 # Run rust clippy with debug profile
 clippy:
-	cargo clippy --workspace --all-targets -- -D warnings
+	cargo clippy --workspace --all-targets --all-features -- -D warnings
 # Run rust clippy with release profile
 clippy-release:
-	cargo clippy --workspace --all-targets --release -- -D warnings
+	cargo clippy --workspace --all-targets --all-features --release -- -D warnings
 
 .PHONY: check check-release
 # Check code with debug profile

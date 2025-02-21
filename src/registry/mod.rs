@@ -4,36 +4,7 @@
 //! It supports organizing metrics hierarchically using namespaces and subsystems,
 //! and allows attaching constant labels to groups of metrics.
 //!
-//! # Examples
-//!
-//! ```rust
-//! # use openmetrics_client::{
-//! #     metrics::counter::Counter,
-//! #     registry::{Registry, RegistryError},
-//! # };
-//! #
-//! # fn main() -> Result<(), RegistryError> {
-//!
-//! let mut registry = Registry::builder()
-//!     .with_namespace("myapp")
-//!     .with_const_labels([("env", "prod")])
-//!     .build();
-//! assert_eq!(registry.namespace(), Some("myapp"));
-//!
-//! // Create a subsystem for HTTP metrics
-//! let http = registry.subsystem("http");
-//! assert_eq!(http.namespace(), "myapp_http");
-//! // Create a nested subsystem for HTTP server metrics
-//! let server = http.subsystem("server");
-//! assert_eq!(server.namespace(), "myapp_http_server");
-//!
-//! // Register metrics with automatic prefixing:
-//! // This will create a metric called `myapp_http_server_requests_total`
-//! let http_requests = <Counter>::default();
-//! server.register("requests", "Total HTTP requests", http_requests.clone())?;
-//! # Ok(())
-//! # }
-//! ```
+//! See [`Registry`] for more details.
 
 mod errors;
 mod subsystem;
@@ -75,7 +46,10 @@ use crate::{
 /// #
 /// # fn main() -> Result<(), RegistryError> {
 /// // Create a registry with a `myapp` namespace
-/// let mut registry = Registry::builder().with_namespace("myapp").build();
+/// let mut registry = Registry::builder()
+///     .with_namespace("myapp")
+///     .with_const_labels([("env", "prod")])
+///     .build();
 /// assert_eq!(registry.namespace(), Some("myapp"));
 ///
 /// // Register metrics into the registry

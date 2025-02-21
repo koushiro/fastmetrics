@@ -1,6 +1,6 @@
 use std::fmt;
 
-/// TODO: doc
+/// Represents errors that can occur when registering metrics.
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub enum RegistryError {
@@ -10,7 +10,9 @@ pub enum RegistryError {
 impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AlreadyExists => write!(f, "Metric already exists"),
+            Self::AlreadyExists => {
+                f.write_str("The metric being registered already exists in the registry")
+            },
         }
     }
 }

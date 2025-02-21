@@ -11,19 +11,26 @@ use crate::{
     registry::{Registry, RegistrySystem},
 };
 
-/// Encodes metrics from a registry into the text exposition format.
+/// Encodes metrics from a registry into the [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
 ///
-/// This function takes a writer and registry and writes all metrics in the
-/// [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
+/// The text format is human-readable and follows the format:
+/// ```text
+/// # TYPE metric_name type
+/// # HELP metric_name help_text
+/// # UNIT metric_name unit
+/// metric_name{label="value"} value
+/// ```
 ///
 /// # Arguments
 ///
-/// * `writer` - The writer to output the encoded metrics to
-/// * `registry` - The registry containing the registered metrics to encode
+/// * `writer` - A mutable reference to any type implementing `fmt::Write` where the text format
+///   will be written.
+/// * `registry` - A reference to the [`Registry`] containing the metrics to encode.
 ///
 /// # Returns
 ///
-/// Returns a `fmt::Result` indicating success or failure of the write operations.
+/// Returns `Ok(())` if encoding was successful, or a [`fmt::Error`] if there was an error writing
+/// to the output.
 ///
 /// # Example
 ///
@@ -37,19 +44,25 @@ use crate::{
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let mut registry = Registry::default();
 ///
-/// let counter = <Counter>::default();
-/// registry.register("requests", "Number of requests", counter)?;
+/// // Register a counter
+/// let requests = <Counter>::default();
+/// registry.register(
+///     "http_requests_total",
+///     "Total number of HTTP requests",
+///     requests.clone()
+/// )?;
+/// // Update a counter
+/// requests.inc();
 ///
+/// // Encode metrics in text format
 /// let mut output = String::new();
 /// text::encode(&mut output, &registry)?;
+/// assert!(output.contains("http_requests_total"));
 /// # Ok(())
 /// # }
 /// ```
-pub fn encode<W>(writer: &mut W, registry: &Registry) -> fmt::Result
-where
-    W: fmt::Write,
-{
-    Encoder::<'_, W>::new(writer, registry).encode()
+pub fn encode(writer: &mut impl fmt::Write, registry: &Registry) -> fmt::Result {
+    Encoder::new(writer, registry).encode()
 }
 
 struct Encoder<'a, W> {
