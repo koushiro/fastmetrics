@@ -1,4 +1,7 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::{
+    borrow::Cow,
+    collections::hash_map::{self, HashMap},
+};
 
 use crate::{
     encoder::EncodeMetric,
@@ -44,7 +47,7 @@ pub struct RegistrySystem {
     pub(crate) namespace: String,
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 
-    pub(crate) metrics: Vec<(Metadata, Box<dyn EncodeMetric + 'static>)>,
+    pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
     pub(crate) subsystems: HashMap<String, RegistrySystem>,
 }
 
@@ -86,7 +89,7 @@ impl RegistrySystemBuilder {
         RegistrySystem {
             namespace,
             const_labels: self.const_labels,
-            metrics: vec![],
+            metrics: HashMap::new(),
             subsystems: HashMap::new(),
         }
     }
@@ -159,23 +162,24 @@ impl RegistrySystem {
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let metadata = Metadata::new(name, help, metric.metric_type(), unit);
-        self.metrics.push((metadata, Box::new(metric)));
-        Ok(self)
+        match self.metrics.entry(metadata) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(Box::new(metric));
+                Ok(self)
+            },
+            hash_map::Entry::Occupied(_) => Err(RegistryError::AlreadyExists),
+        }
     }
 
     /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut Self {
         let name = name.into();
-        if self.subsystems.contains_key(&name) {
-            self.subsystems.get_mut(&name).expect("subsystem must exist")
-        } else {
-            let subsystem = RegistrySystem::builder(name.clone())
+        self.subsystems.entry(name.clone()).or_insert(
+            RegistrySystem::builder(name)
                 .with_prefix(Some(self.namespace.clone()))
                 .with_const_labels(self.const_labels.clone())
-                .build();
-            self.subsystems.insert(name.clone(), subsystem);
-            self.subsystems.get_mut(&name).expect("subsystem must exist")
-        }
+                .build(),
+        )
     }
 
     /// Returns the current `namespace` of [`RegistrySystem`].

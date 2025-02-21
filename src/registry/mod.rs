@@ -38,7 +38,10 @@
 mod errors;
 mod subsystem;
 
-use std::{borrow::Cow, collections::HashMap};
+use std::{
+    borrow::Cow,
+    collections::hash_map::{self, HashMap},
+};
 
 pub use self::{errors::*, subsystem::*};
 use crate::{
@@ -101,7 +104,7 @@ use crate::{
 pub struct Registry {
     namespace: Option<String>,
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
-    pub(crate) metrics: Vec<(Metadata, Box<dyn EncodeMetric + 'static>)>,
+    pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
     pub(crate) subsystems: HashMap<String, RegistrySystem>,
 }
 
@@ -139,8 +142,8 @@ impl RegistryBuilder {
         Registry {
             namespace: self.namespace,
             const_labels: self.const_labels,
-            metrics: vec![],
-            subsystems: HashMap::new(),
+            metrics: HashMap::default(),
+            subsystems: HashMap::default(),
         }
     }
 }
@@ -180,8 +183,13 @@ impl Registry {
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let metadata = Metadata::new(name, help, metric.metric_type(), unit);
-        self.metrics.push((metadata, Box::new(metric)));
-        Ok(self)
+        match self.metrics.entry(metadata) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(Box::new(metric));
+                Ok(self)
+            },
+            hash_map::Entry::Occupied(_) => Err(RegistryError::AlreadyExists),
+        }
     }
 
     /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
@@ -207,16 +215,12 @@ impl Registry {
     /// ```
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut RegistrySystem {
         let name = name.into();
-        if self.subsystems.contains_key(&name) {
-            self.subsystems.get_mut(&name).expect("subsystem must exist")
-        } else {
-            let subsystem = RegistrySystem::builder(name.clone())
+        self.subsystems.entry(name.clone()).or_insert(
+            RegistrySystem::builder(name)
                 .with_prefix(self.namespace.clone())
                 .with_const_labels(self.const_labels.clone())
-                .build();
-            self.subsystems.insert(name.clone(), subsystem);
-            self.subsystems.get_mut(&name).expect("subsystem must exist")
-        }
+                .build(),
+        )
     }
 
     /// Returns the current `namespace` of [`Registry`].

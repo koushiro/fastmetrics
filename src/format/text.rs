@@ -341,9 +341,7 @@ where
         self.encode_metric_name()?;
         self.encode_suffix("info")?;
         self.encode_label_set(Some(label_set))?;
-
-        self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(1))?;
+        self.writer.write_str(" 1")?;
         self.encode_newline()?;
         Ok(())
     }
