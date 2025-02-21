@@ -174,12 +174,12 @@ impl RegistrySystem {
     /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut Self {
         let name = name.into();
-        self.subsystems.entry(name.clone()).or_insert(
+        self.subsystems.entry(name).or_insert_with_key(|name| {
             RegistrySystem::builder(name)
                 .with_prefix(Some(self.namespace.clone()))
                 .with_const_labels(self.const_labels.clone())
-                .build(),
-        )
+                .build()
+        })
     }
 
     /// Returns the current `namespace` of [`RegistrySystem`].
