@@ -32,7 +32,7 @@
 use std::{
     collections::HashMap,
     fmt::{self, Debug},
-    hash::Hash,
+    hash::{Hash, Hasher},
     sync::Arc,
 };
 
@@ -43,7 +43,7 @@ use crate::metrics::{MetricType, TypedMetric};
 /// The metadata of a metric family.
 ///
 /// There are four pieces of metadata: name, TYPE, UNIT and HELP.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Metadata {
     /// Name of metric.
     pub(crate) name: String,
@@ -53,6 +53,14 @@ pub struct Metadata {
     pub(crate) ty: MetricType,
     /// Optional unit of metric.
     pub(crate) unit: Option<Unit>,
+}
+
+impl Hash for Metadata {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.ty.hash(state);
+        self.unit.hash(state);
+    }
 }
 
 impl Metadata {
@@ -70,7 +78,7 @@ impl Metadata {
 /// [Open Metrics units](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#units-and-base-units).
 #[allow(missing_docs)]
 #[non_exhaustive]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Unit {
     Seconds,
     Bytes,
