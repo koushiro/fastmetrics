@@ -2,8 +2,6 @@
 
 use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
 
-use prost::bytes::BufMut;
-
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
@@ -63,7 +61,10 @@ pub mod openmetrics_data_model {
 /// # Ok(())
 /// # }
 /// ```
-pub fn encode(buffer: &mut impl BufMut, registry: &Registry) -> Result<(), prost::EncodeError> {
+pub fn encode(
+    buffer: &mut impl prost::bytes::BufMut,
+    registry: &Registry,
+) -> Result<(), prost::EncodeError> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     let mut encoder = Encoder::new(&mut metric_set, registry);
     encoder.encode().expect("fmt::Error should not be encountered");
