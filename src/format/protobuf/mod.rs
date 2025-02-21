@@ -21,9 +21,7 @@ pub mod openmetrics_data_model {
     include!(concat!(env!("OUT_DIR"), "/openmetrics.rs"));
 }
 
-/// Encodes metrics from a registry into the protobuf exposition format.
-///
-/// This function encodes metrics in the [OpenMetrics protobuf format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format).
+/// Encodes metrics from a registry into the [OpenMetrics protobuf format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format).
 ///
 /// # Arguments
 ///

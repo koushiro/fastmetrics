@@ -11,9 +11,8 @@ use crate::{
     registry::{Registry, RegistrySystem},
 };
 
-/// Encodes metrics from a registry into the text exposition format.
+/// Encodes metrics from a registry into the [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
 ///
-/// This function encodes metrics in the [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
 /// The text format is human-readable and follows the format:
 /// ```text
 /// # TYPE metric_name type
