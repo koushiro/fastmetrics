@@ -5,9 +5,9 @@
 //! See [`Family`] for more details.
 
 use std::{
-    collections::HashMap,
+    collections::hash_map::{HashMap, RandomState},
     fmt::{self, Debug},
-    hash::{BuildHasher, Hash, Hasher, RandomState},
+    hash::{BuildHasher, Hash, Hasher},
     sync::Arc,
 };
 
