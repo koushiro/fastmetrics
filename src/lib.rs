@@ -48,7 +48,8 @@
 //! registry.register("requests", "Total requests processed", requests.clone())?;
 //!
 //! // Create a metric family for tracking requests with labels
-//! let requests_by_path = Family::<Vec<(String, String)>, Counter>::default();
+//! type Labels = Vec<(&'static str, &'static str)>;
+//! let requests_by_path = Family::<Labels, Counter>::default();
 //! registry.register(
 //!     "requests_by_path",
 //!     "Requests broken down by path",
@@ -57,14 +58,16 @@
 //!
 //! // Update metrics
 //! requests.inc();
-//! requests_by_path
-//!     .get_or_create(&vec![("path".into(), "/api/v1/users".into())])
-//!     .inc();
+//! assert_eq!(requests.total(), 1);
+//!
+//! let labels = vec![("path", "/api/v1/users")];
+//! requests_by_path.with_or_default(&labels, |req| req.inc());
+//! assert_eq!(requests_by_path.with(&labels, |req| req.total()), Some(1));
 //!
 //! // Export metrics in text format
 //! let mut output = String::new();
 //! text::encode(&mut output, &registry)?;
-//! println!("{}", output);
+//! // println!("{}", output);
 //! # Ok(())
 //! # }
 //! ```
