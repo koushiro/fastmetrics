@@ -91,10 +91,16 @@ impl<N: CounterValue> Counter<N> {
         self.total.inc_by(v)
     }
 
+    /// Gets the current `total` value of the [`Counter`].
+    #[inline]
+    pub fn total(&self) -> N {
+        self.total.get()
+    }
+
     /// Gets the current `total` value and optional `created` value of the [`Counter`].
     #[inline]
     pub fn get(&self) -> (N, Option<Duration>) {
-        (self.total.get(), self.created)
+        (self.total(), self.created)
     }
 }
 
@@ -139,10 +145,16 @@ impl<N: CounterValue> ConstCounter<N> {
         }
     }
 
+    /// Gets the current `total` value of the [`ConstCounter`].
+    #[inline]
+    pub const fn total(&self) -> N {
+        self.total
+    }
+
     /// Gets the current `total` value and optional `created` value of the [`ConstCounter`].
     #[inline]
     pub const fn get(&self) -> (N, Option<Duration>) {
-        (self.total, self.created)
+        (self.total(), self.created)
     }
 }
 
@@ -208,10 +220,16 @@ impl<N: CounterValue> LocalCounter<N> {
         self.total.replace(new)
     }
 
+    /// Gets the current `total` value of the [`LocalCounter`].
+    #[inline]
+    pub fn total(&self) -> N {
+        self.total.get()
+    }
+
     /// Gets the current `total` value and optional `created` value of the [`LocalCounter`].
     #[inline]
     pub fn get(&self) -> (N, Option<Duration>) {
-        (self.total.get(), self.created)
+        (self.total(), self.created)
     }
 }
 

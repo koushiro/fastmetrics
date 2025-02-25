@@ -29,30 +29,6 @@
 //! [GaugeHistogram]: self::gauge_histogram
 //! [Summary]: self::summary
 //! [Family]: self::family::Family
-//!
-//! # Example
-//!
-//! ```rust
-//! use openmetrics_client::metrics::{
-//!     counter::Counter,
-//!     gauge::Gauge,
-//!     family::Family,
-//! };
-//!
-//! // Create a simple counter
-//! let requests = <Counter>::default();
-//! requests.inc();
-//!
-//! // Create a gauge with an initial value
-//! let temperature = Gauge::<f64>::new(23.5);
-//! temperature.set(24.0);
-//!
-//! // Create a family of counters with labels
-//! let requests_by_path = Family::<Vec<(String, String)>, Counter>::default();
-//! requests_by_path
-//!     .get_or_create(&vec![("path".into(), "/api/users".into())])
-//!     .inc();
-//! ```
 
 pub mod family;
 pub mod raw;

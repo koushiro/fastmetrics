@@ -215,15 +215,15 @@ impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<LS, M> EncodeMetric for Family<LS, M>
+impl<LS, M, S> EncodeMetric for Family<LS, M, S>
 where
     LS: EncodeLabelSet,
     M: EncodeMetric + TypedMetric,
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let guard = self.read();
-        for (label_set, metric) in guard.iter() {
-            let mut encoder = encoder.encode_family(label_set)?;
+        for (labels, metric) in guard.iter() {
+            let mut encoder = encoder.encode_family(labels)?;
             metric.encode(encoder.as_mut())?;
         }
         Ok(())
