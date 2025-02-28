@@ -156,7 +156,7 @@ where
         self.writer.write_str("# HELP ")?;
         self.encode_metric_name(metadata)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(&metadata.help())?;
+        self.writer.write_str(metadata.help())?;
         self.encode_newline()?;
         Ok(())
     }
