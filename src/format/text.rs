@@ -1,6 +1,6 @@
 //! Text exposition format.
 
-use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
+use std::{borrow::Cow, collections::HashMap, fmt, fmt::Write, time::Duration};
 
 use crate::{
     encoder::{
@@ -9,7 +9,11 @@ use crate::{
     },
     metrics::{
         family::{Metadata, Unit},
-        raw::Bucket,
+        raw::{
+            bucket::{Bucket, BUCKET_LABEL},
+            quantile::Quantile,
+        },
+        summary::QUANTILE_LABEL,
     },
     registry::{Registry, RegistrySystem},
 };
@@ -366,21 +370,70 @@ where
         // encode bucket metrics
         let mut cumulative_count = 0;
         for bucket in buckets {
-            let upper_bound = bucket.upper_bound;
-            let bucket_count = bucket.count;
+            let upper_bound = bucket.upper_bound();
+            let bucket_count = bucket.count();
             self.encode_metric_name()?;
             self.encode_suffix("bucket")?;
 
             if upper_bound == f64::INFINITY {
-                self.encode_label_set(Some(&[("le", "+Inf")]))?;
+                self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
             } else {
-                self.encode_label_set(Some(&[("le", ryu::Buffer::new().format(upper_bound))]))?;
+                self.encode_label_set(Some(&[(
+                    BUCKET_LABEL,
+                    ryu::Buffer::new().format(upper_bound),
+                )]))?;
             }
 
             self.writer.write_str(" ")?;
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_newline()?;
+        }
+
+        // encode `*_sum` metric
+        self.encode_metric_name()?;
+        self.encode_suffix("sum")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.encode_newline()?;
+
+        // encode `*_count` metric
+        self.encode_metric_name()?;
+        self.encode_suffix("count")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(itoa::Buffer::new().format(count))?;
+        self.encode_newline()?;
+
+        // encode `*_created` metric if available
+        if let Some(created) = created {
+            self.encode_metric_name()?;
+            self.encode_suffix("created")?;
+            self.encode_label_set(None)?;
+            self.writer.write_str(" ")?;
+            self.encode_unix_timestamp(created)?;
+            self.encode_newline()?;
+        }
+        Ok(())
+    }
+
+    fn encode_summary(
+        &mut self,
+        quantiles: &[Quantile],
+        sum: f64,
+        count: u64,
+        created: Option<Duration>,
+    ) -> fmt::Result {
+        // encode quantile metrics
+        for quantile in quantiles {
+            self.encode_metric_name()?;
+            self.encode_label_set(Some(&[(
+                QUANTILE_LABEL,
+                dtoa::Buffer::new().format(quantile.quantile()),
+            )]))?;
+            self.writer.write_str(" ")?;
+            self.writer.write_str(dtoa::Buffer::new().format(quantile.value()))?;
         }
 
         // encode `*_sum` metric

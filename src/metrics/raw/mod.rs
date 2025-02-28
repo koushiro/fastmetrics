@@ -5,7 +5,8 @@
 //! metric types provided by the crate.
 
 mod atomic;
-pub(crate) mod bucket;
+pub mod bucket;
 mod number;
+pub mod quantile;
 
-pub use self::{atomic::Atomic, bucket::Bucket, number::Number};
+pub use self::{atomic::Atomic, number::Number};

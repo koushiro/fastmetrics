@@ -7,7 +7,11 @@ use crate::{
         self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
         EncodeUnknownValue, MetricFamilyEncoder as _,
     },
-    metrics::{family::Metadata, raw::Bucket, MetricType},
+    metrics::{
+        family::Metadata,
+        raw::{bucket::Bucket, quantile::Quantile},
+        MetricType,
+    },
     registry::{Registry, RegistrySystem},
 };
 
@@ -323,6 +327,41 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                         buckets,
                         count,
                         sum: Some(openmetrics_data_model::histogram_value::Sum::DoubleValue(sum)),
+                        created: created.map(|dur| prost_types::Timestamp {
+                            seconds: dur.as_secs() as i64,
+                            nanos: dur.subsec_nanos() as i32,
+                        }),
+                    },
+                )),
+                ..Default::default()
+            }],
+        });
+        Ok(())
+    }
+
+    fn encode_summary(
+        &mut self,
+        quantiles: &[Quantile],
+        sum: f64,
+        count: u64,
+        created: Option<Duration>,
+    ) -> fmt::Result {
+        let quantile = quantiles
+            .iter()
+            .map(|q| openmetrics_data_model::summary_value::Quantile {
+                quantile: q.quantile(),
+                value: q.value(),
+            })
+            .collect::<Vec<_>>();
+
+        self.metrics.push(openmetrics_data_model::Metric {
+            labels: self.labels.clone(),
+            metric_points: vec![openmetrics_data_model::MetricPoint {
+                value: Some(openmetrics_data_model::metric_point::Value::SummaryValue(
+                    openmetrics_data_model::SummaryValue {
+                        quantile,
+                        count,
+                        sum: Some(openmetrics_data_model::summary_value::Sum::DoubleValue(sum)),
                         created: created.map(|dur| prost_types::Timestamp {
                             seconds: dur.as_secs() as i64,
                             nanos: dur.subsec_nanos() as i32,
