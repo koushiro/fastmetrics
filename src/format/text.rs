@@ -147,7 +147,7 @@ where
         self.writer.write_str("# TYPE ")?;
         self.encode_metric_name(metadata)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(metadata.ty.as_str())?;
+        self.writer.write_str(metadata.metric_type().as_str())?;
         self.encode_newline()?;
         Ok(())
     }
@@ -156,13 +156,13 @@ where
         self.writer.write_str("# HELP ")?;
         self.encode_metric_name(metadata)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(&metadata.help)?;
+        self.writer.write_str(metadata.help())?;
         self.encode_newline()?;
         Ok(())
     }
 
     fn encode_unit(&mut self, metadata: &Metadata) -> fmt::Result {
-        if let Some(unit) = &metadata.unit {
+        if let Some(unit) = metadata.unit() {
             self.writer.write_str("# UNIT ")?;
             self.encode_metric_name(metadata)?;
             self.writer.write_str(" ")?;
@@ -176,8 +176,8 @@ where
         MetricNameEncoder {
             writer: self.writer,
             namespace: self.namespace,
-            name: &metadata.name,
-            unit: metadata.unit.as_ref(),
+            name: metadata.name(),
+            unit: metadata.unit(),
         }
         .encode()
     }
@@ -202,8 +202,8 @@ where
         Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
             namespace: self.namespace,
-            name: &metadata.name,
-            unit: metadata.unit.as_ref(),
+            name: metadata.name(),
+            unit: metadata.unit(),
             const_labels: self.const_labels,
             family_labels: None,
         }))

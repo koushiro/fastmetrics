@@ -163,20 +163,20 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
         let family = openmetrics_data_model::MetricFamily {
             name: {
                 match self.namespace {
-                    Some(namespace) => format!("{}_{}", namespace, metadata.name),
-                    None => metadata.name.clone(),
+                    Some(namespace) => format!("{}_{}", namespace, metadata.name()),
+                    None => metadata.name().to_owned(),
                 }
             },
             r#type: {
-                let metric_type: openmetrics_data_model::MetricType = metadata.ty.into();
+                let metric_type: openmetrics_data_model::MetricType = metadata.metric_type().into();
                 metric_type as i32
             },
-            unit: if let Some(unit) = &metadata.unit {
+            unit: if let Some(unit) = metadata.unit() {
                 unit.as_str().to_owned()
             } else {
                 String::new()
             },
-            help: metadata.help.clone(),
+            help: metadata.help().to_owned(),
             metrics: vec![],
         };
         self.metric_families.push(family);
@@ -185,7 +185,7 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
         self.const_labels.encode(&mut LabelSetEncoder { labels: &mut labels })?;
 
         Ok(Box::new(MetricEncoder {
-            metric_type: metadata.ty,
+            metric_type: metadata.metric_type(),
             metrics: &mut self
                 .metric_families
                 .last_mut()
