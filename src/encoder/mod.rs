@@ -7,8 +7,8 @@ use std::{fmt, time::Duration};
 
 pub use self::{label_set::*, number::*};
 use crate::metrics::{
-    counter::*, family::*, gauge::*, histogram::*, info::*, state_set::*, unknown::*, MetricType,
-    TypedMetric,
+    counter::*, family::*, gauge::*, histogram::*, info::*, state_set::*, summary::*, unknown::*,
+    MetricType, TypedMetric,
 };
 
 /// Trait for encoding metric metadata.
@@ -65,6 +65,15 @@ pub trait MetricEncoder {
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
+        sum: f64,
+        count: u64,
+        created: Option<Duration>,
+    ) -> fmt::Result;
+
+    /// Encodes a summary metric.
+    fn encode_summary(
+        &mut self,
+        quantiles: &[Quantile],
         sum: f64,
         count: u64,
         created: Option<Duration>,

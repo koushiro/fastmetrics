@@ -1,4 +1,9 @@
+//! TODO: doc
+
 use std::iter;
+
+/// The label that defines the upper bound of a bucket of a histogram ("le" -> "less or equal").
+pub const BUCKET_LABEL: &str = "le";
 
 /// The default buckets are tailored to broadly measure the response time (in seconds) of a network
 /// service.
@@ -124,8 +129,8 @@ pub fn exponential_buckets_range(min: f64, max: f64, count: usize) -> impl Itera
 /// For the first bucket, the range starts at negative infinity.
 #[derive(Copy, Clone, Debug)]
 pub struct Bucket {
-    pub(crate) upper_bound: f64,
-    pub(crate) count: u64,
+    upper_bound: f64,
+    count: u64,
 }
 
 impl Bucket {
