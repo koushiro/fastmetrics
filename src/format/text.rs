@@ -274,11 +274,32 @@ where
         Ok(())
     }
 
-    fn encode_unix_timestamp(&mut self, duration: Duration) -> fmt::Result {
+    fn encode_sum(&mut self, sum: f64) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("sum")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        Ok(())
+    }
+
+    fn encode_count(&mut self, count: u64) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("count")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(itoa::Buffer::new().format(count))?;
+        Ok(())
+    }
+
+    fn encode_created(&mut self, created: Duration) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("created")?;
+        self.encode_label_set(None)?;
         self.writer.write_fmt(format_args!(
-            "{}.{}",
-            duration.as_secs(),
-            duration.as_millis() % 1000
+            " {}.{}",
+            created.as_secs(),
+            created.as_millis() % 1000
         ))?;
         Ok(())
     }
@@ -326,11 +347,7 @@ where
 
         // encode `*_created` metric if available
         if let Some(created) = created {
-            self.encode_metric_name()?;
-            self.encode_suffix("created")?;
-            self.encode_label_set(None)?;
-            self.writer.write_str(" ")?;
-            self.encode_unix_timestamp(created)?;
+            self.encode_created(created)?;
             self.encode_newline()?;
         }
         Ok(())
@@ -391,28 +408,16 @@ where
         }
 
         // encode `*_sum` metric
-        self.encode_metric_name()?;
-        self.encode_suffix("sum")?;
-        self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.encode_sum(sum)?;
         self.encode_newline()?;
 
         // encode `*_count` metric
-        self.encode_metric_name()?;
-        self.encode_suffix("count")?;
-        self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(count))?;
+        self.encode_count(count)?;
         self.encode_newline()?;
 
         // encode `*_created` metric if available
         if let Some(created) = created {
-            self.encode_metric_name()?;
-            self.encode_suffix("created")?;
-            self.encode_label_set(None)?;
-            self.writer.write_str(" ")?;
-            self.encode_unix_timestamp(created)?;
+            self.encode_created(created)?;
             self.encode_newline()?;
         }
         Ok(())
@@ -434,31 +439,20 @@ where
             )]))?;
             self.writer.write_str(" ")?;
             self.writer.write_str(dtoa::Buffer::new().format(quantile.value()))?;
+            self.encode_newline()?;
         }
 
         // encode `*_sum` metric
-        self.encode_metric_name()?;
-        self.encode_suffix("sum")?;
-        self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.encode_sum(sum)?;
         self.encode_newline()?;
 
         // encode `*_count` metric
-        self.encode_metric_name()?;
-        self.encode_suffix("count")?;
-        self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(count))?;
+        self.encode_count(count)?;
         self.encode_newline()?;
 
         // encode `*_created` metric if available
         if let Some(created) = created {
-            self.encode_metric_name()?;
-            self.encode_suffix("created")?;
-            self.encode_label_set(None)?;
-            self.writer.write_str(" ")?;
-            self.encode_unix_timestamp(created)?;
+            self.encode_created(created)?;
             self.encode_newline()?;
         }
         Ok(())
