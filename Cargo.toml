@@ -26,3 +26,4 @@ parking_lot = "0.12"
 paste = "1.0"
 prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
+ryu = "1.0"

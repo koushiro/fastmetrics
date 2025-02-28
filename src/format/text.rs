@@ -7,7 +7,10 @@ use crate::{
         self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
         EncodeUnknownValue, MetricFamilyEncoder as _,
     },
-    metrics::family::{Metadata, Unit},
+    metrics::{
+        family::{Metadata, Unit},
+        raw::Bucket,
+    },
     registry::{Registry, RegistrySystem},
 };
 
@@ -289,7 +292,6 @@ where
     fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
-
         self.writer.write_str(" ")?;
         value.encode(&mut UnknownValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
@@ -299,7 +301,6 @@ where
     fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
-
         self.writer.write_str(" ")?;
         value.encode(&mut GaugeValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
@@ -315,17 +316,15 @@ where
         self.encode_metric_name()?;
         self.encode_suffix("total")?;
         self.encode_label_set(None)?;
-
         self.writer.write_str(" ")?;
         total.encode(&mut CounterValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
 
-        // encode `*_created` metric
+        // encode `*_created` metric if available
         if let Some(created) = created {
             self.encode_metric_name()?;
             self.encode_suffix("created")?;
             self.encode_label_set(None)?;
-
             self.writer.write_str(" ")?;
             self.encode_unix_timestamp(created)?;
             self.encode_newline()?;
@@ -333,17 +332,15 @@ where
         Ok(())
     }
 
-    fn encode_stateset(&mut self, states: &[(&str, bool)]) -> fmt::Result {
+    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
         for (state, enabled) in states {
             self.encode_metric_name()?;
-            self.encode_label_set(Some(&[(self.name, *state)]))?;
-
+            self.encode_label_set(Some(&[(self.name, state)]))?;
             self.writer.write_str(" ")?;
-            let mut buffer = itoa::Buffer::new();
-            if *enabled {
-                self.writer.write_str(buffer.format(1))?;
+            if enabled {
+                self.writer.write_str(itoa::Buffer::new().format(1))?;
             } else {
-                self.writer.write_str(buffer.format(0))?;
+                self.writer.write_str(itoa::Buffer::new().format(0))?;
             }
             self.encode_newline()?;
         }
@@ -356,6 +353,61 @@ where
         self.encode_label_set(Some(label_set))?;
         self.writer.write_str(" 1")?;
         self.encode_newline()?;
+        Ok(())
+    }
+
+    fn encode_histogram(
+        &mut self,
+        buckets: &[Bucket],
+        sum: f64,
+        count: u64,
+        created: Option<Duration>,
+    ) -> fmt::Result {
+        // encode bucket metrics
+        let mut cumulative_count = 0;
+        for bucket in buckets {
+            let upper_bound = bucket.upper_bound;
+            let bucket_count = bucket.count;
+            self.encode_metric_name()?;
+            self.encode_suffix("bucket")?;
+
+            if upper_bound == f64::INFINITY {
+                self.encode_label_set(Some(&[("le", "+Inf")]))?;
+            } else {
+                self.encode_label_set(Some(&[("le", ryu::Buffer::new().format(upper_bound))]))?;
+            }
+
+            self.writer.write_str(" ")?;
+            cumulative_count += bucket_count;
+            self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
+            self.encode_newline()?;
+        }
+
+        // encode `*_sum` metric
+        self.encode_metric_name()?;
+        self.encode_suffix("sum")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.encode_newline()?;
+
+        // encode `*_count` metric
+        self.encode_metric_name()?;
+        self.encode_suffix("count")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(itoa::Buffer::new().format(count))?;
+        self.encode_newline()?;
+
+        // encode `*_created` metric if available
+        if let Some(created) = created {
+            self.encode_metric_name()?;
+            self.encode_suffix("created")?;
+            self.encode_label_set(None)?;
+            self.writer.write_str(" ")?;
+            self.encode_unix_timestamp(created)?;
+            self.encode_newline()?;
+        }
         Ok(())
     }
 

@@ -7,7 +7,7 @@ use crate::{
         self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
         EncodeUnknownValue, MetricFamilyEncoder as _,
     },
-    metrics::{family::Metadata, MetricType},
+    metrics::{family::Metadata, raw::Bucket, MetricType},
     registry::{Registry, RegistrySystem},
 };
 
@@ -216,7 +216,6 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 ..Default::default()
             }],
         });
-
         Ok(())
     }
 
@@ -233,7 +232,6 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 ..Default::default()
             }],
         });
-
         Ok(())
     }
 
@@ -261,14 +259,13 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 ..Default::default()
             }],
         });
-
         Ok(())
     }
 
-    fn encode_stateset(&mut self, states: &[(&str, bool)]) -> fmt::Result {
+    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
         let states = states
-            .iter()
-            .map(|&(state, enabled)| openmetrics_data_model::state_set_value::State {
+            .into_iter()
+            .map(|(state, enabled)| openmetrics_data_model::state_set_value::State {
                 name: state.to_owned(),
                 enabled,
             })
@@ -283,7 +280,6 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 ..Default::default()
             }],
         });
-
         Ok(())
     }
 
@@ -300,7 +296,42 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 ..Default::default()
             }],
         });
+        Ok(())
+    }
 
+    fn encode_histogram(
+        &mut self,
+        buckets: &[Bucket],
+        sum: f64,
+        count: u64,
+        created: Option<Duration>,
+    ) -> fmt::Result {
+        let buckets = buckets
+            .iter()
+            .map(|b| openmetrics_data_model::histogram_value::Bucket {
+                count: b.count(),
+                upper_bound: b.upper_bound(),
+                exemplar: None,
+            })
+            .collect::<Vec<_>>();
+
+        self.metrics.push(openmetrics_data_model::Metric {
+            labels: self.labels.clone(),
+            metric_points: vec![openmetrics_data_model::MetricPoint {
+                value: Some(openmetrics_data_model::metric_point::Value::HistogramValue(
+                    openmetrics_data_model::HistogramValue {
+                        buckets,
+                        count,
+                        sum: Some(openmetrics_data_model::histogram_value::Sum::DoubleValue(sum)),
+                        created: created.map(|dur| prost_types::Timestamp {
+                            seconds: dur.as_secs() as i64,
+                            nanos: dur.subsec_nanos() as i32,
+                        }),
+                    },
+                )),
+                ..Default::default()
+            }],
+        });
         Ok(())
     }
 
