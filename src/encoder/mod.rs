@@ -7,7 +7,8 @@ use std::{fmt, time::Duration};
 
 pub use self::{label_set::*, number::*};
 use crate::metrics::{
-    counter::*, family::*, gauge::*, info::*, state_set::*, unknown::*, MetricType, TypedMetric,
+    counter::*, family::*, gauge::*, histogram::*, info::*, state_set::*, unknown::*, MetricType,
+    TypedMetric,
 };
 
 /// Trait for encoding metric metadata.
@@ -55,10 +56,19 @@ pub trait MetricEncoder {
     ) -> fmt::Result;
 
     /// Encodes a stateset metric.
-    fn encode_stateset(&mut self, states: &[(&str, bool)]) -> fmt::Result;
+    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result;
 
     /// Encodes an info metric.
     fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result;
+
+    /// Encodes a histogram metric.
+    fn encode_histogram(
+        &mut self,
+        buckets: &[Bucket],
+        sum: f64,
+        count: u64,
+        created: Option<Duration>,
+    ) -> fmt::Result;
 
     /// Creates an encoder for a metric family with the specified label set.
     fn encode_family<'s>(
@@ -163,7 +173,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for LocalCounter<N> {
 impl<T: StateSetValue> EncodeMetric for StateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let states = self.get();
-        encoder.encode_stateset(&states)
+        encoder.encode_stateset(states)
     }
 
     fn metric_type(&self) -> MetricType {
@@ -174,7 +184,7 @@ impl<T: StateSetValue> EncodeMetric for StateSet<T> {
 impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let states = self.get();
-        encoder.encode_stateset(&states)
+        encoder.encode_stateset(states)
     }
 
     fn metric_type(&self) -> MetricType {
@@ -185,7 +195,7 @@ impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
 impl<T: StateSetValue> EncodeMetric for LocalStateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let states = self.get();
-        encoder.encode_stateset(&states)
+        encoder.encode_stateset(states)
     }
 
     fn metric_type(&self) -> MetricType {
