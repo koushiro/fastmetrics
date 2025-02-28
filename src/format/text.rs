@@ -11,9 +11,8 @@ use crate::{
         family::{Metadata, Unit},
         raw::{
             bucket::{Bucket, BUCKET_LABEL},
-            quantile::Quantile,
+            quantile::{Quantile, QUANTILE_LABEL},
         },
-        summary::QUANTILE_LABEL,
     },
     registry::{Registry, RegistrySystem},
 };
