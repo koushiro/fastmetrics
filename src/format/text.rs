@@ -1,6 +1,6 @@
 //! Text exposition format.
 
-use std::{borrow::Cow, collections::HashMap, fmt, fmt::Write, time::Duration};
+use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
 
 use crate::{
     encoder::{
