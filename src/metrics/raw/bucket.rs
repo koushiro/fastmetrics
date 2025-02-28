@@ -3,8 +3,8 @@ use std::iter;
 /// The default buckets are tailored to broadly measure the response time (in seconds) of a network
 /// service.
 /// Most likely, however, you will be required to define buckets customized to your use case.
-pub const DEFAULT_BUCKETS: &[f64; 11] =
-    &[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
+pub const DEFAULT_BUCKETS: [f64; 11] =
+    [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
 
 /// Creates linearly spaced histogram buckets.
 ///
@@ -117,11 +117,43 @@ pub fn exponential_buckets_range(min: f64, max: f64, count: usize) -> impl Itera
         .take(count)
 }
 
-/// Bucket is the number of values for a bucket in the histogram with an optional exemplar.
-#[allow(unused)]
-pub(crate) struct Bucket {
+/// A histogram bucket that tracks the count of observations within its bounds.
+///
+/// Each bucket is defined by an upper bound and maintains a count of observations
+/// that fall into the range (previous_bucket_upper_bound, current_bucket_upper_bound].
+/// For the first bucket, the range starts at negative infinity.
+#[derive(Copy, Clone, Debug)]
+pub struct Bucket {
     pub(crate) upper_bound: f64,
     pub(crate) count: u64,
+}
+
+impl Bucket {
+    /// Creates a new histogram bucket with the specified upper bound and initial count.
+    ///
+    /// # Arguments
+    ///
+    /// * `upper_bound` - The upper bound of this bucket
+    /// * `count` - The initial count of observations in this bucket
+    pub const fn new(upper_bound: f64, count: u64) -> Self {
+        Self { upper_bound, count }
+    }
+
+    /// Returns the upper bound of this bucket.
+    ///
+    /// The upper bound defines the maximum value that can be counted in this bucket.
+    /// Values less than or equal to this bound (but greater than the previous bucket's
+    /// upper bound) will be counted in this bucket.
+    pub const fn upper_bound(&self) -> f64 {
+        self.upper_bound
+    }
+
+    /// Returns the current count of observations in this bucket.
+    ///
+    /// This represents the number of observations that fall within this bucket's range.
+    pub const fn count(&self) -> u64 {
+        self.count
+    }
 }
 
 #[cfg(test)]

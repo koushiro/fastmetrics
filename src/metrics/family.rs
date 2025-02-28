@@ -20,14 +20,10 @@ use crate::metrics::{MetricType, TypedMetric};
 /// There are four pieces of metadata: name, TYPE, UNIT and HELP.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Metadata {
-    /// Name of metric.
-    pub(crate) name: String,
-    /// Help of metric.
-    pub(crate) help: String,
-    /// Type of metric.
-    pub(crate) ty: MetricType,
-    /// Optional unit of metric.
-    pub(crate) unit: Option<Unit>,
+    name: String,
+    help: String,
+    ty: MetricType,
+    unit: Option<Unit>,
 }
 
 impl Hash for Metadata {
@@ -39,7 +35,7 @@ impl Hash for Metadata {
 }
 
 impl Metadata {
-    /// Create a new [`Metadata`].
+    /// Creates a new [`Metadata`] of metric family.
     pub fn new(
         name: impl Into<String>,
         help: impl Into<String>,
@@ -47,6 +43,38 @@ impl Metadata {
         unit: Option<Unit>,
     ) -> Self {
         Self { name: name.into(), help: help.into() + ".", ty, unit }
+    }
+
+    /// Returns the name of the metric family.
+    ///
+    /// The name uniquely identifies the metric family in the registry and
+    /// is used when exposing metrics in the OpenMetrics format.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the help text of the metric family.
+    ///
+    /// The help text provides a description of what the metric measures and
+    /// is included in the OpenMetrics output as a HELP comment.
+    pub fn help(&self) -> &str {
+        &self.help
+    }
+
+    /// Returns the type of the metric family.
+    ///
+    /// The type indicates what kind of metric this is (Counter, Gauge, etc.) and
+    /// is included in the OpenMetrics output as a TYPE comment.
+    pub fn metric_type(&self) -> MetricType {
+        self.ty
+    }
+
+    /// Returns the optional unit of the metric family.
+    ///
+    /// The unit specifies the measurement unit for the metric values (e.g., seconds, bytes).
+    /// If present, it is included in the OpenMetrics output as part of the metric name.
+    pub fn unit(&self) -> Option<&Unit> {
+        self.unit.as_ref()
     }
 }
 
@@ -68,7 +96,7 @@ pub enum Unit {
 }
 
 impl Unit {
-    /// Return the string representation for the specified metric unit.
+    /// Returns the string representation for the specified metric unit.
     pub fn as_str(&self) -> &str {
         match self {
             Unit::Seconds => "seconds",
