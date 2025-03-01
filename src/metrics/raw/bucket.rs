@@ -1,4 +1,8 @@
-//! TODO: doc
+//! Provides bucket-related functionality for histogram metrics.
+//!
+//! This module contains implementations for histogram buckets, which are used to track
+//! the distribution of observations in histogram metrics. It also provides utilities
+//! for generating different types of bucket distributions (linear and exponential).
 
 use std::iter;
 
@@ -10,6 +14,52 @@ pub const BUCKET_LABEL: &str = "le";
 /// Most likely, however, you will be required to define buckets customized to your use case.
 pub const DEFAULT_BUCKETS: [f64; 11] =
     [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0];
+
+/// A histogram bucket that tracks the count of observations within its bounds.
+///
+/// Each bucket is defined by an upper bound and maintains a count of observations
+/// that fall into the range (previous_bucket_upper_bound, current_bucket_upper_bound].
+/// For the first bucket, the range starts at negative infinity.
+#[derive(Copy, Clone, Debug)]
+pub struct Bucket {
+    upper_bound: f64,
+    count: u64,
+}
+
+impl Bucket {
+    /// Creates a new histogram bucket with the specified upper bound and initial count.
+    ///
+    /// # Arguments
+    ///
+    /// * `upper_bound` - The upper bound of this bucket
+    /// * `count` - The initial count of observations in this bucket
+    pub const fn new(upper_bound: f64, count: u64) -> Self {
+        Self { upper_bound, count }
+    }
+
+    /// Increments the observation count in this bucket by one.
+    ///
+    /// This method is typically called when a new observation falls within this bucket's range.
+    pub fn inc(&mut self) {
+        self.count += 1;
+    }
+
+    /// Returns the upper bound of this bucket.
+    ///
+    /// The upper bound defines the maximum value that can be counted in this bucket.
+    /// Values less than or equal to this bound (but greater than the previous bucket's
+    /// upper bound) will be counted in this bucket.
+    pub const fn upper_bound(&self) -> f64 {
+        self.upper_bound
+    }
+
+    /// Returns the current count of observations in this bucket.
+    ///
+    /// This represents the number of observations that fall within this bucket's range.
+    pub const fn count(&self) -> u64 {
+        self.count
+    }
+}
 
 /// Creates linearly spaced histogram buckets.
 ///
@@ -120,45 +170,6 @@ pub fn exponential_buckets_range(min: f64, max: f64, count: usize) -> impl Itera
         .enumerate()
         .map(move |(next, _)| min * factor.powi(next as i32))
         .take(count)
-}
-
-/// A histogram bucket that tracks the count of observations within its bounds.
-///
-/// Each bucket is defined by an upper bound and maintains a count of observations
-/// that fall into the range (previous_bucket_upper_bound, current_bucket_upper_bound].
-/// For the first bucket, the range starts at negative infinity.
-#[derive(Copy, Clone, Debug)]
-pub struct Bucket {
-    upper_bound: f64,
-    count: u64,
-}
-
-impl Bucket {
-    /// Creates a new histogram bucket with the specified upper bound and initial count.
-    ///
-    /// # Arguments
-    ///
-    /// * `upper_bound` - The upper bound of this bucket
-    /// * `count` - The initial count of observations in this bucket
-    pub const fn new(upper_bound: f64, count: u64) -> Self {
-        Self { upper_bound, count }
-    }
-
-    /// Returns the upper bound of this bucket.
-    ///
-    /// The upper bound defines the maximum value that can be counted in this bucket.
-    /// Values less than or equal to this bound (but greater than the previous bucket's
-    /// upper bound) will be counted in this bucket.
-    pub const fn upper_bound(&self) -> f64 {
-        self.upper_bound
-    }
-
-    /// Returns the current count of observations in this bucket.
-    ///
-    /// This represents the number of observations that fall within this bucket's range.
-    pub const fn count(&self) -> u64 {
-        self.count
-    }
 }
 
 #[cfg(test)]

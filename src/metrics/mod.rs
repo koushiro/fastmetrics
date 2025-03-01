@@ -6,20 +6,20 @@
 //! - [Gauge]: Values that can go up and down (e.g., temperature)
 //! - [StateSet]: A set of states that can be active/inactive
 //! - [Info]: Static key-value information about the target
-//! - [Histogram] (TODO): Statistical distribution of values
+//! - [Histogram]: Statistical distribution of values
 //! - [GaugeHistogram] (TODO): Like histogram but values can decrease
 //! - [Summary] (TODO): Similar to histogram, with quantiles
 //!
 //! Each metric type comes in three variants:
 //!
-//! - Regular: Thread-safe metrics that can be shared between threads
+//! - `Regular`: Thread-safe metrics that can be shared between threads
 //! - `Const`: Immutable metrics with constant values
 //! - `Local`: Thread-local metrics for better performance
 //!
 //! The module also provides:
 //!
 //! - [Family]: Collections of metrics with the same name but different labels
-//! - Common traits and types used by all metrics
+//! - Common traits and raw types used by some metrics
 //!
 //! [Counter]: self::counter
 //! [Gauge]: self::gauge

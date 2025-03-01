@@ -226,7 +226,31 @@ impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Histogram && GaugeHistogram
+impl EncodeMetric for Histogram {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let (buckets, sum, count, created) = self.get();
+        encoder.encode_histogram(&buckets, sum, count, created)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Histogram
+    }
+}
+
+impl EncodeMetric for ConstHistogram {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let (buckets, sum, count, created) = self.get();
+        encoder.encode_histogram(buckets, sum, count, created)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Histogram
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// GaugeHistogram
 
 ////////////////////////////////////////////////////////////////////////////////
 
