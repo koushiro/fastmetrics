@@ -1,6 +1,6 @@
 //! TODO: doc
 
-/// The label name used to identify quantile values in metrics.
+/// The label that defines the quantile in a summary.
 pub const QUANTILE_LABEL: &str = "quantile";
 
 /// Represents a single quantile measurement with its value.
