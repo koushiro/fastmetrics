@@ -1,7 +1,4 @@
 //! [Open Metrics Histogram](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram) metric type.
-//!
-//! A histogram samples observations (usually things like request durations or response sizes)
-//! and counts them in configurable buckets. It also provides a sum of all observed values.
 
 use std::{
     fmt::{self, Debug},
@@ -185,13 +182,13 @@ impl ConstHistogram {
     }
 
     /// Gets the current bucket counts, sum, count, and optional created timestamp.
-    pub fn get(&self) -> (Vec<Bucket>, f64, u64, Option<Duration>) {
+    pub fn get(&self) -> (&[Bucket], f64, u64, Option<Duration>) {
         (self.buckets(), self.sum(), self.count(), self.created)
     }
 
     /// Gets the current bucket counts.
-    pub fn buckets(&self) -> Vec<Bucket> {
-        self.buckets.clone()
+    pub fn buckets(&self) -> &[Bucket] {
+        &self.buckets
     }
 
     /// Gets the current sum of all observed values.

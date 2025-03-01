@@ -240,7 +240,7 @@ impl EncodeMetric for Histogram {
 impl EncodeMetric for ConstHistogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let (buckets, sum, count, created) = self.get();
-        encoder.encode_histogram(&buckets, sum, count, created)
+        encoder.encode_histogram(buckets, sum, count, created)
     }
 
     fn metric_type(&self) -> MetricType {
