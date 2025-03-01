@@ -1,7 +1,6 @@
 //! [Open Metrics StateSet](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset) metric type.
 
 use std::{
-    cell::Cell,
     fmt::{self, Debug},
     marker::PhantomData,
     sync::{
@@ -102,56 +101,6 @@ impl<T: StateSetValue> ConstStateSet<T> {
 }
 
 impl<T: StateSetValue> TypedMetric for ConstStateSet<T> {
-    const TYPE: MetricType = MetricType::StateSet;
-}
-
-/// An **unsync** [`StateSet`], meaning it can only be used in single-thread environment.
-#[derive(Clone)]
-pub struct LocalStateSet<T> {
-    current_state: Cell<u8>,
-    _marker: PhantomData<T>,
-}
-
-impl<T: StateSetValue + Debug> Debug for LocalStateSet<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let state = self.current();
-        f.debug_struct("LocalStateSet").field("state", state).finish()
-    }
-}
-
-impl<T: StateSetValue + Default> Default for LocalStateSet<T> {
-    fn default() -> Self {
-        Self::new(T::default())
-    }
-}
-
-impl<T: StateSetValue> LocalStateSet<T> {
-    /// Creates a [`LocalStateSet`] with the given initial state.
-    pub fn new(initial_state: T) -> Self {
-        let pos = find_position(initial_state);
-        Self { current_state: Cell::new(pos), _marker: PhantomData }
-    }
-
-    /// Sets the current state.
-    pub fn set(&self, state: T) {
-        let pos = find_position(state);
-        self.current_state.set(pos);
-    }
-
-    /// Returns the current state.
-    pub fn current(&self) -> &T {
-        let index = self.current_state.get() as usize;
-        T::variants().get(index).expect("Invalid state index")
-    }
-
-    /// Returns the all states.
-    pub fn get(&self) -> Vec<(&str, bool)> {
-        let current = self.current();
-        gen_states(current)
-    }
-}
-
-impl<T: StateSetValue> TypedMetric for LocalStateSet<T> {
     const TYPE: MetricType = MetricType::StateSet;
 }
 

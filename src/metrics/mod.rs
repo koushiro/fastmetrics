@@ -10,16 +10,10 @@
 //! - [GaugeHistogram] (TODO): Like histogram but values can decrease
 //! - [Summary] (TODO): Similar to histogram, with quantiles
 //!
-//! Each metric type comes in three variants:
-//!
-//! - `Regular`: Thread-safe metrics that can be shared between threads
-//! - `Const`: Immutable metrics with constant values
-//! - `Local`: Thread-local metrics for better performance
-//!
 //! The module also provides:
 //!
 //! - [Family]: Collections of metrics with the same name but different labels
-//! - Common traits and raw types used by some metrics
+//! - Raw types and common traits used by some metrics
 //!
 //! [Counter]: self::counter
 //! [Gauge]: self::gauge

@@ -1,7 +1,6 @@
 //! [Open Metrics Counter](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#counter) metric type.
 
 use std::{
-    cell::Cell,
     fmt::{self, Debug},
     ops::AddAssign,
     sync::{atomic::*, Arc},
@@ -159,80 +158,5 @@ impl<N: CounterValue> ConstCounter<N> {
 }
 
 impl<N: CounterValue> TypedMetric for ConstCounter<N> {
-    const TYPE: MetricType = MetricType::Counter;
-}
-
-/// An **unsync** [`Counter`], meaning it can only be used in single-thread environment.
-pub struct LocalCounter<N = u64> {
-    total: Cell<N>,
-    // UNIX timestamp
-    created: Option<Duration>,
-}
-
-impl<N: CounterValue> Clone for LocalCounter<N> {
-    fn clone(&self) -> Self {
-        Self { total: self.total.clone(), created: self.created }
-    }
-}
-
-impl<N: CounterValue> Debug for LocalCounter<N> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (total, created) = self.get();
-
-        f.debug_struct("LocalCounter")
-            .field("total", &total)
-            .field("created", &created)
-            .finish()
-    }
-}
-
-impl<N: CounterValue> Default for LocalCounter<N> {
-    fn default() -> Self {
-        Self { total: Cell::new(N::ZERO), created: None }
-    }
-}
-
-impl<N: CounterValue> LocalCounter<N> {
-    /// Creates a [`LocalCounter`] with a `created` timestamp.
-    pub fn with_created() -> Self {
-        Self {
-            total: Cell::new(N::ZERO),
-            created: Some(
-                SystemTime::UNIX_EPOCH
-                    .elapsed()
-                    .expect("UNIX timestamp when the counter was created"),
-            ),
-        }
-    }
-
-    /// Increases the [`LocalCounter`] by 1, returning the previous value.
-    #[inline]
-    pub fn inc(&self) -> N {
-        self.inc_by(N::ONE)
-    }
-
-    /// Increases the [`LocalCounter`] by `v`, returning the previous value.
-    #[inline]
-    pub fn inc_by(&self, v: N) -> N {
-        assert!(v >= N::ZERO);
-        let (mut new, _) = self.get();
-        new += v;
-        self.total.replace(new)
-    }
-
-    /// Gets the current `total` value of the [`LocalCounter`].
-    #[inline]
-    pub fn total(&self) -> N {
-        self.total.get()
-    }
-
-    /// Gets the current `total` value and optional `created` value of the [`LocalCounter`].
-    #[inline]
-    pub fn get(&self) -> (N, Option<Duration>) {
-        (self.total(), self.created)
-    }
-}
-
-impl<N: CounterValue> TypedMetric for LocalCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
 }
