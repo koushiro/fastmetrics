@@ -132,16 +132,6 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
     }
 }
 
-impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for LocalGauge<N> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        encoder.encode_gauge(&self.get())
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Gauge
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
@@ -166,17 +156,6 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
     }
 }
 
-impl<N: EncodeCounterValue + CounterValue> EncodeMetric for LocalCounter<N> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let (total, created) = self.get();
-        encoder.encode_counter(&total, created)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Counter
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 impl<T: StateSetValue> EncodeMetric for StateSet<T> {
@@ -191,17 +170,6 @@ impl<T: StateSetValue> EncodeMetric for StateSet<T> {
 }
 
 impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let states = self.get();
-        encoder.encode_stateset(states)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::StateSet
-    }
-}
-
-impl<T: StateSetValue> EncodeMetric for LocalStateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let states = self.get();
         encoder.encode_stateset(states)

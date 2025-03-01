@@ -1,7 +1,6 @@
 //! [Open Metrics Gauge](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge) metric type.
 
 use std::{
-    cell::Cell,
     fmt::{self, Debug},
     ops::{AddAssign, SubAssign},
     sync::{atomic::*, Arc},
@@ -130,76 +129,5 @@ impl<N: GaugeValue> ConstGauge<N> {
 }
 
 impl<N: GaugeValue> TypedMetric for ConstGauge<N> {
-    const TYPE: MetricType = MetricType::Gauge;
-}
-
-/// An **unsync** [`Gauge`], meaning it can only be used in single-thread environment.
-#[derive(Default)]
-pub struct LocalGauge<N = i64> {
-    value: Cell<N>,
-}
-
-impl<N: GaugeValue> Clone for LocalGauge<N> {
-    fn clone(&self) -> Self {
-        Self { value: self.value.clone() }
-    }
-}
-
-impl<N: GaugeValue> Debug for LocalGauge<N> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LocalGauge").field("value", &self.get()).finish()
-    }
-}
-
-impl<N: GaugeValue> LocalGauge<N> {
-    /// Creates a new [`LocalGauge`] with an initial value.
-    pub const fn new(value: N) -> Self {
-        Self { value: Cell::new(value) }
-    }
-
-    /// Increases the [`LocalGauge`] by 1, returning the previous value.
-    #[inline]
-    pub fn inc(&self) -> N {
-        self.inc_by(N::ONE)
-    }
-
-    /// Increases the [`LocalGauge`] by `v`, returning the previous value.
-    #[inline]
-    pub fn inc_by(&self, v: N) -> N {
-        assert!(v >= N::ZERO);
-        let mut new = self.get();
-        new += v;
-        self.value.replace(new)
-    }
-
-    /// Decreases the [`LocalGauge`] by 1, returning the previous value.
-    #[inline]
-    pub fn dec(&self) -> N {
-        self.dec_by(N::ONE)
-    }
-
-    /// Decreases the [`LocalGauge`] by `v`, returning the previous value.
-    #[inline]
-    pub fn dec_by(&self, v: N) -> N {
-        assert!(v >= N::ZERO);
-        let mut new = self.get();
-        new -= v;
-        self.value.replace(new)
-    }
-
-    /// Sets the [`LocalGauge`] to `v`, returning the previous value.
-    #[inline]
-    pub fn set(&self, v: N) -> N {
-        self.value.replace(v)
-    }
-
-    /// Gets the current value of the [`LocalGauge`].
-    #[inline]
-    pub fn get(&self) -> N {
-        self.value.get()
-    }
-}
-
-impl<N: GaugeValue> TypedMetric for LocalGauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
 }
