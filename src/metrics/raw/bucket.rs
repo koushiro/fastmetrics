@@ -1,4 +1,8 @@
-//! TODO: doc
+//! Provides bucket-related functionality for histogram metrics.
+//!
+//! This module contains implementations for histogram buckets, which are used to track
+//! the distribution of observations in histogram metrics. It also provides utilities
+//! for generating different types of bucket distributions (linear and exponential).
 
 use std::iter;
 
@@ -33,7 +37,9 @@ impl Bucket {
         Self { upper_bound, count }
     }
 
-    /// TODO: doc
+    /// Increments the observation count in this bucket by one.
+    ///
+    /// This method is typically called when a new observation falls within this bucket's range.
     pub fn inc(&mut self) {
         self.count += 1;
     }
