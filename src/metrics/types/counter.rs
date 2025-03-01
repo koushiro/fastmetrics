@@ -1,4 +1,6 @@
 //! [Open Metrics Counter](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#counter) metric type.
+//!
+//! See [`Counter`] and [`ConstCounter`] for more details.
 
 use std::{
     fmt::{self, Debug},
@@ -35,6 +37,29 @@ impl_counter_value_for! {
 }
 
 /// Open Metrics [`Counter`] metric, which is used to measure discrete events.
+///
+/// # Example
+///
+/// ```rust
+/// # use openmetrics_client::metrics::counter::Counter;
+///
+/// // Create a default counter
+/// let counter = <Counter>::default();
+/// assert_eq!(counter.total(), 0);
+/// assert!(counter.created().is_none());
+///
+/// // Increment by 1
+/// counter.inc();
+/// assert_eq!(counter.total(), 1);
+///
+/// // Increment by custom value
+/// counter.inc_by(5);
+/// assert_eq!(counter.total(), 6);
+///
+/// // Create a counter with created timestamp
+/// let counter = <Counter>::with_created();
+/// assert!(counter.created().is_some());
+/// ```
 pub struct Counter<N: CounterValue = u64> {
     total: Arc<N::Atomic>,
     // UNIX timestamp
@@ -49,7 +74,8 @@ impl<N: CounterValue> Clone for Counter<N> {
 
 impl<N: CounterValue> Debug for Counter<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (total, created) = self.get();
+        let total = self.total();
+        let created = self.created();
 
         f.debug_struct("Counter")
             .field("total", &total)
@@ -96,10 +122,9 @@ impl<N: CounterValue> Counter<N> {
         self.total.get()
     }
 
-    /// Gets the current `total` value and optional `created` value of the [`Counter`].
-    #[inline]
-    pub fn get(&self) -> (N, Option<Duration>) {
-        (self.total(), self.created)
+    /// Gets the optional `created` value of the [`Counter`].
+    pub const fn created(&self) -> Option<Duration> {
+        self.created
     }
 }
 
@@ -108,6 +133,22 @@ impl<N: CounterValue> TypedMetric for Counter<N> {
 }
 
 /// A **constant** [`Counter`], meaning it cannot be changed once created.
+///
+/// # Example
+///
+/// ```rust
+/// # use openmetrics_client::metrics::counter::ConstCounter;
+///
+/// // Create a constant counter with initial value
+/// let counter = ConstCounter::new(42_u64);
+/// assert_eq!(counter.total(), 42);
+/// assert!(counter.created().is_none());
+///
+/// // Create a constant counter with created timestamp
+/// let counter = ConstCounter::with_created(42_u64);
+/// assert_eq!(counter.total(), 42);
+/// assert!(counter.created().is_some());
+/// ```
 #[derive(Clone)]
 pub struct ConstCounter<N = u64> {
     total: N,
@@ -117,7 +158,8 @@ pub struct ConstCounter<N = u64> {
 
 impl<N: CounterValue> Debug for ConstCounter<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (total, created) = self.get();
+        let total = self.total();
+        let created = self.created();
 
         f.debug_struct("ConstCounter")
             .field("total", &total)
@@ -150,13 +192,86 @@ impl<N: CounterValue> ConstCounter<N> {
         self.total
     }
 
-    /// Gets the current `total` value and optional `created` value of the [`ConstCounter`].
+    /// Gets the optional `created` value of the [`ConstCounter`].
     #[inline]
-    pub const fn get(&self) -> (N, Option<Duration>) {
-        (self.total(), self.created)
+    pub const fn created(&self) -> Option<Duration> {
+        self.created
     }
 }
 
 impl<N: CounterValue> TypedMetric for ConstCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_counter_initialization() {
+        let counter = <Counter>::default();
+        assert_eq!(counter.total(), 0);
+        assert!(counter.created().is_none());
+
+        let counter = <Counter>::with_created();
+        assert_eq!(counter.total(), 0);
+        assert!(counter.created().is_some());
+    }
+
+    #[test]
+    fn test_counter_inc() {
+        let counter = <Counter>::default();
+        let clone = counter.clone();
+
+        assert_eq!(counter.inc(), 0);
+        assert_eq!(counter.total(), 1);
+        assert_eq!(counter.inc(), 1);
+        assert_eq!(counter.total(), 2);
+        assert_eq!(clone.total(), 2);
+
+        assert_eq!(clone.inc(), 2);
+        assert_eq!(counter.total(), 3);
+    }
+
+    #[test]
+    fn test_counter_inc_by() {
+        let counter = <Counter>::default();
+        assert_eq!(counter.inc_by(5), 0);
+        assert_eq!(counter.total(), 5);
+        assert_eq!(counter.inc_by(3), 5);
+        assert_eq!(counter.total(), 8);
+    }
+
+    #[test]
+    fn test_counter_thread_safe() {
+        let counter = <Counter>::default();
+        let clone = counter.clone();
+
+        let handle = std::thread::spawn(move || {
+            for _ in 0..1000 {
+                clone.inc();
+            }
+        });
+
+        for _ in 0..1000 {
+            counter.inc();
+        }
+
+        handle.join().unwrap();
+        assert_eq!(counter.total(), 2000);
+    }
+
+    #[test]
+    fn test_const_counter() {
+        let counter = ConstCounter::new(42_u64);
+        assert_eq!(counter.total(), 42);
+        assert!(counter.created.is_none());
+
+        let counter = ConstCounter::with_created(42_u64);
+        assert_eq!(counter.total(), 42);
+        assert!(counter.created.is_some());
+
+        let clone = counter.clone();
+        assert_eq!(clone.total(), 42);
+    }
 }
