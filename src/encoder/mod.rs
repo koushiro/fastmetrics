@@ -136,7 +136,8 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let (total, created) = self.get();
+        let total = self.total();
+        let created = self.created();
         encoder.encode_counter(&total, created)
     }
 
@@ -147,7 +148,8 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let (total, created) = self.get();
+        let total = self.total();
+        let created = self.created();
         encoder.encode_counter(&total, created)
     }
 
@@ -160,7 +162,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 
 impl<T: StateSetValue> EncodeMetric for StateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let states = self.get();
+        let states = self.states();
         encoder.encode_stateset(states)
     }
 
@@ -171,7 +173,7 @@ impl<T: StateSetValue> EncodeMetric for StateSet<T> {
 
 impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let states = self.get();
+        let states = self.states();
         encoder.encode_stateset(states)
     }
 
@@ -196,19 +198,11 @@ impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
 
 impl EncodeMetric for Histogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let (buckets, sum, count, created) = self.get();
+        let buckets = self.buckets();
+        let sum = self.sum();
+        let count = self.count();
+        let created = self.created();
         encoder.encode_histogram(&buckets, sum, count, created)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Histogram
-    }
-}
-
-impl EncodeMetric for ConstHistogram {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let (buckets, sum, count, created) = self.get();
-        encoder.encode_histogram(buckets, sum, count, created)
     }
 
     fn metric_type(&self) -> MetricType {

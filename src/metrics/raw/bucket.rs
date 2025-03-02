@@ -20,7 +20,7 @@ pub const DEFAULT_BUCKETS: [f64; 11] =
 /// Each bucket is defined by an upper bound and maintains a count of observations
 /// that fall into the range (previous_bucket_upper_bound, current_bucket_upper_bound].
 /// For the first bucket, the range starts at negative infinity.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Bucket {
     upper_bound: f64,
     count: u64,

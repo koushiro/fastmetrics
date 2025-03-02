@@ -1,4 +1,6 @@
 //! [Open Metrics Histogram](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram) metric type.
+//!
+//! See [`Histogram`] for more details.
 
 use std::{
     fmt::{self, Debug},
@@ -13,6 +15,39 @@ use crate::metrics::{MetricType, TypedMetric};
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
 /// buckets. This implementation uses f64 for the sum.
+///
+/// # Example
+///
+/// ```rust
+/// use openmetrics_client::metrics::histogram::{linear_buckets, Histogram};
+/// // Create a histogram with custom bucket boundaries
+/// let hist = Histogram::new(linear_buckets(1.0, 1.0, 10));
+///
+/// // Observe some values
+/// hist.observe(0.5);  // Falls into ≤1.0 bucket
+/// hist.observe(1.5);  // Falls into ≤2.0 bucket
+/// hist.observe(3.0);  // Falls into ≤3.0 bucket
+/// hist.observe(20.0); // Falls into +Inf bucket
+///
+/// // Get bucket counts
+/// let buckets = hist.buckets();
+/// assert_eq!(buckets[0].upper_bound(), 1.0);
+/// assert_eq!(buckets[0].count(), 1);  // One value ≤1.0
+/// assert_eq!(buckets[1].upper_bound(), 2.0);
+/// assert_eq!(buckets[1].count(), 1);  // One value ≤2.0
+/// assert_eq!(buckets[2].upper_bound(), 3.0);
+/// assert_eq!(buckets[2].count(), 1);  // One value ≤5.0
+/// assert_eq!(buckets[10].upper_bound(), f64::INFINITY);
+/// assert_eq!(buckets[10].count(), 1);  // One value in +Inf bucket
+///
+/// // Get count and sum statistics
+/// assert_eq!(hist.count(), 4);      // Total number of observations
+/// assert_eq!(hist.sum(), 25.0);     // Sum of all observed values
+///
+/// // Create a histogram with created timestamp
+/// let hist = Histogram::with_created(linear_buckets(1.0, 1.0, 10));
+/// assert!(hist.created().is_some());
+/// ```
 #[derive(Clone)]
 pub struct Histogram {
     inner: Arc<RwLock<HistogramInner>>,
@@ -28,10 +63,14 @@ struct HistogramInner {
 
 impl Debug for Histogram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (buckets, sum, count, created) = self.get();
+        let inner = self.inner.read();
+        let buckets = &inner.buckets;
+        let sum = inner.sum;
+        let count = inner.count;
+        let created = self.created();
 
         f.debug_struct("Histogram")
-            .field("buckets", &buckets)
+            .field("buckets", buckets)
             .field("sum", &sum)
             .field("count", &count)
             .field("created", &created)
@@ -98,39 +137,28 @@ impl Histogram {
         inner.sum += value;
 
         // Only increment the count of the found bucket
-        let idx = inner
-            .buckets
-            .binary_search_by(|bucket| {
-                bucket
-                    .upper_bound()
-                    .partial_cmp(&value)
-                    .expect("upper_bound && value must not be NaN")
-            })
-            .expect("should be found");
+        let idx = inner.buckets.partition_point(|bucket| bucket.upper_bound() < value);
         inner.buckets[idx].inc();
     }
 
-    /// Gets the current bucket counts, sum, count, and optional created timestamp.
-    pub fn get(&self) -> (Vec<Bucket>, f64, u64, Option<Duration>) {
-        let buckets = self.buckets();
-        let sum = self.sum();
-        let count = self.count();
-        (buckets, sum, count, self.created)
-    }
-
-    /// Gets the current bucket counts.
+    /// Gets the current `bucket` counts.
     pub fn buckets(&self) -> Vec<Bucket> {
         self.inner.read().buckets.clone()
     }
 
-    /// Gets the current sum of all observed values.
+    /// Gets the current `sum` of all observed values.
     pub fn sum(&self) -> f64 {
         self.inner.read().sum
     }
 
-    /// Gets the current count of observations.
+    /// Gets the current `count` of all observations.
     pub fn count(&self) -> u64 {
         self.inner.read().count
+    }
+
+    /// Gets the optional `created` value of the [`Histogram`].
+    pub const fn created(&self) -> Option<Duration> {
+        self.created
     }
 }
 
@@ -138,70 +166,77 @@ impl TypedMetric for Histogram {
     const TYPE: MetricType = MetricType::Histogram;
 }
 
-/// A **constant** [`Histogram`], meaning it cannot be changed once created.
-#[derive(Clone)]
-pub struct ConstHistogram {
-    buckets: Vec<Bucket>,
-    sum: f64,
-    count: u64,
-    // UNIX timestamp
-    created: Option<Duration>,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Debug for ConstHistogram {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (buckets, sum, count, created) = self.get();
+    #[test]
+    fn test_histogram_initialization() {
+        let hist = Histogram::default();
+        let buckets = hist.buckets();
+        assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
+        assert_eq!(hist.sum(), 0.0);
+        assert_eq!(hist.count(), 0);
+        assert!(hist.created().is_none());
 
-        f.debug_struct("ConstHistogram")
-            .field("buckets", &buckets)
-            .field("sum", &sum)
-            .field("count", &count)
-            .field("created", &created)
-            .finish()
-    }
-}
+        let bounds = vec![1.0, 2.0, 5.0];
+        let hist = Histogram::new(bounds);
+        let buckets = hist.buckets();
+        assert_eq!(buckets.len(), 4); // Including +Inf bucket
+        assert_eq!(buckets[0].upper_bound(), 1.0);
+        assert_eq!(buckets[1].upper_bound(), 2.0);
+        assert_eq!(buckets[2].upper_bound(), 5.0);
+        assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
 
-impl ConstHistogram {
-    /// Creates a new [`ConstHistogram`] with the given bucket boundaries and counts.
-    pub fn new(buckets: Vec<Bucket>, sum: f64, count: u64) -> Self {
-        Self { buckets, sum, count, created: None }
+        let hist = Histogram::with_created(vec![1.0, 2.0]);
+        assert!(hist.created().is_some());
     }
 
-    /// Creates a [`ConstHistogram`] with a `created` timestamp.
-    pub fn with_created(buckets: Vec<Bucket>, sum: f64, count: u64) -> Self {
-        Self {
-            buckets,
-            sum,
-            count,
-            created: Some(
-                SystemTime::UNIX_EPOCH
-                    .elapsed()
-                    .expect("UNIX timestamp when the histogram was created"),
-            ),
+    #[test]
+    fn test_histogram_observe() {
+        let hist = Histogram::new(vec![1.0, 2.0, 5.0]);
+
+        hist.observe(1.5);
+        hist.observe(0.5);
+        hist.observe(3.0);
+        hist.observe(6.0);
+
+        let buckets = hist.buckets();
+        assert_eq!(buckets[0].count(), 1); // ≤1.0
+        assert_eq!(buckets[1].count(), 1); // ≤2.0
+        assert_eq!(buckets[2].count(), 1); // ≤5.0
+        assert_eq!(buckets[3].count(), 1); // +Inf
+        assert_eq!(hist.count(), 4);
+        assert_eq!(hist.sum(), 11.0);
+    }
+
+    #[test]
+    fn test_histogram_invalid_observations() {
+        let hist = Histogram::default();
+
+        hist.observe(-1.0); // Negative value
+        hist.observe(f64::NAN); // NaN value
+
+        assert_eq!(hist.count(), 0);
+        assert_eq!(hist.sum(), 0.0);
+    }
+
+    #[test]
+    fn test_histogram_thread_safe() {
+        let hist = Histogram::new(vec![1.0, 2.0, 5.0]);
+        let clone = hist.clone();
+
+        let handle = std::thread::spawn(move || {
+            for i in 0..1000 {
+                clone.observe(i as f64);
+            }
+        });
+
+        for i in 0..1000 {
+            hist.observe(i as f64);
         }
-    }
 
-    /// Gets the current bucket counts, sum, count, and optional created timestamp.
-    pub fn get(&self) -> (&[Bucket], f64, u64, Option<Duration>) {
-        (self.buckets(), self.sum(), self.count(), self.created)
+        handle.join().unwrap();
+        assert_eq!(hist.count(), 2000);
     }
-
-    /// Gets the current bucket counts.
-    pub fn buckets(&self) -> &[Bucket] {
-        &self.buckets
-    }
-
-    /// Gets the current sum of all observed values.
-    pub const fn sum(&self) -> f64 {
-        self.sum
-    }
-
-    /// Gets the current count of observations.
-    pub const fn count(&self) -> u64 {
-        self.count
-    }
-}
-
-impl TypedMetric for ConstHistogram {
-    const TYPE: MetricType = MetricType::Histogram;
 }
