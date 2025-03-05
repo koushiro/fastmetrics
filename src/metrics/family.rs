@@ -385,8 +385,8 @@ mod tests {
     impl EncodeLabelValue for Method {
         fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
             match self {
-                Self::Get => encoder.encode_str_value("Get"),
-                Self::Put => encoder.encode_str_value("Put"),
+                Self::Get => encoder.encode_str_value("GET"),
+                Self::Put => encoder.encode_str_value("PUT"),
             }
         }
     }
@@ -411,7 +411,7 @@ mod tests {
         text::encode(&mut output, &registry).unwrap();
 
         // println!("{}", out);
-        assert!(output.contains(r#"http_requests_total{method="Get",status="200"} 1"#));
-        assert!(output.contains(r#"http_requests_total{method="Put",status="200"} 1"#));
+        assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
+        assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
     }
 }

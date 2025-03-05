@@ -65,16 +65,16 @@
 //!
 //! #[derive(Clone, Eq, PartialEq, Hash)]
 //! enum Method {
-//!     GET,
-//!     PUT,
+//!     Get,
+//!     Put,
 //! }
 //!
 //! // Can use `#[derive(EncodeLabelValue)]` to simplify the code, but need to enable `derive` feature
 //! impl EncodeLabelValue for Method {
 //!     fn encode(&self, encoder: &mut dyn LabelEncoder) -> std::fmt::Result {
 //!         match self {
-//!             Self::GET => encoder.encode_str_value("GET"),
-//!             Self::PUT => encoder.encode_str_value("PUT"),
+//!             Self::Get => encoder.encode_str_value("GET"),
+//!             Self::Put => encoder.encode_str_value("PUT"),
 //!         }
 //!     }
 //! }
@@ -91,7 +91,7 @@
 //! requests.inc();
 //! assert_eq!(requests.total(), 1);
 //!
-//! let labels = Labels { method: Method::GET, status: 200 };
+//! let labels = Labels { method: Method::Get, status: 200 };
 //! http_requests.with_or_default(&labels, |req| req.inc());
 //! assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
 //!
