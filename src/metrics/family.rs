@@ -370,8 +370,8 @@ mod tests {
 
     #[derive(Clone, PartialEq, Eq, Hash)]
     enum Method {
-        GET,
-        PUT,
+        Get,
+        Put,
     }
 
     impl EncodeLabelSet for Labels {
@@ -385,8 +385,8 @@ mod tests {
     impl EncodeLabelValue for Method {
         fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
             match self {
-                Self::GET => encoder.encode_str_value(stringify!(GET)),
-                Self::PUT => encoder.encode_str_value(stringify!(PUT)),
+                Self::Get => encoder.encode_str_value("Get"),
+                Self::Put => encoder.encode_str_value("Put"),
             }
         }
     }
@@ -401,17 +401,17 @@ mod tests {
             .unwrap();
 
         // Create metrics with different labels
-        let labels = Labels { method: Method::GET, status: 200 };
+        let labels = Labels { method: Method::Get, status: 200 };
         http_requests.with_or_default(&labels, |metric| metric.inc());
 
-        let labels = Labels { method: Method::PUT, status: 200 };
+        let labels = Labels { method: Method::Put, status: 200 };
         http_requests.with_or_default(&labels, |metric| metric.inc());
 
         let mut output = String::new();
         text::encode(&mut output, &registry).unwrap();
 
         // println!("{}", out);
-        assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
-        assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
+        assert!(output.contains(r#"http_requests_total{method="Get",status="200"} 1"#));
+        assert!(output.contains(r#"http_requests_total{method="Put",status="200"} 1"#));
     }
 }
