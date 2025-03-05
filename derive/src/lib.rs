@@ -32,8 +32,8 @@ pub fn derive_encode_label_value(input: TokenStream) -> TokenStream {
 // `openmetrics_client::metrics::state_set::StateSetValue`
 #[proc_macro_derive(StateSetValue)]
 pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
-    let mut input = parse_macro_input!(input as DeriveInput);
-    state_set_value::expand_derive_state_set_value(&mut input)
+    let input = parse_macro_input!(input as DeriveInput);
+    state_set_value::expand_derive_state_set_value(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
