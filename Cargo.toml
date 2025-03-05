@@ -1,12 +1,15 @@
+[workspace]
+members = ["derive"]
+
 [package]
 name = "openmetrics-client"
 version = "0.1.0"
-authors = ["Qinxuan Chen <https://github.com/koushiro>"]
 edition = "2021"
 rust-version = "1.75.0"
-readme = "README.md"
-description = "Another Open Metrics client library in Rust."
 license = "Apache-2.0"
+readme = "README.md"
+authors = ["Qinxuan Chen <https://github.com/koushiro>"]
+description = "Another Open Metrics client library in Rust."
 keywords = ["openmetrics", "metrics", "prometheus"]
 repository = "https://github.com/koushiro/openmetrics-client"
 homepage = "https://github.com/koushiro/openmetrics-client"
@@ -14,6 +17,7 @@ documentation = "https://docs.rs/openmetrics-client"
 
 [features]
 default = []
+derive = ["dep:openmetrics-client-derive"]
 protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
 
 [build-dependencies]
@@ -22,6 +26,7 @@ prost-build = { version = "0.13", optional = true }
 [dependencies]
 dtoa = "1.0"
 itoa = "1.0"
+openmetrics-client-derive = { path = "derive", version = "0.1", optional = true }
 parking_lot = "0.12"
 paste = "1.0"
 prost = { version = "0.13", optional = true }

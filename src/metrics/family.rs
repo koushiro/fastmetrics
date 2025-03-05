@@ -351,3 +351,67 @@ impl<LS, M, S> Family<LS, M, S> {
 impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
     const TYPE: MetricType = <M as TypedMetric>::TYPE;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
+        format::text,
+        metrics::counter::Counter,
+        registry::Registry,
+    };
+
+    #[derive(Clone, PartialEq, Eq, Hash)]
+    struct Labels {
+        method: Method,
+        status: u32,
+    }
+
+    #[derive(Clone, PartialEq, Eq, Hash)]
+    enum Method {
+        GET,
+        PUT,
+    }
+
+    impl EncodeLabelSet for Labels {
+        fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+            ("method", &self.method).encode(encoder.label_encoder().as_mut())?;
+            ("status", self.status).encode(encoder.label_encoder().as_mut())?;
+            Ok(())
+        }
+    }
+
+    impl EncodeLabelValue for Method {
+        fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+            match self {
+                Self::GET => encoder.encode_str_value(stringify!(GET)),
+                Self::PUT => encoder.encode_str_value(stringify!(PUT)),
+            }
+        }
+    }
+
+    #[test]
+    fn test_metric_family() {
+        let mut registry = Registry::default();
+
+        let http_requests = Family::<Labels, Counter>::default();
+        registry
+            .register("http_requests", "Total HTTP requests", http_requests.clone())
+            .unwrap();
+
+        // Create metrics with different labels
+        let labels = Labels { method: Method::GET, status: 200 };
+        http_requests.with_or_default(&labels, |metric| metric.inc());
+
+        let labels = Labels { method: Method::PUT, status: 200 };
+        http_requests.with_or_default(&labels, |metric| metric.inc());
+
+        let mut output = String::new();
+        text::encode(&mut output, &registry).unwrap();
+
+        // println!("{}", out);
+        assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
+        assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
+    }
+}

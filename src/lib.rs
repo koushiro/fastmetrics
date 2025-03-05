@@ -31,6 +31,7 @@
 //!
 //! ```rust
 //! use openmetrics_client::{
+//!     encoder::{EncodeLabelSet, EncodeLabelValue, EncodeLabel, LabelSetEncoder, LabelEncoder},
 //!     format::text,
 //!     metrics::{counter::Counter, gauge::Gauge, family::Family},
 //!     registry::Registry,
@@ -47,27 +48,58 @@
 //! let requests = <Counter>::default();
 //! registry.register("requests", "Total requests processed", requests.clone())?;
 //!
-//! // Create a metric family for tracking requests with labels
-//! type Labels = Vec<(&'static str, &'static str)>;
-//! let requests_by_path = Family::<Labels, Counter>::default();
+//! #[derive(Clone, Eq, PartialEq, Hash)]
+//! struct Labels {
+//!     method: Method,
+//!     status: u32,
+//! }
+//!
+//! // Can use `#[derive(EncodeLabelSet)]` to simplify the code, but need to enable `derive` feature
+//! impl EncodeLabelSet for Labels {
+//!     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+//!         ("method", &self.method).encode(encoder.label_encoder().as_mut())?;
+//!         ("status", self.status).encode(encoder.label_encoder().as_mut())?;
+//!         Ok(())
+//!     }
+//! }
+//!
+//! #[derive(Clone, Eq, PartialEq, Hash)]
+//! enum Method {
+//!     GET,
+//!     PUT,
+//! }
+//!
+//! // Can use `#[derive(EncodeLabelValue)]` to simplify the code, but need to enable `derive` feature
+//! impl EncodeLabelValue for Method {
+//!     fn encode(&self, encoder: &mut dyn LabelEncoder) -> std::fmt::Result {
+//!         match self {
+//!             Self::GET => encoder.encode_str_value("GET"),
+//!             Self::PUT => encoder.encode_str_value("PUT"),
+//!         }
+//!     }
+//! }
+//!
+//! // Register a counter metric family for tracking requests with labels
+//! let http_requests = Family::<Labels, Counter>::default();
 //! registry.register(
-//!     "requests_by_path",
-//!     "Requests broken down by path",
-//!     requests_by_path.clone()
+//!     "http_requests",
+//!     "Total HTTP requests",
+//!     http_requests.clone()
 //! )?;
 //!
 //! // Update metrics
 //! requests.inc();
 //! assert_eq!(requests.total(), 1);
 //!
-//! let labels = vec![("path", "/api/v1/users")];
-//! requests_by_path.with_or_default(&labels, |req| req.inc());
-//! assert_eq!(requests_by_path.with(&labels, |req| req.total()), Some(1));
+//! let labels = Labels { method: Method::GET, status: 200 };
+//! http_requests.with_or_default(&labels, |req| req.inc());
+//! assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
 //!
 //! // Export metrics in text format
 //! let mut output = String::new();
 //! text::encode(&mut output, &registry)?;
 //! // println!("{}", output);
+//! assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="GET",status="200"} 1"#));
 //! # Ok(())
 //! # }
 //! ```

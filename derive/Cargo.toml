@@ -1,0 +1,20 @@
+[package]
+name = "openmetrics-client-derive"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75.0"
+license = "Apache-2.0"
+authors = ["Qinxuan Chen <https://github.com/koushiro>"]
+description = "Another Open Metrics client library in Rust."
+keywords = ["openmetrics", "metrics", "prometheus", "derive", "macros"]
+repository = "https://github.com/koushiro/openmetrics-client"
+homepage = "https://github.com/koushiro/openmetrics-client"
+documentation = "https://docs.rs/openmetrics-client-derive"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = "2"

@@ -6,6 +6,9 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(feature = "derive")]
+pub use openmetrics_client_derive::{EncodeLabelSet, EncodeLabelValue};
+
 /// Trait for encoding a set of labels.
 pub trait LabelSetEncoder {
     /// Creates a new label encoder for encoding individual label within a set.
