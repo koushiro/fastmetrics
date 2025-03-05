@@ -8,6 +8,9 @@ use std::{
     sync::{atomic::*, Arc},
 };
 
+#[cfg(feature = "derive")]
+pub use openmetrics_client_derive::StateSetValue;
+
 use crate::metrics::{MetricType, TypedMetric};
 
 /// A marker trait for **stateset** metric value.
