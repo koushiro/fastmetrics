@@ -15,6 +15,8 @@ use crate::{
     registry::{Registry, RegistrySystem},
 };
 
+pub use prost::EncodeError;
+
 /// Data models that are automatically generated from [OpenMetrics protobuf schema].
 ///
 /// [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
@@ -68,7 +70,7 @@ pub mod openmetrics_data_model {
 pub fn encode(
     buffer: &mut impl prost::bytes::BufMut,
     registry: &Registry,
-) -> Result<(), prost::EncodeError> {
+) -> Result<(), EncodeError> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     let mut encoder = Encoder::new(&mut metric_set, registry);
     encoder.encode().expect("fmt::Error should not be encountered");

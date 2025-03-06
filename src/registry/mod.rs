@@ -20,6 +20,20 @@ use crate::{
     metrics::family::{Metadata, Unit},
 };
 
+/// The `Metric` trait is a marker trait that combines the encoding capability with thread safety
+/// requirements needed for metrics that can be stored in the registry.
+/// Metrics implementing this trait can:
+///
+/// - Be encoded into OpenMetrics/Prometheus format
+/// - Be safely accessed from multiple threads
+/// - Be registered with the `Registry` or `RegistrySystem`
+///
+/// This trait is automatically implemented for any type that implements
+/// `EncodeMetric`, `Send`, and `Sync`.
+pub trait Metric: EncodeMetric + Send + Sync {}
+
+impl<T> Metric for T where T: EncodeMetric + Send + Sync {}
+
 /// A registry for collecting and organizing metrics.
 ///
 /// The Registry type serves as a container for metrics and provides functionality to:
@@ -78,7 +92,7 @@ use crate::{
 pub struct Registry {
     namespace: Option<String>,
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
-    pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
+    pub(crate) metrics: HashMap<Metadata, Box<dyn Metric + 'static>>,
     pub(crate) subsystems: HashMap<String, RegistrySystem>,
 }
 
@@ -133,7 +147,7 @@ impl Registry {
         &mut self,
         name: impl Into<String>,
         help: impl Into<String>,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, None, metric)
     }
@@ -144,7 +158,7 @@ impl Registry {
         name: impl Into<String>,
         help: impl Into<String>,
         unit: Unit,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, Some(unit), metric)
     }
@@ -154,7 +168,7 @@ impl Registry {
         name: impl Into<String>,
         help: impl Into<String>,
         unit: Option<Unit>,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let metadata = Metadata::new(name, help, metric.metric_type(), unit);
         match self.metrics.entry(metadata) {
