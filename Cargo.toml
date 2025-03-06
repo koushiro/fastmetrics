@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["derive", "examples"]
+members = [
+    "derive",
+    "examples",
+]
 
 [workspace.package]
 edition = "2021"

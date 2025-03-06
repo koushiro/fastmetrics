@@ -13,7 +13,7 @@ array_trailing_comma = true
 ## Automatically expand arrays to multiple lines when they exceed column_width characters.
 array_auto_expand = true
 ## Automatically collapse arrays if they fit in one line.
-array_auto_collapse = true # Default: true
+array_auto_collapse = false # Default: true
 ## Omit white space padding from single-line arrays
 compact_arrays = true
 ## Omit whitespace padding inside inline tables.
@@ -30,7 +30,7 @@ indent_tables = false
 ## Indent entries under tables.
 indent_entries = false
 ## Indentation to use, should be tabs or spaces but technically could be anything.
-indent_string = "    " # Default: 2 spaces ("")
+indent_string = "    " # Default: 2 spaces
 ## Add trailing newline to the source.
 trailing_newline = true
 ## Alphabetically reorder keys that are not separated by blank lines.
