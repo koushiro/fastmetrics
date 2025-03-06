@@ -4,9 +4,8 @@ use std::{
 };
 
 use crate::{
-    encoder::EncodeMetric,
     metrics::family::{Metadata, Unit},
-    registry::RegistryError,
+    registry::{Metric, RegistryError},
 };
 
 /// A subsystem within a registry that provides metric organization and labeling.
@@ -47,7 +46,7 @@ pub struct RegistrySystem {
     pub(crate) namespace: String,
     pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 
-    pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
+    pub(crate) metrics: HashMap<Metadata, Box<dyn Metric + 'static>>,
     pub(crate) subsystems: HashMap<String, RegistrySystem>,
 }
 
@@ -138,7 +137,7 @@ impl RegistrySystem {
         &mut self,
         name: impl Into<String>,
         help: impl Into<String>,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, None, metric)
     }
@@ -149,7 +148,7 @@ impl RegistrySystem {
         name: impl Into<String>,
         help: impl Into<String>,
         unit: Unit,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, Some(unit), metric)
     }
@@ -159,7 +158,7 @@ impl RegistrySystem {
         name: impl Into<String>,
         help: impl Into<String>,
         unit: Option<Unit>,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let metadata = Metadata::new(name, help, metric.metric_type(), unit);
         match self.metrics.entry(metadata) {
