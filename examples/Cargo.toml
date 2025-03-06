@@ -1,0 +1,16 @@
+[package]
+name = "openmetrics-client-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+anyhow = "1.0"
+axum = "0.8.1"
+openmetrics-client = { path = "..", features = ["derive", "protobuf"] }
+thiserror = "2.0"
+tokio = { version = "1.43", features = ["net", "rt-multi-thread", "macros"] }
+
+[[example]]
+name = "axum-example"
+path = "src/axum.rs"

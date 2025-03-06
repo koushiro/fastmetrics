@@ -1,5 +1,8 @@
 [workspace]
-members = ["derive"]
+members = [
+    "derive",
+    "examples",
+]
 
 [package]
 name = "openmetrics-client"
