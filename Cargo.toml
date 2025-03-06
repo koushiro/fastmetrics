@@ -1,19 +1,28 @@
 [workspace]
-members = ["derive"]
+resolver = "2"
+members = [
+    "derive",
+    "examples",
+]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.75.0"
+license = "Apache-2.0"
+homepage = "https://github.com/koushiro/openmetrics-client"
+repository = "https://github.com/koushiro/openmetrics-client"
 
 [package]
 name = "openmetrics-client"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.75.0"
-license = "Apache-2.0"
-readme = "README.md"
-authors = ["Qinxuan Chen <https://github.com/koushiro>"]
 description = "Another Open Metrics client library in Rust."
 keywords = ["openmetrics", "metrics", "prometheus"]
-repository = "https://github.com/koushiro/openmetrics-client"
-homepage = "https://github.com/koushiro/openmetrics-client"
 documentation = "https://docs.rs/openmetrics-client"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [features]
 default = []

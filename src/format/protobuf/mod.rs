@@ -2,6 +2,8 @@
 
 use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
 
+pub use prost::EncodeError;
+
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
@@ -14,8 +16,6 @@ use crate::{
     },
     registry::{Registry, RegistrySystem},
 };
-
-pub use prost::EncodeError;
 
 /// Data models that are automatically generated from [OpenMetrics protobuf schema].
 ///
