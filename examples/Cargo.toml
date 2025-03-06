@@ -7,9 +7,9 @@ publish = false
 [dev-dependencies]
 anyhow = "1.0"
 axum = "0.8.1"
-openmetrics-client = { path = "..", features = ["derive"] }
+openmetrics-client = { path = "..", features = ["derive", "protobuf"] }
 thiserror = "2.0"
-tokio = { version = "1.43", features = ["net", "rt-multi-thread", "macros"] }
+tokio = { version = "1.43", features = ["net", "macros", "rt-multi-thread"] }
 
 [[example]]
 name = "axum-example"

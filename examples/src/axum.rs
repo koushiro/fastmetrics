@@ -13,7 +13,7 @@ use axum::{
 };
 use openmetrics_client::{
     encoder::{EncodeLabelSet, EncodeLabelValue},
-    format::text,
+    format::{protobuf, text},
     metrics::{counter::Counter, family::Family},
     registry::Registry,
 };
@@ -58,8 +58,8 @@ struct AppState {
 enum AppError {
     #[error("prometheus encode error: {0}")]
     WriteFmt(#[from] std::fmt::Error),
-    // #[error("protobuf encode error: {0}")]
-    // ProtobufEncode(#[from] protobuf::EncodeError),
+    #[error("protobuf encode error: {0}")]
+    ProtobufEncode(#[from] protobuf::EncodeError),
     #[error("{0}")]
     Http(#[from] axum::http::Error),
 }
@@ -84,7 +84,6 @@ async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
         .body(Body::from(output))?)
 }
 
-/*
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = Vec::new();
     protobuf::encode(&mut output, &state.registry)?;
@@ -97,7 +96,6 @@ async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> 
         .header(CONTENT_TYPE, "application/openmetrics-protobuf; version=1.0.0; charset=utf-8")
         .body(Body::from(output))?)
 }
-*/
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -121,8 +119,9 @@ async fn main() -> Result<()> {
         .route("/metrics", get(text_handler))
         .nest(
             "/metrics",
-            Router::new().route("/text", get(text_handler)),
-            /*.route("/protobuf", get(protobuf_handler)),*/
+            Router::new()
+                .route("/text", get(text_handler))
+                .route("/protobuf", get(protobuf_handler)),
         )
         .route(
             "/{other}",
