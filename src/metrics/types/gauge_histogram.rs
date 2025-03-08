@@ -39,7 +39,7 @@ use crate::metrics::{MetricType, TypedMetric};
 /// assert_eq!(buckets[6].upper_bound(), f64::INFINITY);
 /// assert_eq!(buckets[6].count(), 1);  // One value in +Inf bucket
 ///
-/// // Get count and sum statistics
+/// // Get gcount and gsum statistics
 /// assert_eq!(hist.gcount(), 4);       // Total number of observations
 /// assert_eq!(hist.gsum(), 850.0);     // Sum of all observed values
 /// ```
