@@ -14,7 +14,7 @@ pub use crate::metrics::raw::bucket::*;
 use crate::metrics::{MetricType, TypedMetric};
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
-/// buckets. This implementation uses f64 for the sum.
+/// buckets.
 ///
 /// # Example
 ///
@@ -87,16 +87,16 @@ impl Default for Histogram {
 impl Histogram {
     /// Creates a new [`Histogram`] with the given bucket boundaries.
     pub fn new(buckets: impl IntoIterator<Item = f64>) -> Self {
-        // Filter the NaN bound
+        // filter the NaN and negative bound
         let mut upper_bounds = buckets
             .into_iter()
-            .filter(|upper_bound| !upper_bound.is_nan())
+            .filter(|upper_bound| !upper_bound.is_nan() && upper_bound.is_sign_positive())
             .collect::<Vec<_>>();
-        // Sort and dedup the bounds
+        // sort and dedup the bounds
         upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
         upper_bounds.dedup();
 
-        // Ensure +Inf bucket is included
+        // ensure +Inf bucket is included
         match upper_bounds.last() {
             Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
             None => upper_bounds.push(f64::INFINITY),
@@ -126,17 +126,17 @@ impl Histogram {
 
     /// Observes a value, incrementing the appropriate buckets.
     pub fn observe(&self, value: f64) {
-        // Sum and bucket values MUST NOT be NaN or negative
+        // value MUST NOT be NaN or negative
         if value.is_nan() || value.is_sign_negative() {
             return;
         }
 
         let mut inner = self.inner.write();
-        // Increment the count and add the value into the sum
+        // increment the count and add the value into the sum
         inner.count += 1;
         inner.sum += value;
 
-        // Only increment the count of the found bucket
+        // only increment the count of the found bucket
         let idx = inner.buckets.partition_point(|bucket| bucket.upper_bound() < value);
         inner.buckets[idx].inc();
     }
@@ -227,16 +227,17 @@ mod tests {
         let clone = hist.clone();
 
         let handle = std::thread::spawn(move || {
-            for i in 0..1000 {
+            for i in 1..=100 {
                 clone.observe(i as f64);
             }
         });
 
-        for i in 0..1000 {
+        for i in 1..=100 {
             hist.observe(i as f64);
         }
 
         handle.join().unwrap();
-        assert_eq!(hist.count(), 2000);
+        assert_eq!(hist.count(), 200);
+        assert_eq!(hist.sum(), 10100.0);
     }
 }

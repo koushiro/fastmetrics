@@ -282,12 +282,30 @@ where
         Ok(())
     }
 
+    fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("gsum")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(dtoa::Buffer::new().format(gsum))?;
+        Ok(())
+    }
+
     fn encode_count(&mut self, count: u64) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_suffix("count")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
         self.writer.write_str(itoa::Buffer::new().format(count))?;
+        Ok(())
+    }
+
+    fn encode_gcount(&mut self, gcount: u64) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("gcount")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(itoa::Buffer::new().format(gcount))?;
         Ok(())
     }
 
@@ -349,6 +367,7 @@ where
             self.encode_created(created)?;
             self.encode_newline()?;
         }
+
         Ok(())
     }
 
@@ -419,6 +438,42 @@ where
             self.encode_created(created)?;
             self.encode_newline()?;
         }
+
+        Ok(())
+    }
+
+    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
+        // encode bucket metrics
+        let mut cumulative_count = 0;
+        for bucket in buckets {
+            let upper_bound = bucket.upper_bound();
+            let bucket_count = bucket.count();
+            self.encode_metric_name()?;
+            self.encode_suffix("bucket")?;
+
+            if upper_bound == f64::INFINITY {
+                self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
+            } else {
+                self.encode_label_set(Some(&[(
+                    BUCKET_LABEL,
+                    ryu::Buffer::new().format(upper_bound),
+                )]))?;
+            }
+
+            self.writer.write_str(" ")?;
+            cumulative_count += bucket_count;
+            self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
+            self.encode_newline()?;
+        }
+
+        // encode `*_gsum` metric
+        self.encode_gsum(sum)?;
+        self.encode_newline()?;
+
+        // encode `*_gcount` metric
+        self.encode_gcount(count)?;
+        self.encode_newline()?;
+
         Ok(())
     }
 
@@ -454,6 +509,7 @@ where
             self.encode_created(created)?;
             self.encode_newline()?;
         }
+
         Ok(())
     }
 

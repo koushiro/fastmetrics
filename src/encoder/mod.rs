@@ -7,8 +7,8 @@ use std::{fmt, time::Duration};
 
 pub use self::{label_set::*, number::*};
 use crate::metrics::{
-    counter::*, family::*, gauge::*, histogram::*, info::*, state_set::*, summary::*, unknown::*,
-    MetricType, TypedMetric,
+    counter::*, family::*, gauge::*, gauge_histogram::*, histogram::*, info::*, state_set::*,
+    summary::*, unknown::*, MetricType, TypedMetric,
 };
 
 /// Trait for encoding metric metadata.
@@ -69,6 +69,9 @@ pub trait MetricEncoder {
         count: u64,
         created: Option<Duration>,
     ) -> fmt::Result;
+
+    /// Encodes a gauge histogram metric.
+    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result;
 
     /// Encodes a summary metric.
     fn encode_summary(
@@ -212,7 +215,18 @@ impl EncodeMetric for Histogram {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// GaugeHistogram
+impl EncodeMetric for GaugeHistogram {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let buckets = self.buckets();
+        let gsum = self.gsum();
+        let gcount = self.gcount();
+        encoder.encode_gauge_histogram(&buckets, gsum, gcount)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::GaugeHistogram
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
