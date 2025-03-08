@@ -105,7 +105,7 @@ impl GaugeHistogram {
 
     /// Observes a value, incrementing the appropriate buckets.
     pub fn observe(&self, value: f64) {
-        // Sum and bucket values MUST NOT be NaN or negative
+        // Value MUST NOT be NaN
         if value.is_nan() {
             return;
         }
