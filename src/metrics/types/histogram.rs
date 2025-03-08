@@ -90,7 +90,7 @@ impl Histogram {
         // Filter the NaN bound
         let mut upper_bounds = buckets
             .into_iter()
-            .filter(|upper_bound| !upper_bound.is_nan())
+            .filter(|upper_bound| !upper_bound.is_nan() && upper_bound.is_sign_positive())
             .collect::<Vec<_>>();
         // Sort and dedup the bounds
         upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));

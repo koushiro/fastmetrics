@@ -35,8 +35,8 @@ pub mod openmetrics_data_model {
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`prost::EncodeError`] if there was an error
-/// during protobuf encoding.
+/// Returns `Ok(())` if encoding was successful, or a [`EncodeError`] if there was an error during
+/// protobuf encoding.
 ///
 /// # Example
 ///
@@ -333,6 +333,33 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                             seconds: dur.as_secs() as i64,
                             nanos: dur.subsec_nanos() as i32,
                         }),
+                    },
+                )),
+                ..Default::default()
+            }],
+        });
+        Ok(())
+    }
+
+    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
+        let buckets = buckets
+            .iter()
+            .map(|b| openmetrics_data_model::histogram_value::Bucket {
+                count: b.count(),
+                upper_bound: b.upper_bound(),
+                exemplar: None,
+            })
+            .collect::<Vec<_>>();
+
+        self.metrics.push(openmetrics_data_model::Metric {
+            labels: self.labels.clone(),
+            metric_points: vec![openmetrics_data_model::MetricPoint {
+                value: Some(openmetrics_data_model::metric_point::Value::HistogramValue(
+                    openmetrics_data_model::HistogramValue {
+                        buckets,
+                        count,
+                        sum: Some(openmetrics_data_model::histogram_value::Sum::DoubleValue(sum)),
+                        created: None,
                     },
                 )),
                 ..Default::default()
