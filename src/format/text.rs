@@ -442,12 +442,7 @@ where
         Ok(())
     }
 
-    fn encode_gauge_histogram(
-        &mut self,
-        buckets: &[Bucket],
-        gsum: f64,
-        gcount: u64,
-    ) -> fmt::Result {
+    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
         // encode bucket metrics
         let mut cumulative_count = 0;
         for bucket in buckets {
@@ -472,11 +467,11 @@ where
         }
 
         // encode `*_gsum` metric
-        self.encode_gsum(gsum)?;
+        self.encode_gsum(sum)?;
         self.encode_newline()?;
 
         // encode `*_gcount` metric
-        self.encode_gcount(gcount)?;
+        self.encode_gcount(count)?;
         self.encode_newline()?;
 
         Ok(())
