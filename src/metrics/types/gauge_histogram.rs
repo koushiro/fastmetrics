@@ -78,16 +78,16 @@ impl Default for GaugeHistogram {
 impl GaugeHistogram {
     /// Creates a new [`GaugeHistogram`] with the given bucket boundaries.
     pub fn new(buckets: impl IntoIterator<Item = f64>) -> Self {
-        // Filter the NaN bound
+        // filter the NaN bound
         let mut upper_bounds = buckets
             .into_iter()
             .filter(|upper_bound| !upper_bound.is_nan())
             .collect::<Vec<_>>();
-        // Sort and dedup the bounds
+        // sort and dedup the bounds
         upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
         upper_bounds.dedup();
 
-        // Ensure +Inf bucket is included
+        // ensure +Inf bucket is included
         match upper_bounds.last() {
             Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
             None => upper_bounds.push(f64::INFINITY),
@@ -105,17 +105,17 @@ impl GaugeHistogram {
 
     /// Observes a value, incrementing the appropriate buckets.
     pub fn observe(&self, value: f64) {
-        // Value MUST NOT be NaN
+        // value MUST NOT be NaN
         if value.is_nan() {
             return;
         }
 
         let mut inner = self.inner.write();
-        // Increment the gcount and add the value into the gsum
+        // increment the gcount and add the value into the gsum
         inner.gcount += 1;
         inner.gsum += value;
 
-        // Only increment the count of the found bucket
+        // only increment the count of the found bucket
         let idx = inner.buckets.partition_point(|bucket| bucket.upper_bound() < value);
         inner.buckets[idx].inc();
     }
