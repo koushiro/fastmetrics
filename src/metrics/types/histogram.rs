@@ -87,7 +87,7 @@ impl Default for Histogram {
 impl Histogram {
     /// Creates a new [`Histogram`] with the given bucket boundaries.
     pub fn new(buckets: impl IntoIterator<Item = f64>) -> Self {
-        // Filter the NaN bound
+        // Filter the NaN and negative bound
         let mut upper_bounds = buckets
             .into_iter()
             .filter(|upper_bound| !upper_bound.is_nan() && upper_bound.is_sign_positive())
