@@ -14,7 +14,7 @@ pub use crate::metrics::raw::bucket::*;
 use crate::metrics::{MetricType, TypedMetric};
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
-/// buckets. This implementation uses f64 for the sum.
+/// buckets.
 ///
 /// # Example
 ///
@@ -227,16 +227,17 @@ mod tests {
         let clone = hist.clone();
 
         let handle = std::thread::spawn(move || {
-            for i in 0..1000 {
+            for i in 1..=100 {
                 clone.observe(i as f64);
             }
         });
 
-        for i in 0..1000 {
+        for i in 1..=100 {
             hist.observe(i as f64);
         }
 
         handle.join().unwrap();
-        assert_eq!(hist.count(), 2000);
+        assert_eq!(hist.count(), 200);
+        assert_eq!(hist.sum(), 10100.0);
     }
 }

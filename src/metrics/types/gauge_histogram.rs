@@ -12,14 +12,14 @@ use parking_lot::RwLock;
 pub use crate::metrics::raw::bucket::*;
 use crate::metrics::{MetricType, TypedMetric};
 
-/// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
-/// buckets. This implementation uses f64 for the sum.
+/// Open Metrics [`GaugeHistogram`] metric, which samples observations and counts them in
+/// configurable buckets.
 ///
 /// # Example
 ///
 /// ```rust
 /// use openmetrics_client::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
-/// // Create a histogram with custom bucket boundaries
+/// // Create a gauge histogram with custom bucket boundaries
 /// let hist = GaugeHistogram::new([-273.15, -200.0, -100.0, 0.0, 100.0, 200.0]);
 ///
 /// // Observe some values
@@ -197,16 +197,23 @@ mod tests {
         let clone = hist.clone();
 
         let handle = std::thread::spawn(move || {
-            for i in -100..1000 {
+            for i in -100..0 {
+                clone.observe(i as f64);
+            }
+            for i in 1..=100 {
                 clone.observe(i as f64);
             }
         });
 
-        for i in -100..1000 {
+        for i in -100..0 {
+            hist.observe(i as f64);
+        }
+        for i in 1..=100 {
             hist.observe(i as f64);
         }
 
         handle.join().unwrap();
-        assert_eq!(hist.gcount(), 2200);
+        assert_eq!(hist.gcount(), 400);
+        assert_eq!(hist.gsum(), 0.0);
     }
 }
