@@ -34,7 +34,11 @@ use crate::{
 ///
 /// // Register metrics into the subsystem
 /// let queries = <Counter>::default();
-/// db.register("queries_total", "Total database queries", queries.clone())?;
+/// db.register(
+///     "queries_total",
+///     "Total number of database query operation",
+///     queries.clone(),
+/// )?;
 ///
 /// // Update metrics
 /// queries.inc();
@@ -132,7 +136,9 @@ impl RegistrySystem {
         self
     }
 
-    /// Registers a metric into [`RegistrySystem`].
+    /// Registers a metric into [`RegistrySystem`], similar to [Registry::register] method.
+    ///
+    /// [Registry::register]: crate::registry::Registry::register
     pub fn register(
         &mut self,
         name: impl Into<String>,
@@ -142,7 +148,10 @@ impl RegistrySystem {
         self.do_register(name, help, None, metric)
     }
 
-    /// Registers a metric with the specified unit into [`RegistrySystem`].
+    /// Registers a metric with the specified unit into [`RegistrySystem`], similar to
+    /// [Registry::register_with_unit] method.
+    ///
+    /// [Registry::register_with_unit]: crate::registry::Registry::register_with_unit
     pub fn register_with_unit(
         &mut self,
         name: impl Into<String>,
@@ -170,7 +179,7 @@ impl RegistrySystem {
         }
     }
 
-    /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
+    /// Creates a subsystem to register metrics with a subsystem `name` (as a part of prefix).
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut Self {
         let name = name.into();
         self.subsystems.entry(name).or_insert_with_key(|name| {

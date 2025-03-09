@@ -127,7 +127,7 @@ impl Unit {
 /// # Example
 ///
 /// A counter metric family named "http_requests_total" might contain multiple individual counters
-/// for different HTTP methods (GET, POST) and status codes (200, 404, etc).
+/// for different HTTP methods (GET, POST) and status codes (200, 404, etc.).
 ///
 /// ```rust
 /// # use openmetrics_client::{
