@@ -143,6 +143,29 @@ impl Registry {
     }
 
     /// Registers a metric into [`Registry`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use openmetrics_client::{
+    /// #    metrics::counter::Counter,
+    /// #    registry::{Registry, RegistryError},
+    /// # };
+    /// #
+    /// # fn main() -> Result<(), RegistryError> {
+    /// let mut registry = Registry::default();
+    ///
+    /// let http_request_total = <Counter>::default();
+    /// registry.register(
+    ///     "http_request",
+    ///     "Total number of HTTP requests",
+    ///     http_request_total.clone()
+    /// )?;
+    /// // update the metric
+    /// // ...
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn register(
         &mut self,
         name: impl Into<String>,
@@ -153,6 +176,32 @@ impl Registry {
     }
 
     /// Registers a metric with the specified unit into [`Registry`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use openmetrics_client::{
+    /// #     metrics::{
+    /// #         histogram::Histogram,
+    /// #         family::Unit,
+    /// #    },
+    /// #    registry::{Registry, RegistryError},
+    /// # };
+    /// # fn main() -> Result<(), RegistryError> {
+    /// let mut registry = Registry::default();
+    ///
+    /// let http_request_duration_seconds = Histogram::default();
+    /// registry.register_with_unit(
+    ///     "http_request_duration",
+    ///     "Histogram of time spent during HTTP requests",
+    ///     Unit::Seconds,
+    ///     http_request_duration_seconds.clone()
+    /// )?;
+    /// // update the metric
+    /// // ...
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn register_with_unit(
         &mut self,
         name: impl Into<String>,
@@ -180,16 +229,12 @@ impl Registry {
         }
     }
 
-    /// Creates a subsystem to register metrics with a given `name` as a part of prefix.
+    /// Creates a subsystem to register metrics with a subsystem `name`(as a part of prefix).
     ///
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::{
-    /// #    metrics::{counter::Counter, gauge::Gauge},
-    /// #    registry::{Registry, RegistryError},
-    /// # };
-    ///
+    /// # use openmetrics_client::registry::Registry;
     /// let mut registry = Registry::builder().with_namespace("myapp").build();
     ///
     /// let subsystem1 = registry.subsystem("subsystem1");
