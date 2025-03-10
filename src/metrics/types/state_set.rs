@@ -68,10 +68,10 @@ pub trait StateSetValue: Sized + PartialEq + 'static {
 /// // Get all states with their status
 /// let states = state.states();
 /// assert_eq!(states, vec![
-///     ("pending", false),
-///     ("running", false),
-///     ("completed", true),
-///     ("failed", false),
+///     ("Pending", false),
+///     ("Running", false),
+///     ("Completed", true),
+///     ("Failed", false),
 /// ]);
 /// ```
 #[derive(Clone)]
@@ -160,10 +160,10 @@ impl<T: StateSetValue> TypedMetric for StateSet<T> {
 /// // Get all states with their status
 /// let states = state.states();
 /// assert_eq!(states, vec![
-///     ("pending", false),
-///     ("running", false),
-///     ("completed", true),
-///     ("failed", false),
+///     ("Pending", false),
+///     ("Running", false),
+///     ("Completed", true),
+///     ("Failed", false),
 /// ]);
 /// ```
 #[derive(Clone, Debug)]
