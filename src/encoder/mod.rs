@@ -201,11 +201,9 @@ impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
 
 impl EncodeMetric for Histogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let buckets = self.buckets();
-        let sum = self.sum();
-        let count = self.count();
+        let snapshot = self.snapshot();
         let created = self.created();
-        encoder.encode_histogram(&buckets, sum, count, created)
+        encoder.encode_histogram(snapshot.buckets(), snapshot.sum(), snapshot.count(), created)
     }
 
     fn metric_type(&self) -> MetricType {
@@ -217,10 +215,8 @@ impl EncodeMetric for Histogram {
 
 impl EncodeMetric for GaugeHistogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        let buckets = self.buckets();
-        let gsum = self.gsum();
-        let gcount = self.gcount();
-        encoder.encode_gauge_histogram(&buckets, gsum, gcount)
+        let snapshot = self.snapshot();
+        encoder.encode_gauge_histogram(snapshot.buckets(), snapshot.gsum(), snapshot.gcount())
     }
 
     fn metric_type(&self) -> MetricType {

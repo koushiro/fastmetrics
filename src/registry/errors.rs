@@ -4,14 +4,20 @@ use std::fmt;
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub enum RegistryError {
+    /// The registered metric already exists in the registry
     AlreadyExists,
+    /// MetricFamilies of type StateSet and Info must have an empty Unit string
+    MustHaveAnEmptyUnitString,
 }
 
 impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AlreadyExists => {
-                f.write_str("The metric being registered already exists in the registry")
+                f.write_str("The registered metric already exists in the registry")
+            },
+            Self::MustHaveAnEmptyUnitString => {
+                f.write_str("The metric type must have an empty unit string")
             },
         }
     }

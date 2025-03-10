@@ -29,7 +29,8 @@ use crate::metrics::{MetricType, TypedMetric};
 /// hist.observe(1000.0);   // Falls into +Inf bucket
 ///
 /// // Get bucket counts
-/// let buckets = hist.buckets();
+/// let snapshot = hist.snapshot();
+/// let buckets = snapshot.buckets();
 /// assert_eq!(buckets[1].upper_bound(), -200.0);
 /// assert_eq!(buckets[1].count(), 1);  // One value ≤-200.0
 /// assert_eq!(buckets[3].upper_bound(), 0.0);
@@ -40,31 +41,47 @@ use crate::metrics::{MetricType, TypedMetric};
 /// assert_eq!(buckets[6].count(), 1);  // One value in +Inf bucket
 ///
 /// // Get gcount and gsum statistics
-/// assert_eq!(hist.gcount(), 4);       // Total number of observations
-/// assert_eq!(hist.gsum(), 850.0);     // Sum of all observed values
+/// assert_eq!(snapshot.gcount(), 4);       // Total number of observations
+/// assert_eq!(snapshot.gsum(), 850.0);     // Sum of all observed values
 /// ```
 #[derive(Clone)]
 pub struct GaugeHistogram {
-    inner: Arc<RwLock<GaugeHistogramInner>>,
+    inner: Arc<RwLock<GaugeHistogramSnapshot>>,
 }
 
-struct GaugeHistogramInner {
+/// A snapshot of a [`GaugeHistogram`] at a point in time.
+#[derive(Clone)]
+pub struct GaugeHistogramSnapshot {
     buckets: Vec<Bucket>,
     gsum: f64,
     gcount: u64,
 }
 
+impl GaugeHistogramSnapshot {
+    /// Gets the current `bucket` counts.
+    pub fn buckets(&self) -> &[Bucket] {
+        &self.buckets
+    }
+
+    /// Gets the current `gsum` of all observed values.
+    pub const fn gsum(&self) -> f64 {
+        self.gsum
+    }
+
+    /// Gets the current `gcount` of all observations.
+    pub const fn gcount(&self) -> u64 {
+        self.gcount
+    }
+}
+
 impl Debug for GaugeHistogram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let inner = self.inner.read();
-        let buckets = &inner.buckets;
-        let gsum = inner.gsum;
-        let gcount = inner.gcount;
+        let snapshot = self.inner.read();
 
         f.debug_struct("GaugeHistogram")
-            .field("buckets", buckets)
-            .field("gsum", &gsum)
-            .field("gcount", &gcount)
+            .field("buckets", &snapshot.buckets())
+            .field("gsum", &snapshot.gsum())
+            .field("gcount", &snapshot.gcount())
             .finish()
     }
 }
@@ -99,7 +116,7 @@ impl GaugeHistogram {
             .collect::<Vec<_>>();
 
         Self {
-            inner: Arc::new(RwLock::new(GaugeHistogramInner { buckets, gsum: 0f64, gcount: 0 })),
+            inner: Arc::new(RwLock::new(GaugeHistogramSnapshot { buckets, gsum: 0f64, gcount: 0 })),
         }
     }
 
@@ -120,19 +137,9 @@ impl GaugeHistogram {
         inner.buckets[idx].inc();
     }
 
-    /// Gets the current `bucket` counts.
-    pub fn buckets(&self) -> Vec<Bucket> {
-        self.inner.read().buckets.clone()
-    }
-
-    /// Gets the current `gsum` of all observed values.
-    pub fn gsum(&self) -> f64 {
-        self.inner.read().gsum
-    }
-
-    /// Gets the current `gcount` of all observations.
-    pub fn gcount(&self) -> u64 {
-        self.inner.read().gcount
+    /// Returns a snapshot of the [`GaugeHistogram`] at the current time.
+    pub fn snapshot(&self) -> GaugeHistogramSnapshot {
+        self.inner.read().clone()
     }
 }
 
@@ -147,14 +154,16 @@ mod tests {
     #[test]
     fn test_gauge_histogram_initialization() {
         let hist = GaugeHistogram::default();
-        let buckets = hist.buckets();
+        let snapshot = hist.snapshot();
+        let buckets = snapshot.buckets();
         assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
-        assert_eq!(hist.gsum(), 0.0);
-        assert_eq!(hist.gcount(), 0);
+        assert_eq!(snapshot.gsum(), 0.0);
+        assert_eq!(snapshot.gcount(), 0);
 
         let bounds = vec![1.0, 2.0, 5.0];
         let hist = GaugeHistogram::new(bounds);
-        let buckets = hist.buckets();
+        let snapshot = hist.snapshot();
+        let buckets = snapshot.buckets();
         assert_eq!(buckets.len(), 4); // Including +Inf bucket
         assert_eq!(buckets[0].upper_bound(), 1.0);
         assert_eq!(buckets[1].upper_bound(), 2.0);
@@ -171,13 +180,14 @@ mod tests {
         hist.observe(100.0);
         hist.observe(1000.0);
 
-        let buckets = hist.buckets();
+        let snapshot = hist.snapshot();
+        let buckets = snapshot.buckets();
         assert_eq!(buckets[1].count(), 1); // ≤-200.0
         assert_eq!(buckets[3].count(), 1); // ≤0.0
         assert_eq!(buckets[4].count(), 1); // ≤100.0
         assert_eq!(buckets[6].count(), 1); // +Inf
-        assert_eq!(hist.gcount(), 4);
-        assert_eq!(hist.gsum(), 850.0);
+        assert_eq!(snapshot.gcount(), 4);
+        assert_eq!(snapshot.gsum(), 850.0);
     }
 
     #[test]
@@ -187,8 +197,9 @@ mod tests {
         hist.observe(-1.0); // Negative value, valid
         hist.observe(f64::NAN); // NaN value, invalid
 
-        assert_eq!(hist.gcount(), 1);
-        assert_eq!(hist.gsum(), -1.0);
+        let snapshot = hist.snapshot();
+        assert_eq!(snapshot.gcount(), 1);
+        assert_eq!(snapshot.gsum(), -1.0);
     }
 
     #[test]
@@ -213,7 +224,9 @@ mod tests {
         }
 
         handle.join().unwrap();
-        assert_eq!(hist.gcount(), 400);
-        assert_eq!(hist.gsum(), 0.0);
+
+        let snapshot = hist.snapshot();
+        assert_eq!(snapshot.gcount(), 400);
+        assert_eq!(snapshot.gsum(), 0.0);
     }
 }

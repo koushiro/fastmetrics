@@ -17,7 +17,10 @@ use std::{
 pub use self::{errors::*, subsystem::*};
 use crate::{
     encoder::EncodeMetric,
-    metrics::family::{Metadata, Unit},
+    metrics::{
+        family::{Metadata, Unit},
+        MetricType,
+    },
 };
 
 /// The `Metric` trait is a marker trait that combines the encoding capability with thread safety
@@ -209,6 +212,12 @@ impl Registry {
         unit: Unit,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
+        match metric.metric_type() {
+            MetricType::StateSet | MetricType::Info => {
+                return Err(RegistryError::MustHaveAnEmptyUnitString)
+            },
+            _ => {},
+        }
         self.do_register(name, help, Some(unit), metric)
     }
 

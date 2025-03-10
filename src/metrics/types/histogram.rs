@@ -30,7 +30,8 @@ use crate::metrics::{MetricType, TypedMetric};
 /// hist.observe(20.0); // Falls into +Inf bucket
 ///
 /// // Get bucket counts
-/// let buckets = hist.buckets();
+/// let snapshot = hist.snapshot();
+/// let buckets = snapshot.buckets();
 /// assert_eq!(buckets[0].upper_bound(), 1.0);
 /// assert_eq!(buckets[0].count(), 1);  // One value ≤1.0
 /// assert_eq!(buckets[1].upper_bound(), 2.0);
@@ -41,8 +42,8 @@ use crate::metrics::{MetricType, TypedMetric};
 /// assert_eq!(buckets[10].count(), 1);  // One value in +Inf bucket
 ///
 /// // Get count and sum statistics
-/// assert_eq!(hist.count(), 4);      // Total number of observations
-/// assert_eq!(hist.sum(), 25.0);     // Sum of all observed values
+/// assert_eq!(snapshot.count(), 4);      // Total number of observations
+/// assert_eq!(snapshot.sum(), 25.0);     // Sum of all observed values
 ///
 /// // Create a histogram with created timestamp
 /// let hist = Histogram::with_created(linear_buckets(1.0, 1.0, 10));
@@ -50,29 +51,45 @@ use crate::metrics::{MetricType, TypedMetric};
 /// ```
 #[derive(Clone)]
 pub struct Histogram {
-    inner: Arc<RwLock<HistogramInner>>,
+    inner: Arc<RwLock<HistogramSnapshot>>,
     // UNIX timestamp
     created: Option<Duration>,
 }
 
-struct HistogramInner {
+/// A snapshot of a [`Histogram`] at a point in time.
+#[derive(Clone)]
+pub struct HistogramSnapshot {
     buckets: Vec<Bucket>,
     sum: f64,
     count: u64,
 }
 
+impl HistogramSnapshot {
+    /// Gets the current `bucket` counts.
+    pub fn buckets(&self) -> &[Bucket] {
+        &self.buckets
+    }
+
+    /// Gets the current `sum` of all observed values.
+    pub const fn sum(&self) -> f64 {
+        self.sum
+    }
+
+    /// Gets the current `count` of all observations.
+    pub const fn count(&self) -> u64 {
+        self.count
+    }
+}
+
 impl Debug for Histogram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let inner = self.inner.read();
-        let buckets = &inner.buckets;
-        let sum = inner.sum;
-        let count = inner.count;
+        let snapshot = self.inner.read();
         let created = self.created();
 
         f.debug_struct("Histogram")
-            .field("buckets", buckets)
-            .field("sum", &sum)
-            .field("count", &count)
+            .field("buckets", &snapshot.buckets())
+            .field("sum", &snapshot.sum())
+            .field("count", &snapshot.count())
             .field("created", &created)
             .finish()
     }
@@ -108,7 +125,7 @@ impl Histogram {
             .collect::<Vec<_>>();
 
         Self {
-            inner: Arc::new(RwLock::new(HistogramInner { buckets, sum: 0f64, count: 0 })),
+            inner: Arc::new(RwLock::new(HistogramSnapshot { buckets, sum: 0f64, count: 0 })),
             created: None,
         }
     }
@@ -141,19 +158,10 @@ impl Histogram {
         inner.buckets[idx].inc();
     }
 
-    /// Gets the current `bucket` counts.
-    pub fn buckets(&self) -> Vec<Bucket> {
-        self.inner.read().buckets.clone()
-    }
-
-    /// Gets the current `sum` of all observed values.
-    pub fn sum(&self) -> f64 {
-        self.inner.read().sum
-    }
-
-    /// Gets the current `count` of all observations.
-    pub fn count(&self) -> u64 {
-        self.inner.read().count
+    /// Returns a snapshot of the [`Histogram`] at the current time.
+    pub fn snapshot(&self) -> HistogramSnapshot {
+        let snapshot = self.inner.read();
+        snapshot.clone()
     }
 
     /// Gets the optional `created` value of the [`Histogram`].
@@ -173,15 +181,17 @@ mod tests {
     #[test]
     fn test_histogram_initialization() {
         let hist = Histogram::default();
-        let buckets = hist.buckets();
+        let snapshot = hist.snapshot();
+        let buckets = snapshot.buckets();
         assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
-        assert_eq!(hist.sum(), 0.0);
-        assert_eq!(hist.count(), 0);
+        assert_eq!(snapshot.sum(), 0.0);
+        assert_eq!(snapshot.count(), 0);
         assert!(hist.created().is_none());
 
         let bounds = vec![1.0, 2.0, 5.0];
         let hist = Histogram::new(bounds);
-        let buckets = hist.buckets();
+        let snapshot = hist.snapshot();
+        let buckets = snapshot.buckets();
         assert_eq!(buckets.len(), 4); // Including +Inf bucket
         assert_eq!(buckets[0].upper_bound(), 1.0);
         assert_eq!(buckets[1].upper_bound(), 2.0);
@@ -201,13 +211,14 @@ mod tests {
         hist.observe(3.0);
         hist.observe(6.0);
 
-        let buckets = hist.buckets();
+        let snapshot = hist.snapshot();
+        let buckets = snapshot.buckets();
         assert_eq!(buckets[0].count(), 1); // ≤1.0
         assert_eq!(buckets[1].count(), 1); // ≤2.0
         assert_eq!(buckets[2].count(), 1); // ≤5.0
         assert_eq!(buckets[3].count(), 1); // +Inf
-        assert_eq!(hist.count(), 4);
-        assert_eq!(hist.sum(), 11.0);
+        assert_eq!(snapshot.count(), 4);
+        assert_eq!(snapshot.sum(), 11.0);
     }
 
     #[test]
@@ -217,8 +228,9 @@ mod tests {
         hist.observe(-1.0); // Negative value
         hist.observe(f64::NAN); // NaN value
 
-        assert_eq!(hist.count(), 0);
-        assert_eq!(hist.sum(), 0.0);
+        let snapshot = hist.snapshot();
+        assert_eq!(snapshot.count(), 0);
+        assert_eq!(snapshot.sum(), 0.0);
     }
 
     #[test]
@@ -237,7 +249,9 @@ mod tests {
         }
 
         handle.join().unwrap();
-        assert_eq!(hist.count(), 200);
-        assert_eq!(hist.sum(), 10100.0);
+
+        let snapshot = hist.snapshot();
+        assert_eq!(snapshot.count(), 200);
+        assert_eq!(snapshot.sum(), 10100.0);
     }
 }
