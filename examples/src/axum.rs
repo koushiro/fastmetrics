@@ -78,10 +78,11 @@ async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
     let status = StatusCode::OK;
     state.metrics.observe_http_get_req(status);
 
-    Ok(Response::builder()
+    let response = Response::builder()
         .status(status)
         .header(CONTENT_TYPE, "application/openmetrics-text; version=1.0.0; charset=utf-8")
-        .body(Body::from(output))?)
+        .body(Body::from(output))?;
+    Ok(response)
 }
 
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
@@ -91,10 +92,11 @@ async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> 
     let status = StatusCode::OK;
     state.metrics.observe_http_get_req(status);
 
-    Ok(Response::builder()
+    let response = Response::builder()
         .status(status)
         .header(CONTENT_TYPE, "application/openmetrics-protobuf; version=1.0.0; charset=utf-8")
-        .body(Body::from(output))?)
+        .body(Body::from(output))?;
+    Ok(response)
 }
 
 #[tokio::main]

@@ -37,6 +37,7 @@ pub trait StateSetValue: Sized + PartialEq + 'static {
 ///     Failed,
 /// }
 ///
+/// // Can use `#[derive(StateSetValue)]` to simplify the code, but need to enable `derive` feature
 /// impl StateSetValue for JobState {
 ///     fn variants() -> &'static [Self] {
 ///         &[Self::Pending, Self::Running, Self::Completed, Self::Failed]
@@ -44,10 +45,10 @@ pub trait StateSetValue: Sized + PartialEq + 'static {
 ///
 ///     fn as_str(&self) -> &str {
 ///         match self {
-///             Self::Pending => "pending",
-///             Self::Running => "running",
-///             Self::Completed => "completed",
-///             Self::Failed => "failed",
+///             Self::Pending => "Pending",
+///             Self::Running => "Running",
+///             Self::Completed => "Completed",
+///             Self::Failed => "Failed",
 ///         }
 ///     }
 /// }
@@ -111,7 +112,7 @@ impl<T: StateSetValue> StateSet<T> {
         T::variants().get(index).expect("Invalid state index")
     }
 
-    /// Returns the all states.
+    /// Returns the all states with exactly one Boolean value being true.
     pub fn states(&self) -> Vec<(&str, bool)> {
         let current = self.get();
         gen_states(current)
@@ -136,6 +137,7 @@ impl<T: StateSetValue> TypedMetric for StateSet<T> {
 ///     Failed,
 /// }
 ///
+/// // Can use `#[derive(StateSetValue)]` to simplify the code, but need to enable `derive` feature
 /// impl StateSetValue for JobState {
 ///     fn variants() -> &'static [Self] {
 ///         &[Self::Pending, Self::Running, Self::Completed, Self::Failed]
@@ -143,10 +145,10 @@ impl<T: StateSetValue> TypedMetric for StateSet<T> {
 ///
 ///     fn as_str(&self) -> &str {
 ///         match self {
-///             Self::Pending => "pending",
-///             Self::Running => "running",
-///             Self::Completed => "completed",
-///             Self::Failed => "failed",
+///             Self::Pending => "Pending",
+///             Self::Running => "Running",
+///             Self::Completed => "Completed",
+///             Self::Failed => "Failed",
 ///         }
 ///     }
 /// }

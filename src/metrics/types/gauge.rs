@@ -149,7 +149,7 @@ impl<N: GaugeValue> TypedMetric for Gauge<N> {
 /// # use openmetrics_client::metrics::gauge::ConstGauge;
 ///
 /// // Create a constant gauge with initial value
-/// let gauge = ConstGauge::new(42_i64);
+/// let gauge = ConstGauge::new(42);
 /// assert_eq!(gauge.get(), 42);
 /// ```
 #[derive(Clone, Debug)]
