@@ -1,8 +1,6 @@
 //! Protobuf exposition format.
 
-use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
-
-pub use prost::EncodeError;
+use std::{borrow::Cow, collections::HashMap, fmt, io, time::Duration};
 
 use crate::{
     encoder::{
@@ -67,14 +65,12 @@ pub mod openmetrics_data_model {
 /// # Ok(())
 /// # }
 /// ```
-pub fn encode(
-    buffer: &mut impl prost::bytes::BufMut,
-    registry: &Registry,
-) -> Result<(), EncodeError> {
+pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> io::Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     let mut encoder = Encoder::new(&mut metric_set, registry);
     encoder.encode().expect("fmt::Error should not be encountered");
-    prost::Message::encode(&metric_set, buffer)
+    prost::Message::encode(&metric_set, buffer)?;
+    Ok(())
 }
 
 struct Encoder<'a> {
