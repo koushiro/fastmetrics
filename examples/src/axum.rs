@@ -1,4 +1,5 @@
 use std::{
+    io,
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,
 };
@@ -59,7 +60,7 @@ enum AppError {
     #[error("prometheus encode error: {0}")]
     WriteFmt(#[from] std::fmt::Error),
     #[error("protobuf encode error: {0}")]
-    ProtobufEncode(#[from] protobuf::EncodeError),
+    ProtobufEncode(#[from] io::Error),
     #[error("{0}")]
     Http(#[from] axum::http::Error),
 }
