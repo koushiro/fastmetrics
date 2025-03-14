@@ -4,7 +4,10 @@ use std::{
 };
 
 use crate::{
-    metrics::family::{Metadata, Unit},
+    metrics::{
+        family::{Metadata, Unit},
+        MetricType,
+    },
     registry::{Metric, RegistryError},
 };
 
@@ -159,6 +162,12 @@ impl RegistrySystem {
         unit: Unit,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
+        match metric.metric_type() {
+            MetricType::StateSet | MetricType::Info => {
+                return Err(RegistryError::MustHaveAnEmptyUnitString)
+            },
+            _ => {},
+        }
         self.do_register(name, help, Some(unit), metric)
     }
 
