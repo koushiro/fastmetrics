@@ -33,7 +33,7 @@
 //! use openmetrics_client::{
 //!     encoder::{EncodeLabelSet, EncodeLabelValue, EncodeLabel, LabelSetEncoder, LabelEncoder},
 //!     format::text,
-//!     metrics::{counter::Counter, gauge::Gauge, family::Family},
+//!     metrics::{counter::Counter, family::Family},
 //!     registry::Registry,
 //! };
 //!
@@ -73,8 +73,8 @@
 //! impl EncodeLabelValue for Method {
 //!     fn encode(&self, encoder: &mut dyn LabelEncoder) -> std::fmt::Result {
 //!         match self {
-//!             Self::Get => encoder.encode_str_value("GET"),
-//!             Self::Put => encoder.encode_str_value("PUT"),
+//!             Self::Get => encoder.encode_str_value("Get"),
+//!             Self::Put => encoder.encode_str_value("Put"),
 //!         }
 //!     }
 //! }
@@ -99,7 +99,7 @@
 //! let mut output = String::new();
 //! text::encode(&mut output, &registry)?;
 //! // println!("{}", output);
-//! assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="GET",status="200"} 1"#));
+//! assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="Get",status="200"} 1"#));
 //! # Ok(())
 //! # }
 //! ```
