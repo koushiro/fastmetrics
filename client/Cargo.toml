@@ -1,0 +1,30 @@
+
+[package]
+name = "openmetrics-client"
+version = "0.1.0"
+description = "Another Open Metrics client library in Rust."
+keywords = ["openmetrics", "metrics", "prometheus"]
+documentation = "https://docs.rs/openmetrics-client"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+derive = ["dep:openmetrics-client-derive"]
+protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
+
+[build-dependencies]
+prost-build = { version = "0.13", optional = true }
+
+[dependencies]
+dtoa = "1.0"
+itoa = "1.0"
+openmetrics-client-derive = { path = "derive", version = "0.1", optional = true }
+parking_lot = "0.12"
+paste = "1.0"
+prost = { version = "0.13", optional = true }
+prost-types = { version = "0.13", optional = true }
+ryu = "1.0"
