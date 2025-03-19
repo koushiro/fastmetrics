@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Another Open Metrics client library in Rust."
 keywords = ["openmetrics", "metrics", "prometheus"]
 documentation = "https://docs.rs/openmetrics-client"
+readme = "../README.md"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

@@ -8,6 +8,8 @@ pub enum RegistryError {
     AlreadyExists,
     /// MetricFamilies of type StateSet and Info must have an empty Unit string
     MustHaveAnEmptyUnitString,
+    /// Metric name format is invalid
+    InvalidNameFormat,
 }
 
 impl fmt::Display for RegistryError {
@@ -19,6 +21,7 @@ impl fmt::Display for RegistryError {
             Self::MustHaveAnEmptyUnitString => {
                 f.write_str("The metric type must have an empty unit string")
             },
+            Self::InvalidNameFormat => f.write_str("The name should be snake_case"),
         }
     }
 }

@@ -228,6 +228,11 @@ impl Registry {
         unit: Option<Unit>,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
+        let name = name.into();
+        if !is_snake_case(&name) {
+            return Err(RegistryError::InvalidNameFormat);
+        }
+
         let metadata = Metadata::new(name, help, metric.metric_type(), unit);
         match self.metrics.entry(metadata) {
             hash_map::Entry::Vacant(entry) => {
@@ -239,6 +244,10 @@ impl Registry {
     }
 
     /// Creates a subsystem to register metrics with a subsystem `name`(as a part of prefix).
+    ///
+    /// # Note
+    ///
+    /// The name of subsystem should be `snake_case`, otherwise it will throw a panic.
     ///
     /// # Example
     ///
@@ -257,6 +266,8 @@ impl Registry {
     /// ```
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut RegistrySystem {
         let name = name.into();
+        assert!(is_snake_case(&name), "invalid subsystem name, must be snake_case");
+
         self.subsystems.entry(name).or_insert_with_key(|name| {
             RegistrySystem::builder(name)
                 .with_prefix(self.namespace.clone())
@@ -268,5 +279,47 @@ impl Registry {
     /// Returns the current `namespace` of [`Registry`].
     pub fn namespace(&self) -> Option<&str> {
         self.namespace.as_deref()
+    }
+}
+
+fn is_snake_case(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+
+    match name.chars().next() {
+        // first char shouldn't be ascii digit or '_'
+        Some(first) if first == '_' || first.is_ascii_digit() => return false,
+        _ => {},
+    }
+
+    // name shouldn't contain "__" and the suffix of name shouldn't be '_'
+    if name.contains("__") || name.ends_with('_') {
+        return false;
+    }
+
+    // all chars of name should match 'a'..='z' | '0'..='9' | '_'
+    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+        return false;
+    }
+
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_snake_case() {
+        let cases = vec!["name1", "name_1", "name_1_2"];
+        for case in cases {
+            assert!(is_snake_case(case));
+        }
+
+        let invalid_cases = vec!["_", "1name", "name__1", "name_", "name!"];
+        for invalid_case in invalid_cases {
+            assert!(!is_snake_case(invalid_case));
+        }
     }
 }
