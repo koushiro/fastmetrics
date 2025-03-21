@@ -12,14 +12,14 @@ A pure-Rust implementation of the [OpenMetrics](https://github.com/prometheus/Op
 - Type-safe metric creation and manipulation
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
-- Encoding in bot text and protobuf exposition format
+- Encoding in both text and protobuf exposition format
 - Optional derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
 
 ## TODO
 
 - [ ] Summary metric type
 - [ ] Exemplar feature in counter and histogram metric
-- [ ] More check about metric restrictions
+- [ ] Integrate optional process metrics
 - [ ] ...
 
 ## Usage
