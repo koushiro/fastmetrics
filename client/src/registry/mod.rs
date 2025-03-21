@@ -58,7 +58,7 @@ impl<T> Metric for T where T: EncodeMetric + Send + Sync {}
 /// ```rust
 /// # use openmetrics_client::{
 /// #    metrics::{counter::Counter, gauge::Gauge},
-/// #    registry::{Registry, RegistryError},
+/// #    registry::{Registry, RegistryError, RegistrySystem},
 /// # };
 /// #
 /// # fn main() -> Result<(), RegistryError> {
@@ -68,6 +68,7 @@ impl<T> Metric for T where T: EncodeMetric + Send + Sync {}
 ///     .with_const_labels([("env", "prod")])
 ///     .build();
 /// assert_eq!(registry.namespace(), Some("myapp"));
+/// assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
 ///
 /// // Register metrics into the registry
 /// let uptime_seconds = <Gauge>::default();
@@ -76,14 +77,21 @@ impl<T> Metric for T where T: EncodeMetric + Send + Sync {}
 /// // Create a subsystem for database metrics
 /// let db = registry.subsystem("database");
 /// assert_eq!(db.namespace(), "myapp_database");
+/// assert_eq!(db.constant_labels(), [("env".into(), "prod".into())]);
 ///
 /// // Register metrics into the database subsystem
 /// let db_connections = <Gauge>::default();
 /// db.register("connections", "Active database connections", db_connections.clone())?;
 ///
 /// // Create a nested subsystem with additional constant labels
-/// let mysql = db.subsystem("mysql").with_additional_const_labels([("engine", "innodb")]);
+/// let mysql = db.attach_subsystem(
+///     RegistrySystem::builder("mysql").with_const_labels([("engine", "innodb")])
+/// );
 /// assert_eq!(mysql.namespace(), "myapp_database_mysql");
+/// assert_eq!(
+///     mysql.constant_labels(),
+///     [("env".into(), "prod".into()), ("engine".into(), "innodb".into())],
+/// );
 ///
 /// // Register metrics into the mysql subsystem
 /// let mysql_queries = <Counter>::default();
@@ -244,6 +252,7 @@ impl Registry {
     }
 
     /// Creates a subsystem to register metrics with a subsystem `name`(as a part of prefix).
+    /// If the subsystem `name` already exists, the previous created subsystem will be returned.
     ///
     /// # Note
     ///
@@ -253,25 +262,62 @@ impl Registry {
     ///
     /// ```rust
     /// # use openmetrics_client::registry::Registry;
-    /// let mut registry = Registry::builder().with_namespace("myapp").build();
+    /// let mut registry = Registry::builder()
+    ///     .with_namespace("myapp")
+    ///     .with_const_labels([("env", "prod")])
+    ///     .build();
+    /// assert_eq!(registry.namespace(), Some("myapp"));
+    /// assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
     ///
     /// let subsystem1 = registry.subsystem("subsystem1");
     /// assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+    /// assert_eq!(subsystem1.constant_labels(), [("env".into(), "prod".into())]);
     ///
     /// let subsystem2 = registry.subsystem("subsystem2");
     /// assert_eq!(subsystem2.namespace(), "myapp_subsystem2");
+    /// assert_eq!(subsystem2.constant_labels(), [("env".into(), "prod".into())]);
     ///
     /// let nested_subsystem = registry.subsystem("subsystem1").subsystem("subsystem2");
     /// assert_eq!(nested_subsystem.namespace(), "myapp_subsystem1_subsystem2");
+    /// assert_eq!(nested_subsystem.constant_labels(), [("env".into(), "prod".into())]);
     /// ```
     pub fn subsystem(&mut self, name: impl Into<String>) -> &mut RegistrySystem {
         let name = name.into();
-        assert!(is_snake_case(&name), "invalid subsystem name, must be snake_case");
-
+        // self.attach_subsystem(RegistrySystem::builder(name))
         self.subsystems.entry(name).or_insert_with_key(|name| {
             RegistrySystem::builder(name)
+                // inherit prefix from the registry
                 .with_prefix(self.namespace.clone())
-                .with_const_labels(self.const_labels.clone())
+                // inherit constant labels from the registry
+                .with_inherited_const_labels(self.const_labels.clone())
+                .build()
+        })
+    }
+
+    /// Attach a configurable subsystem.
+    /// If the subsystem `name` already exists, the previous created subsystem will be returned.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use openmetrics_client::registry::{Registry, RegistrySystem};
+    /// let mut registry = Registry::builder().with_namespace("myapp").build();
+    /// assert_eq!(registry.namespace(), Some("myapp"));
+    ///
+    /// let subsystem1 = registry.attach_subsystem(
+    ///     RegistrySystem::builder("subsystem1").with_const_labels([("name", "value")])
+    /// );
+    /// assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+    /// assert_eq!(subsystem1.constant_labels(), [("name".into(), "value".into())]);
+    /// ```
+    pub fn attach_subsystem(&mut self, builder: RegistrySystemBuilder) -> &mut RegistrySystem {
+        let name = builder.system_name.clone();
+        self.subsystems.entry(name).or_insert_with(|| {
+            builder
+                // inherit prefix from the registry
+                .with_prefix(self.namespace.clone())
+                // inherit constant labels from the registry
+                .with_inherited_const_labels(self.const_labels.clone())
                 .build()
         })
     }
@@ -279,6 +325,11 @@ impl Registry {
     /// Returns the current `namespace` of [`Registry`].
     pub fn namespace(&self) -> Option<&str> {
         self.namespace.as_deref()
+    }
+
+    /// Returns the `constant labels` of [`Registry`].
+    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
+        &self.const_labels
     }
 }
 
@@ -289,7 +340,7 @@ fn is_snake_case(name: &str) -> bool {
 
     match name.chars().next() {
         // first char shouldn't be ascii digit or '_'
-        Some(first) if first == '_' || first.is_ascii_digit() => return false,
+        Some(first) if first.is_ascii_digit() || first == '_' => return false,
         _ => {},
     }
 
@@ -299,16 +350,62 @@ fn is_snake_case(name: &str) -> bool {
     }
 
     // all chars of name should match 'a'..='z' | '0'..='9' | '_'
-    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+    name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+fn is_lowercase(name: &str) -> bool {
+    if name.is_empty() {
         return false;
     }
 
-    true
+    // all chars of name should match 'a'..='z' | '0'..='9'
+    name.chars().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_registry_subsystem() {
+        let mut registry = Registry::builder()
+            .with_namespace("myapp")
+            .with_const_labels([("env", "prod")])
+            .build();
+        assert_eq!(registry.namespace(), Some("myapp"));
+        assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
+
+        let subsystem1 = registry.subsystem("subsystem1");
+        assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+        assert_eq!(subsystem1.constant_labels(), [("env".into(), "prod".into())]);
+
+        let subsystem2 = registry.subsystem("subsystem2");
+        assert_eq!(subsystem2.namespace(), "myapp_subsystem2");
+        assert_eq!(subsystem2.constant_labels(), [("env".into(), "prod".into())]);
+
+        let nested_subsystem = registry.subsystem("subsystem1").subsystem("subsystem2");
+        assert_eq!(nested_subsystem.namespace(), "myapp_subsystem1_subsystem2");
+        assert_eq!(nested_subsystem.constant_labels(), [("env".into(), "prod".into())]);
+    }
+
+    #[test]
+    fn test_registry_attach_subsystem() {
+        let mut registry = Registry::builder()
+            .with_namespace("myapp")
+            .with_const_labels([("env", "prod")])
+            .build();
+        assert_eq!(registry.namespace(), Some("myapp"));
+        assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
+
+        let subsystem1 = registry.attach_subsystem(
+            RegistrySystem::builder("subsystem1").with_const_labels([("name", "value")]),
+        );
+        assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+        assert_eq!(
+            subsystem1.constant_labels(),
+            [("env".into(), "prod".into()), ("name".into(), "value".into())]
+        );
+    }
 
     #[test]
     fn test_is_snake_case() {
@@ -320,6 +417,19 @@ mod tests {
         let invalid_cases = vec!["_", "1name", "name__1", "name_", "name!"];
         for invalid_case in invalid_cases {
             assert!(!is_snake_case(invalid_case));
+        }
+    }
+
+    #[test]
+    fn test_is_lowercase() {
+        let cases = vec!["name1", "1name", "na1me"];
+        for case in cases {
+            assert!(is_lowercase(case));
+        }
+
+        let invalid_cases = vec!["_", "name_", "name!"];
+        for invalid_case in invalid_cases {
+            assert!(!is_lowercase(invalid_case));
         }
     }
 }
