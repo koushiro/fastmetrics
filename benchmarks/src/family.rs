@@ -46,7 +46,7 @@ fn prometheus_client_family(c: &mut Criterion) {
         let family = Family::<(), Counter>::default();
 
         b.iter(|| {
-            let _ = black_box(family.get_or_create(&()).inc());
+            let _ret = family.get_or_create(black_box(&())).inc();
         })
     });
     group.bench_function("counter family with [(&'static str, &'static str)] labels", |b| {
@@ -59,7 +59,7 @@ fn prometheus_client_family(c: &mut Criterion) {
                 [("method", labels.method()), ("status", labels.status())]
             },
             |labels| {
-                let _ = black_box(family.get_or_create(&labels).inc());
+                let _ret = family.get_or_create(black_box(&labels)).inc();
             },
             BatchSize::SmallInput,
         )
@@ -74,7 +74,7 @@ fn prometheus_client_family(c: &mut Criterion) {
                 vec![("method", labels.method()), ("status", labels.status())]
             },
             |labels| {
-                let _ = black_box(family.get_or_create(&labels).inc());
+                let _ret = family.get_or_create(&black_box(labels)).inc();
             },
             BatchSize::SmallInput,
         )
@@ -92,7 +92,7 @@ fn prometheus_client_family(c: &mut Criterion) {
                 ]
             },
             |labels| {
-                let _ = black_box(family.get_or_create(&labels).inc());
+                let _ret = family.get_or_create(&black_box(labels)).inc();
             },
             BatchSize::SmallInput,
         )
@@ -104,7 +104,7 @@ fn prometheus_client_family(c: &mut Criterion) {
         b.iter_batched(
             || rng.random::<Labels>(),
             |labels| {
-                let _ = black_box(family.get_or_create(&labels).inc());
+                let _ret = family.get_or_create(&black_box(labels)).inc();
             },
             BatchSize::SmallInput,
         );
@@ -123,7 +123,7 @@ fn openmetrics_client_family(c: &mut Criterion) {
         family.with_or_default(&(), |_| {});
 
         b.iter(|| {
-            let _ = black_box(family.with(&(), |counter| counter.inc()));
+            let _ret = family.with(black_box(&()), |counter| counter.inc());
         })
     });
     group.bench_function("counter family with [(&'static str, &'static str)] labels", |b| {
@@ -136,7 +136,7 @@ fn openmetrics_client_family(c: &mut Criterion) {
                 [("method", labels.method()), ("status", labels.status())]
             },
             |labels| {
-                let _ = black_box(family.with_or_default(&labels, |counter| counter.inc()));
+                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
         )
@@ -151,7 +151,7 @@ fn openmetrics_client_family(c: &mut Criterion) {
                 vec![("method", labels.method()), ("status", labels.status())]
             },
             |labels| {
-                let _ = black_box(family.with_or_default(&labels, |counter| counter.inc()));
+                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
         )
@@ -169,7 +169,7 @@ fn openmetrics_client_family(c: &mut Criterion) {
                 ]
             },
             |labels| {
-                let _ = black_box(family.with_or_default(&labels, |counter| counter.inc()));
+                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
         )
@@ -181,7 +181,7 @@ fn openmetrics_client_family(c: &mut Criterion) {
         b.iter_batched(
             || rng.random::<Labels>(),
             |labels| {
-                let _ = black_box(family.with_or_default(&labels, |counter| counter.inc()));
+                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
         )

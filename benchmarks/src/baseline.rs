@@ -14,7 +14,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
         let counter = <Counter>::default();
 
         b.iter(|| {
-            let _ = black_box(counter.inc());
+            let _ret = black_box(counter.inc());
         })
     });
     group.bench_function("gauge::set", |b| {
@@ -24,7 +24,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
         b.iter_batched(
             || rng.random::<i64>(),
             |data| {
-                let _ = black_box(gauge.set(data));
+                let _ret = gauge.set(black_box(data));
             },
             BatchSize::SmallInput,
         )
@@ -36,9 +36,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
 
         b.iter_batched(
             || rng.random_range(0f64..100f64),
-            |data| {
-                let _ = black_box(histogram.observe(data));
-            },
+            |data| histogram.observe(black_box(data)),
             BatchSize::SmallInput,
         )
     });
@@ -62,7 +60,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
         let counter = <Counter>::default();
 
         b.iter(|| {
-            let _ = black_box(counter.inc());
+            let _ret = black_box(counter.inc());
         })
     });
     group.bench_function("gauge::set", |b| {
@@ -72,7 +70,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
         b.iter_batched(
             || rng.random::<i64>(),
             |data| {
-                let _ = black_box(gauge.set(data));
+                let _ret = gauge.set(black_box(data));
             },
             BatchSize::SmallInput,
         )
@@ -84,9 +82,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
 
         b.iter_batched(
             || rng.random_range(0f64..100f64),
-            |data| {
-                let _ = black_box(histogram.observe(data));
-            },
+            |data| histogram.observe(black_box(data)),
             BatchSize::SmallInput,
         )
     });
@@ -97,9 +93,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
 
         b.iter_batched(
             || rng.random_range(-100f64..200f64),
-            |data| {
-                let _ = black_box(histogram.observe(data));
-            },
+            |data| histogram.observe(black_box(data)),
             BatchSize::SmallInput,
         )
     });
@@ -130,9 +124,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
 
         b.iter_batched(
             || rng.random::<JobState>(),
-            |data| {
-                let _ = black_box(stateset.set(data));
-            },
+            |data| stateset.set(black_box(data)),
             BatchSize::SmallInput,
         )
     });
