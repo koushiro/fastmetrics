@@ -36,7 +36,7 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
         })
         .collect::<Vec<_>>();
 
-    let size = field_list.len();
+    let is_empty = field_list.is_empty();
 
     // Generate the trait implementation
     let expanded = quote! {
@@ -50,8 +50,9 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
                 Ok(())
             }
 
-            fn size_hint(&self) -> usize {
-                #size
+            #[inline]
+            fn is_empty(&self) -> bool {
+                #is_empty
             }
         }
     };

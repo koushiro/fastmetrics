@@ -455,10 +455,6 @@ mod tests {
             ("status", self.status).encode(encoder.label_encoder().as_mut())?;
             Ok(())
         }
-
-        fn size_hint(&self) -> usize {
-            2
-        }
     }
 
     impl EncodeLabelValue for Method {
