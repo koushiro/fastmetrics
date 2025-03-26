@@ -1,0 +1,33 @@
+[package]
+name = "openmetrics-client-benchmarks"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dev-dependencies]
+criterion = "0.5"
+openmetrics-client = { path = "../client", features = ["derive", "protobuf"] }
+prometheus-client = { version = "0.23", features = ["protobuf"] }
+prost_0_12 = { package = "prost", version = "0.12" }
+rand = "0.9.0"
+
+[[bench]]
+name = "baseline"
+path = "src/baseline.rs"
+harness = false
+
+[[bench]]
+name = "family"
+path = "src/family.rs"
+harness = false
+
+[[bench]]
+name = "text"
+path = "src/format/text.rs"
+harness = false
+
+[[bench]]
+name = "protobuf"
+path = "src/format/protobuf.rs"
+harness = false

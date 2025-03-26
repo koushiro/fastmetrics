@@ -16,9 +16,7 @@ pub enum MetricType {
     Counter,
     StateSet,
     Info,
-    /// Not implemented yet.
     Histogram,
-    /// Not implemented yet.
     GaugeHistogram,
     /// Not implemented yet.
     Summary,
