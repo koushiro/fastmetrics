@@ -28,11 +28,11 @@ impl Labels {
 
 impl Distribution<Labels> for StandardUniform {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Labels {
-        let method = match rng.random_range(0..=1) {
-            0 => Method::Get,
-            _ => Method::Put,
+        let method = match rng.random_ratio(8, 10) {
+            true => Method::Get,
+            false => Method::Put,
         };
-        let status = rng.random_range(100..=500u32);
+        let status = rng.random_range(1..=10);
         Labels { method, status }
     }
 }
@@ -47,7 +47,7 @@ fn prometheus_client_family(c: &mut Criterion) {
 
         b.iter(|| {
             let _ret = family.get_or_create(black_box(&())).inc();
-        })
+        });
     });
     group.bench_function("counter family with [(&'static str, &'static str)] labels", |b| {
         let family = Family::<[(&'static str, &'static str); 2], Counter>::default();
@@ -62,7 +62,7 @@ fn prometheus_client_family(c: &mut Criterion) {
                 let _ret = family.get_or_create(black_box(&labels)).inc();
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("counter family with Vec<(&'static str, &'static str)> labels", |b| {
         let family = Family::<Vec<(&'static str, &'static str)>, Counter>::default();
@@ -77,7 +77,7 @@ fn prometheus_client_family(c: &mut Criterion) {
                 let _ret = family.get_or_create(&black_box(labels)).inc();
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("counter family with Vec<(String, String)> labels", |b| {
         let family = Family::<Vec<(String, String)>, Counter>::default();
@@ -95,7 +95,7 @@ fn prometheus_client_family(c: &mut Criterion) {
                 let _ret = family.get_or_create(&black_box(labels)).inc();
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("counter family with custom labels", |b| {
         let family = Family::<Labels, Counter>::default();

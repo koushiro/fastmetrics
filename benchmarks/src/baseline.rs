@@ -15,7 +15,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
 
         b.iter(|| {
             let _ret = black_box(counter.inc());
-        })
+        });
     });
     group.bench_function("gauge::set", |b| {
         let gauge = <Gauge>::default();
@@ -27,7 +27,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
                 let _ret = gauge.set(black_box(data));
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("histogram::observe", |b| {
         let buckets = exponential_buckets(0.005f64, 2f64, 10);
@@ -38,7 +38,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
             || rng.random_range(0f64..100f64),
             |data| histogram.observe(black_box(data)),
             BatchSize::SmallInput,
-        )
+        );
     });
 
     group.finish();
@@ -61,7 +61,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
 
         b.iter(|| {
             let _ret = black_box(counter.inc());
-        })
+        });
     });
     group.bench_function("gauge::set", |b| {
         let gauge = <Gauge>::default();
@@ -73,7 +73,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
                 let _ret = gauge.set(black_box(data));
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("histogram::observe", |b| {
         let buckets = exponential_buckets(0.005f64, 2f64, 10);
@@ -84,7 +84,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
             || rng.random_range(0f64..100f64),
             |data| histogram.observe(black_box(data)),
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("gauge_histogram::observe", |b| {
         let buckets = linear_buckets(-100f64, 10f64, 20);
@@ -95,7 +95,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
             || rng.random_range(-100f64..200f64),
             |data| histogram.observe(black_box(data)),
             BatchSize::SmallInput,
-        )
+        );
     });
 
     #[derive(Copy, Clone, Debug, PartialEq, Default, StateSetValue)]
@@ -126,7 +126,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
             || rng.random::<JobState>(),
             |data| stateset.set(black_box(data)),
             BatchSize::SmallInput,
-        )
+        );
     });
 
     group.finish();
