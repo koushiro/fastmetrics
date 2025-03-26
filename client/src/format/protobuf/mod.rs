@@ -1,6 +1,6 @@
 //! Protobuf exposition format.
 
-use std::{borrow::Cow, collections::HashMap, fmt, io, time::Duration};
+use std::{borrow::Cow, fmt, io, time::Duration};
 
 use crate::{
     encoder::{
@@ -95,23 +95,23 @@ impl<'a> Encoder<'a> {
             let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
             metric.encode(metric_encoder.as_mut())?
         }
-        self.encode_registry_system(&self.registry.subsystems)?;
+        for system in self.registry.subsystems.values() {
+            self.encode_registry_system(system)?;
+        }
         Ok(())
     }
 
-    fn encode_registry_system(&mut self, systems: &HashMap<String, RegistrySystem>) -> fmt::Result {
-        for system in systems.values() {
-            for (metadata, metric) in &system.metrics {
-                let metric_families = &mut self.metric_set.metric_families;
-                let mut family_encoder = MetricFamilyEncoder::new(metric_families)
-                    .with_namespace(Some(system.namespace()))
-                    .with_const_labels(&system.const_labels);
-                let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
-                metric.encode(metric_encoder.as_mut())?
-            }
-            for subsystem in system.subsystems.values() {
-                self.encode_registry_system(&subsystem.subsystems)?
-            }
+    fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
+        for (metadata, metric) in &system.metrics {
+            let metric_families = &mut self.metric_set.metric_families;
+            let mut family_encoder = MetricFamilyEncoder::new(metric_families)
+                .with_namespace(Some(system.namespace()))
+                .with_const_labels(&system.const_labels);
+            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
+            metric.encode(metric_encoder.as_mut())?
+        }
+        for system in system.subsystems.values() {
+            self.encode_registry_system(system)?;
         }
         Ok(())
     }

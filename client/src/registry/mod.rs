@@ -153,6 +153,19 @@ impl Registry {
         RegistryBuilder::default()
     }
 
+    /// Returns the current `namespace` of [`Registry`].
+    pub fn namespace(&self) -> Option<&str> {
+        self.namespace.as_deref()
+    }
+
+    /// Returns the `constant labels` of [`Registry`].
+    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
+        &self.const_labels
+    }
+}
+
+// register
+impl Registry {
     /// Registers a metric into [`Registry`].
     ///
     /// # Example
@@ -250,7 +263,10 @@ impl Registry {
             hash_map::Entry::Occupied(_) => Err(RegistryError::AlreadyExists),
         }
     }
+}
 
+// subsystem
+impl Registry {
     /// Creates a subsystem to register metrics with a subsystem `name`(as a part of prefix).
     /// If the subsystem `name` already exists, the previous created subsystem will be returned.
     ///
@@ -320,16 +336,6 @@ impl Registry {
                 .with_inherited_const_labels(self.const_labels.clone())
                 .build()
         })
-    }
-
-    /// Returns the current `namespace` of [`Registry`].
-    pub fn namespace(&self) -> Option<&str> {
-        self.namespace.as_deref()
-    }
-
-    /// Returns the `constant labels` of [`Registry`].
-    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
-        &self.const_labels
     }
 }
 

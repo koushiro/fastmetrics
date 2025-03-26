@@ -5,7 +5,7 @@
 //! See [`Family`] for more details.
 
 use std::{
-    collections::hash_map::{HashMap, RandomState},
+    collections::HashMap,
     fmt::{self, Debug},
     hash::{BuildHasher, Hash, Hasher},
     sync::Arc,
@@ -110,6 +110,14 @@ impl Unit {
             Unit::Celsius => "celsius",
             Unit::Other(other) => other.as_str(),
         }
+    }
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "foldhash")] {
+        type RandomState = foldhash::fast::RandomState;
+    } else {
+        type RandomState = std::hash::RandomState;
     }
 }
 
