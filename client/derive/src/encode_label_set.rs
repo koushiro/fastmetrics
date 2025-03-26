@@ -36,6 +36,8 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
         })
         .collect::<Vec<_>>();
 
+    let size = field_list.len();
+
     // Generate the trait implementation
     let expanded = quote! {
         #[automatically_derived]
@@ -46,6 +48,10 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
                 #(#field_list;)*
 
                 Ok(())
+            }
+
+            fn size_hint(&self) -> usize {
+                #size
             }
         }
     };

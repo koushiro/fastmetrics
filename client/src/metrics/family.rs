@@ -113,6 +113,24 @@ impl Unit {
     }
 }
 
+/// A trait for creating new metric instances.
+///
+/// This trait is implemented by factory functions or objects that can create
+/// new instances of metrics to be used in a metric family.
+pub trait MetricFactory<M> {
+    /// Creates a new metric instance.
+    ///
+    /// This method is called when a new metric needs to be created for a label set
+    /// that doesn't have an associated metric yet.
+    fn new_metric(&self) -> M;
+}
+
+impl<M, F: Fn() -> M> MetricFactory<M> for F {
+    fn new_metric(&self) -> M {
+        self()
+    }
+}
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "foldhash")] {
         type RandomState = foldhash::fast::RandomState;
@@ -126,6 +144,7 @@ cfg_if::cfg_if! {
 /// The type parameters are:
 /// - `LS`: The label set type that uniquely identifies a metric within the family
 /// - `M`: The specific metric type (e.g., Counter, Gauge) stored in this family
+/// - `MF`: The metric factory type that creates new metric instances
 /// - `S`: The hash algorithm of internal HashMap type.
 ///
 /// A metric family maintains a map of label sets to metric instances. Each combination
@@ -153,23 +172,27 @@ cfg_if::cfg_if! {
 ///
 /// // Create metrics with different labels
 /// let labels = vec![("method", "GET"), ("status", "200")];
-/// http_requests.with_or_default(&labels, |metric| metric.inc());
+/// http_requests.with_or_new(&labels, |metric| metric.inc());
 ///
 /// # Ok(())
 /// # }
 /// ```
-pub struct Family<LS, M, S = RandomState> {
+pub struct Family<LS, M, MF = fn() -> M, S = RandomState> {
     // label set => metric points
     metrics: Arc<RwLock<HashMap<LS, M, S>>>,
+    metric_factory: MF,
 }
 
-impl<LS, M, S> Clone for Family<LS, M, S> {
+impl<LS, M, MF, S> Clone for Family<LS, M, MF, S>
+where
+    MF: Clone,
+{
     fn clone(&self) -> Self {
-        Self { metrics: self.metrics.clone() }
+        Self { metrics: self.metrics.clone(), metric_factory: self.metric_factory.clone() }
     }
 }
 
-impl<LS, M, S> Debug for Family<LS, M, S>
+impl<LS, M> Debug for Family<LS, M>
 where
     LS: Debug,
     M: Debug,
@@ -179,22 +202,62 @@ where
     }
 }
 
-impl<LS, M, S> Default for Family<LS, M, S>
+impl<LS, M, S> Default for Family<LS, M, fn() -> M, S>
 where
+    M: Default,
     S: Default,
 {
     fn default() -> Self {
-        Self { metrics: Arc::new(RwLock::new(Default::default())) }
+        Self::new(M::default)
     }
 }
 
-impl<LS, M, S> Family<LS, M, S> {
+impl<LS, M, MF, S> Family<LS, M, MF, S> {
     pub(crate) fn read(&self) -> RwLockReadGuard<'_, HashMap<LS, M, S>> {
         self.metrics.read()
     }
 
     pub(crate) fn write(&self) -> RwLockWriteGuard<'_, HashMap<LS, M, S>> {
         self.metrics.write()
+    }
+}
+
+impl<LS, M, MF, S> Family<LS, M, MF, S>
+where
+    MF: MetricFactory<M>,
+{
+    /// Creates a new metric family with a custom metric factory.
+    ///
+    /// The factory is used to create new metric instances when they are needed.
+    ///
+    /// # Parameters
+    ///
+    /// - `factory`: A factory function or object that creates new metric instances
+    ///
+    /// # Returns
+    ///
+    /// A new `Family` instance that uses the provided factory to create metrics.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use openmetrics_client::metrics::{
+    /// #     counter::Counter,
+    /// #     family::Family,
+    /// #     histogram::{Histogram, exponential_buckets},
+    /// # };
+    /// // Create a family with a custom factory function
+    /// type LabelSet = Vec<(&'static str, &'static str)>;
+    /// let counter_family: Family<LabelSet, Counter> = Family::new(|| Counter::with_created());
+    /// let histogram_family: Family<LabelSet, Histogram> = Family::new(|| {
+    ///     Histogram::new(exponential_buckets(1.0, 2.0, 10))
+    /// });
+    /// ```
+    pub fn new(metric_factory: MF) -> Self
+    where
+        S: Default,
+    {
+        Self { metrics: Arc::new(RwLock::new(HashMap::default())), metric_factory }
     }
 
     /// Gets a reference to the metric with the specified labels and applies a function to it.
@@ -228,7 +291,7 @@ impl<LS, M, S> Family<LS, M, S> {
     /// let labels = vec![("method", "GET"), ("status", "200")];
     /// assert_eq!(http_requests.with(&labels, |req| req.total()), None);
     ///
-    /// http_requests.with_or_default(&labels, |req| req.inc());
+    /// http_requests.with_or_new(&labels, |req| req.inc());
     /// assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
     ///
     /// http_requests.with(&labels, |req| req.inc());
@@ -246,7 +309,57 @@ impl<LS, M, S> Family<LS, M, S> {
         guard.get(labels).map(func)
     }
 
-    /// Gets a reference to an existing metric or inserts a new one with the specified labels,
+    /// Gets a reference to an existing metric or creates a new one with the specified labels,
+    /// then applies a function to it.
+    ///
+    /// This method will:
+    /// 1. Check if a metric exists for the given labels
+    /// 2. If it exists, apply the function to it
+    /// 3. If it doesn't exist, create a metric using given metric factory and then apply the
+    ///    function
+    ///
+    /// # Parameters
+    ///
+    /// - `labels`: The labels to identify the metric
+    /// - `func`: Function to apply to the metric
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(R)` where R is the return value of `func` after applying it to
+    /// either the existing or newly created metric.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use openmetrics_client::{
+    /// #    metrics::{counter::Counter, family::Family},
+    /// #    registry::{Registry, RegistryError},
+    /// # };
+    /// #
+    /// # fn main() -> Result<(), RegistryError> {
+    /// let mut registry = Registry::default();
+    ///
+    /// type LabelSet = Vec<(&'static str, &'static str)>;
+    /// let http_requests = Family::<LabelSet, Counter>::default();
+    ///
+    /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
+    ///
+    /// let labels = vec![("method", "GET"), ("status", "200")];
+    /// http_requests.with_or_new(&labels, |req| req.inc());
+    /// assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_or_new<R, F>(&self, labels: &LS, func: F) -> Option<R>
+    where
+        LS: Clone + Eq + Hash,
+        F: FnOnce(&M) -> R,
+        S: BuildHasher,
+    {
+        self.with_or_insert(labels, self.metric_factory.new_metric(), func)
+    }
+
+    /// Gets a reference to an existing metric or creates a new one with the specified labels,
     /// then applies a function to it.
     ///
     /// This method will:
@@ -305,55 +418,6 @@ impl<LS, M, S> Family<LS, M, S> {
         let read_guard = RwLockWriteGuard::downgrade(write_guard);
         read_guard.get(labels).map(func)
     }
-
-    /// Gets a reference to an existing metric or creates a default one with the specified labels,
-    /// then applies a function to it.
-    ///
-    /// This is a convenience wrapper around `with_or_insert` that uses the `Default` implementation
-    /// of the metric type to create new metrics. It's particularly useful when you don't need
-    /// special initialization for new metrics.
-    ///
-    /// # Parameters
-    ///
-    /// - `labels`: The labels to identify the metric
-    /// - `func`: Function to apply to the metric
-    ///
-    /// # Returns
-    ///
-    /// Returns `Some(R)` where R is the return value of `func` after applying it to
-    /// either the existing or newly created default metric.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openmetrics_client::{
-    /// #    metrics::{counter::Counter, family::Family},
-    /// #    registry::{Registry, RegistryError},
-    /// # };
-    /// #
-    /// # fn main() -> Result<(), RegistryError> {
-    /// let mut registry = Registry::default();
-    ///
-    /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let http_requests = Family::<LabelSet, Counter>::default();
-    ///
-    /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
-    ///
-    /// let labels = vec![("method", "GET"), ("status", "200")];
-    /// http_requests.with_or_default(&labels, |req| req.inc());
-    /// assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn with_or_default<R, F>(&self, labels: &LS, func: F) -> Option<R>
-    where
-        LS: Clone + Eq + Hash,
-        M: Default,
-        F: FnOnce(&M) -> R,
-        S: BuildHasher,
-    {
-        self.with_or_insert(labels, M::default(), func)
-    }
 }
 
 impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
@@ -366,7 +430,10 @@ mod tests {
     use crate::{
         encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
         format::text,
-        metrics::counter::Counter,
+        metrics::{
+            counter::Counter,
+            histogram::{exponential_buckets, Histogram},
+        },
         registry::Registry,
     };
 
@@ -388,6 +455,10 @@ mod tests {
             ("status", self.status).encode(encoder.label_encoder().as_mut())?;
             Ok(())
         }
+
+        fn size_hint(&self) -> usize {
+            2
+        }
     }
 
     impl EncodeLabelValue for Method {
@@ -404,22 +475,36 @@ mod tests {
         let mut registry = Registry::default();
 
         let http_requests = Family::<Labels, Counter>::default();
+        let http_requests_duration_seconds =
+            Family::<(), Histogram>::new(|| Histogram::new(exponential_buckets(0.005, 2.0, 10)));
         registry
             .register("http_requests", "Total HTTP requests", http_requests.clone())
+            .unwrap();
+        registry
+            .register(
+                "http_requests_duration_seconds",
+                "Duration of HTTP requests",
+                http_requests_duration_seconds.clone(),
+            )
             .unwrap();
 
         // Create metrics with different labels
         let labels = Labels { method: Method::Get, status: 200 };
-        http_requests.with_or_default(&labels, |metric| metric.inc());
+        http_requests.with_or_new(&labels, |metric| metric.inc());
+        http_requests_duration_seconds.with_or_new(&(), |hist| hist.observe(0.1));
 
         let labels = Labels { method: Method::Put, status: 200 };
-        http_requests.with_or_default(&labels, |metric| metric.inc());
+        http_requests.with_or_new(&labels, |metric| metric.inc());
+        http_requests_duration_seconds.with_or_new(&(), |hist| hist.observe(2.0));
 
         let mut output = String::new();
         text::encode(&mut output, &registry).unwrap();
 
-        // println!("{}", out);
+        // println!("{}", output);
         assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
         assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
+
+        assert!(output.contains(r#"http_requests_duration_seconds_sum 2.1"#));
+        assert!(output.contains(r#"http_requests_duration_seconds_count 2"#));
     }
 }

@@ -40,7 +40,7 @@ pub enum Method {
 impl Metrics {
     pub fn observe_http_req(&self, method: Method, status: StatusCode) {
         let labels = RequestsLabels { method, status: status.as_u16() };
-        self.http_requests.with_or_default(&labels, |req| req.inc());
+        self.http_requests.with_or_new(&labels, |req| req.inc());
     }
 
     pub fn observe_http_get_req(&self, status: StatusCode) {

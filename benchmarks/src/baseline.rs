@@ -8,7 +8,7 @@ fn prometheus_client_baseline(c: &mut Criterion) {
         histogram::{exponential_buckets, Histogram},
     };
 
-    let mut group = c.benchmark_group("prometheus_client");
+    let mut group = c.benchmark_group("prometheus_client::baseline");
 
     group.bench_function("counter::inc", |b| {
         let counter = <Counter>::default();
@@ -54,7 +54,7 @@ fn openmetrics_client_baseline(c: &mut Criterion) {
     };
     use rand::distr::{Distribution, StandardUniform};
 
-    let mut group = c.benchmark_group("openmetrics_client");
+    let mut group = c.benchmark_group("openmetrics_client::baseline");
 
     group.bench_function("counter::inc", |b| {
         let counter = <Counter>::default();

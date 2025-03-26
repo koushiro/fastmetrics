@@ -92,7 +92,7 @@
 //! assert_eq!(requests.total(), 1);
 //!
 //! let labels = Labels { method: Method::Get, status: 200 };
-//! http_requests.with_or_default(&labels, |req| req.inc());
+//! http_requests.with_or_new(&labels, |req| req.inc());
 //! assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
 //!
 //! // Export metrics in text format
