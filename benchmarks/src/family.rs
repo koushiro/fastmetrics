@@ -40,7 +40,7 @@ impl Distribution<Labels> for StandardUniform {
 fn prometheus_client_family(c: &mut Criterion) {
     use prometheus_client::metrics::{counter::Counter, family::Family};
 
-    let mut group = c.benchmark_group("prometheus_client");
+    let mut group = c.benchmark_group("prometheus_client::family");
 
     group.bench_function("counter family without labels", |b| {
         let family = Family::<(), Counter>::default();
@@ -116,11 +116,11 @@ fn prometheus_client_family(c: &mut Criterion) {
 fn openmetrics_client_family(c: &mut Criterion) {
     use openmetrics_client::metrics::{counter::Counter, family::Family};
 
-    let mut group = c.benchmark_group("openmetrics_client");
+    let mut group = c.benchmark_group("openmetrics_client::family");
 
     group.bench_function("counter family without labels", |b| {
         let family = Family::<(), Counter>::default();
-        family.with_or_default(&(), |_| {});
+        family.with_or_new(&(), |_| {});
 
         b.iter(|| {
             let _ret = family.with(black_box(&()), |counter| counter.inc());
@@ -136,10 +136,10 @@ fn openmetrics_client_family(c: &mut Criterion) {
                 [("method", labels.method()), ("status", labels.status())]
             },
             |labels| {
-                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
+                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("counter family with Vec<(&'static str, &'static str)> labels", |b| {
         let family = Family::<Vec<(&'static str, &'static str)>, Counter>::default();
@@ -151,10 +151,10 @@ fn openmetrics_client_family(c: &mut Criterion) {
                 vec![("method", labels.method()), ("status", labels.status())]
             },
             |labels| {
-                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
+                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("counter family with Vec<(String, String)> labels", |b| {
         let family = Family::<Vec<(String, String)>, Counter>::default();
@@ -169,10 +169,10 @@ fn openmetrics_client_family(c: &mut Criterion) {
                 ]
             },
             |labels| {
-                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
+                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
-        )
+        );
     });
     group.bench_function("counter family with custom labels", |b| {
         let family = Family::<Labels, Counter>::default();
@@ -181,10 +181,10 @@ fn openmetrics_client_family(c: &mut Criterion) {
         b.iter_batched(
             || rng.random::<Labels>(),
             |labels| {
-                let _ret = family.with_or_default(black_box(&labels), |counter| counter.inc());
+                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
             },
             BatchSize::SmallInput,
-        )
+        );
     });
 
     group.finish();

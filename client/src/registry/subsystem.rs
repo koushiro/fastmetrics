@@ -118,8 +118,8 @@ impl RegistrySystemBuilder {
         RegistrySystem {
             namespace,
             const_labels: self.const_labels,
-            metrics: HashMap::new(),
-            subsystems: HashMap::new(),
+            metrics: HashMap::default(),
+            subsystems: HashMap::default(),
         }
     }
 }
@@ -132,6 +132,19 @@ impl RegistrySystem {
         RegistrySystemBuilder::new(system_name)
     }
 
+    /// Returns the current `namespace` of [`RegistrySystem`].
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    /// Returns the `constant labels` of [`RegistrySystem`].
+    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
+        &self.const_labels
+    }
+}
+
+// register
+impl RegistrySystem {
     /// Registers a metric into [`RegistrySystem`], similar to [Registry::register] method.
     ///
     /// [Registry::register]: crate::registry::Registry::register
@@ -185,7 +198,10 @@ impl RegistrySystem {
             hash_map::Entry::Occupied(_) => Err(RegistryError::AlreadyExists),
         }
     }
+}
 
+// subsystem
+impl RegistrySystem {
     /// Creates a subsystem to register metrics with a subsystem `name` (as a part of prefix).
     /// If the subsystem `name` already exists, the previous created subsystem will be returned.
     ///
@@ -220,15 +236,5 @@ impl RegistrySystem {
                 .with_inherited_const_labels(self.const_labels.clone())
                 .build()
         })
-    }
-
-    /// Returns the current `namespace` of [`RegistrySystem`].
-    pub fn namespace(&self) -> &str {
-        &self.namespace
-    }
-
-    /// Returns the `constant labels` of [`RegistrySystem`].
-    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
-        &self.const_labels
     }
 }

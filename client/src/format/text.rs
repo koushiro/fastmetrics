@@ -1,6 +1,6 @@
 //! Text exposition format.
 
-use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
+use std::{borrow::Cow, fmt, time::Duration};
 
 use crate::{
     encoder::{
@@ -97,22 +97,22 @@ where
             let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
             metric.encode(metric_encoder.as_mut())?
         }
-        self.encode_registry_system(&self.registry.subsystems)?;
+        for system in self.registry.subsystems.values() {
+            self.encode_registry_system(system)?;
+        }
         Ok(())
     }
 
-    fn encode_registry_system(&mut self, systems: &HashMap<String, RegistrySystem>) -> fmt::Result {
-        for system in systems.values() {
-            for (metadata, metric) in &system.metrics {
-                let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
-                    .with_namespace(Some(system.namespace()))
-                    .with_const_labels(&system.const_labels);
-                let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
-                metric.encode(metric_encoder.as_mut())?
-            }
-            for subsystem in system.subsystems.values() {
-                self.encode_registry_system(&subsystem.subsystems)?
-            }
+    fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
+        for (metadata, metric) in &system.metrics {
+            let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
+                .with_namespace(Some(system.namespace()))
+                .with_const_labels(&system.const_labels);
+            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
+            metric.encode(metric_encoder.as_mut())?
+        }
+        for system in system.subsystems.values() {
+            self.encode_registry_system(system)?
         }
         Ok(())
     }
@@ -178,6 +178,7 @@ where
         Ok(())
     }
 
+    #[inline]
     fn encode_metric_name(&mut self, metadata: &Metadata) -> fmt::Result {
         MetricNameEncoder {
             writer: self.writer,
@@ -188,6 +189,7 @@ where
         .encode()
     }
 
+    #[inline]
     fn encode_newline(&mut self) -> fmt::Result {
         self.writer.write_str("\n")
     }
@@ -231,6 +233,7 @@ impl<W> MetricEncoder<'_, W>
 where
     W: fmt::Write,
 {
+    #[inline]
     fn encode_metric_name(&mut self) -> fmt::Result {
         MetricNameEncoder {
             writer: self.writer,
@@ -241,6 +244,7 @@ where
         .encode()
     }
 
+    #[inline]
     fn encode_suffix(&mut self, suffix: &str) -> fmt::Result {
         self.writer.write_str("_")?;
         self.writer.write_str(suffix)?;
@@ -248,27 +252,43 @@ where
     }
 
     fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
-        if self.const_labels.is_empty()
-            && self.family_labels.is_none()
-            && additional_labels.is_none()
-        {
+        let has_const_labels = !self.const_labels.is_empty();
+        let has_family_labels = match self.family_labels {
+            None => false,
+            Some(labels) if labels.is_empty() => false,
+            Some(_) => true,
+        };
+        let has_additional_labels = match additional_labels {
+            None => false,
+            Some(labels) if labels.is_empty() => false,
+            Some(_) => true,
+        };
+
+        if !has_const_labels && !has_family_labels && !has_additional_labels {
             return Ok(());
         }
 
         self.writer.write_str("{")?;
         self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+
         if let Some(family_labels) = self.family_labels {
-            if !self.const_labels.is_empty() {
-                self.writer.write_str(",")?;
+            if has_family_labels {
+                if has_const_labels {
+                    self.writer.write_str(",")?;
+                }
+                family_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
-            family_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         }
+
         if let Some(additional_labels) = additional_labels {
-            if !self.const_labels.is_empty() || self.family_labels.is_some() {
-                self.writer.write_str(",")?;
+            if has_additional_labels {
+                if has_const_labels || has_family_labels {
+                    self.writer.write_str(",")?;
+                }
+                additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
-            additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         }
+
         self.writer.write_str("}")?;
         Ok(())
     }
@@ -321,9 +341,9 @@ where
         Ok(())
     }
 
+    #[inline]
     fn encode_newline(&mut self) -> fmt::Result {
-        self.writer.write_str("\n")?;
-        Ok(())
+        self.writer.write_str("\n")
     }
 }
 
@@ -541,6 +561,7 @@ impl<W> MetricNameEncoder<'_, W>
 where
     W: fmt::Write,
 {
+    #[inline]
     fn encode(&mut self) -> fmt::Result {
         if let Some(namespace) = self.namespace {
             self.writer.write_str(namespace)?;
@@ -585,6 +606,7 @@ struct LabelEncoder<'a, W> {
 macro_rules! encode_integer_value_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
+            #[inline]
             fn [<encode_ $integer _value>](&mut self, value: $integer) -> fmt::Result {
                 self.writer.write_str("=\"")?;
                 self.writer.write_str(itoa::Buffer::new().format(value))?;
@@ -598,6 +620,7 @@ macro_rules! encode_integer_value_impls {
 macro_rules! encode_float_value_impls {
     ($($float:ty),*) => (
         paste::paste! { $(
+            #[inline]
             fn [<encode_ $float _value>](&mut self, value: $float) -> fmt::Result {
                 self.writer.write_str("=\"")?;
                 self.writer.write_str(dtoa::Buffer::new().format(value))?;
@@ -612,6 +635,7 @@ impl<W> encoder::LabelEncoder for LabelEncoder<'_, W>
 where
     W: fmt::Write,
 {
+    #[inline]
     fn encode_label_name(&mut self, name: &str) -> fmt::Result {
         if !self.first {
             self.writer.write_str(",")?;
@@ -620,6 +644,7 @@ where
         Ok(())
     }
 
+    #[inline]
     fn encode_str_value(&mut self, value: &str) -> fmt::Result {
         self.writer.write_str("=\"")?;
         self.writer.write_str(value)?;
@@ -627,6 +652,7 @@ where
         Ok(())
     }
 
+    #[inline]
     fn encode_bool_value(&mut self, value: bool) -> fmt::Result {
         self.writer.write_str("=\"")?;
         self.writer.write_str(if value { "true" } else { "false" })?;
@@ -641,10 +667,12 @@ where
 
     encode_float_value_impls! { f32, f64 }
 
+    #[inline]
     fn encode_some_value(&mut self, value: &dyn EncodeLabelValue) -> fmt::Result {
         value.encode(self)
     }
 
+    #[inline]
     fn encode_none_value(&mut self) -> fmt::Result {
         self.writer.write_str("\"\"")
     }
@@ -653,6 +681,7 @@ where
 macro_rules! encode_integer_number_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
+            #[inline]
             fn [<encode_ $integer>](&mut self, value: $integer) -> fmt::Result {
                 self.writer.write_str(itoa::Buffer::new().format(value))?;
                 Ok(())
@@ -664,6 +693,7 @@ macro_rules! encode_integer_number_impls {
 macro_rules! encode_float_number_impls {
     ($($float:ty),*) => (
         paste::paste! { $(
+            #[inline]
             fn [<encode_ $float>](&mut self, value: $float) -> fmt::Result {
                 self.writer.write_str(dtoa::Buffer::new().format(value))?;
                 Ok(())

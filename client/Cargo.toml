@@ -12,7 +12,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [features]
-default = []
+default = ["foldhash"]
 derive = ["dep:openmetrics-client-derive"]
 protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
 
@@ -20,7 +20,9 @@ protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
 prost-build = { version = "0.13", optional = true }
 
 [dependencies]
+cfg-if = "1.0"
 dtoa = "1.0"
+foldhash = { version = "0.1", optional = true }
 itoa = "1.0"
 openmetrics-client-derive = { path = "derive", version = "0.1", optional = true }
 parking_lot = "0.12"

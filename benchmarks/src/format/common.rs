@@ -68,7 +68,11 @@ pub fn setup_openmetrics_client_registry(
     metric_count: u32,
     observe_time: u32,
 ) -> openmetrics_client::registry::Registry {
-    use openmetrics_client::metrics::{counter::Counter, family::Family, histogram::Histogram};
+    use openmetrics_client::metrics::{
+        counter::Counter,
+        family::Family,
+        histogram::{exponential_buckets, Histogram},
+    };
 
     let mut rng = rand::rng();
 
@@ -76,7 +80,9 @@ pub fn setup_openmetrics_client_registry(
 
     for i in 0..metric_count {
         let counter_family = Family::<Labels, Counter>::default();
-        let histogram_family = Family::<Labels, Histogram>::default();
+        let histogram_family = Family::<Labels, Histogram>::new(|| {
+            Histogram::new(exponential_buckets(0.005, 2.0, 10))
+        });
 
         registry
             .register(format!("my_counter_{}", i), "My counter", counter_family.clone())
@@ -87,9 +93,9 @@ pub fn setup_openmetrics_client_registry(
 
         for _ in 0..observe_time {
             let labels = rng.random::<Labels>();
-            counter_family.with_or_default(&labels, |counter| counter.inc());
+            counter_family.with_or_new(&labels, |counter| counter.inc());
             let observed_value = rng.random_range(0f64..1_000_000f64);
-            histogram_family.with_or_default(&labels, |hist| hist.observe(observed_value));
+            histogram_family.with_or_new(&labels, |hist| hist.observe(observed_value));
         }
     }
 
