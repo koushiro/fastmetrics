@@ -37,14 +37,11 @@ pub trait EncodeLabelSet {
     /// typically by obtaining individual label encoder for each label in the set.
     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result;
 
-    /// Returns the number of labels in the set.
-    fn size_hint(&self) -> usize;
-
     /// Returns whether the label set is empty.
     ///
     /// Returns `true` if the label set contains no labels, and `false` otherwise.
     fn is_empty(&self) -> bool {
-        self.size_hint() == 0
+        false
     }
 }
 
@@ -53,8 +50,8 @@ impl EncodeLabelSet for () {
         Ok(())
     }
 
-    fn size_hint(&self) -> usize {
-        0
+    fn is_empty(&self) -> bool {
+        true
     }
 }
 
@@ -70,8 +67,8 @@ macro_rules! impl_encode_label_set_for_container {
             }
 
             #[inline]
-            fn size_hint(&self) -> usize {
-                self.len()
+            fn is_empty(&self) -> bool {
+                self.len() == 0
             }
         }
     )
@@ -94,8 +91,8 @@ macro_rules! impl_enable_label_set_for_deref {
             }
 
             #[inline]
-            fn size_hint(&self) -> usize {
-                (**self).size_hint()
+            fn is_empty(&self) -> bool {
+                (**self).is_empty()
             }
         }
     )
