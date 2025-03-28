@@ -192,8 +192,8 @@ impl Registry {
     /// ```
     pub fn register(
         &mut self,
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, None, metric)
@@ -228,8 +228,8 @@ impl Registry {
     /// ```
     pub fn register_with_unit(
         &mut self,
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         unit: Unit,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
@@ -244,8 +244,8 @@ impl Registry {
 
     fn do_register(
         &mut self,
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         unit: Option<Unit>,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
