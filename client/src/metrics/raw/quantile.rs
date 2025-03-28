@@ -21,7 +21,7 @@ impl Quantile {
     /// * `quantile` - The quantile point (e.g., 0.5 for median, 0.99 for 99th percentile), MUST be
     ///   between 0 and 1 inclusive.
     /// * `value` - The value at this quantile point, MUST NOT be negative
-    pub fn new(quantile: f64, value: f64) -> Self {
+    pub const fn new(quantile: f64, value: f64) -> Self {
         Self { quantile, value }
     }
 

@@ -40,7 +40,7 @@ impl Bucket {
     /// Increments the observation count in this bucket by one.
     ///
     /// This method is typically called when a new observation falls within this bucket's range.
-    pub fn inc(&mut self) {
+    pub const fn inc(&mut self) {
         self.count += 1;
     }
 
