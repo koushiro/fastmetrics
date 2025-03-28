@@ -154,8 +154,7 @@ where
         self.encode_metric_name(metadata)?;
         self.writer.write_str(" ")?;
         self.writer.write_str(metadata.metric_type().as_str())?;
-        self.encode_newline()?;
-        Ok(())
+        self.encode_newline()
     }
 
     fn encode_help(&mut self, metadata: &Metadata) -> fmt::Result {
@@ -163,8 +162,7 @@ where
         self.encode_metric_name(metadata)?;
         self.writer.write_str(" ")?;
         self.writer.write_str(metadata.help())?;
-        self.encode_newline()?;
-        Ok(())
+        self.encode_newline()
     }
 
     fn encode_unit(&mut self, metadata: &Metadata) -> fmt::Result {
@@ -247,8 +245,7 @@ where
     #[inline]
     fn encode_suffix(&mut self, suffix: &str) -> fmt::Result {
         self.writer.write_str("_")?;
-        self.writer.write_str(suffix)?;
-        Ok(())
+        self.writer.write_str(suffix)
     }
 
     fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
@@ -289,8 +286,7 @@ where
             }
         }
 
-        self.writer.write_str("}")?;
-        Ok(())
+        self.writer.write_str("}")
     }
 
     fn encode_sum(&mut self, sum: f64) -> fmt::Result {
@@ -298,8 +294,7 @@ where
         self.encode_suffix("sum")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
-        Ok(())
+        self.writer.write_str(dtoa::Buffer::new().format(sum))
     }
 
     fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
@@ -307,8 +302,7 @@ where
         self.encode_suffix("gsum")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(gsum))?;
-        Ok(())
+        self.writer.write_str(dtoa::Buffer::new().format(gsum))
     }
 
     fn encode_count(&mut self, count: u64) -> fmt::Result {
@@ -316,8 +310,7 @@ where
         self.encode_suffix("count")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(count))?;
-        Ok(())
+        self.writer.write_str(itoa::Buffer::new().format(count))
     }
 
     fn encode_gcount(&mut self, gcount: u64) -> fmt::Result {
@@ -325,20 +318,15 @@ where
         self.encode_suffix("gcount")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(gcount))?;
-        Ok(())
+        self.writer.write_str(itoa::Buffer::new().format(gcount))
     }
 
     fn encode_created(&mut self, created: Duration) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_suffix("created")?;
         self.encode_label_set(None)?;
-        self.writer.write_fmt(format_args!(
-            " {}.{}",
-            created.as_secs(),
-            created.as_millis() % 1000
-        ))?;
-        Ok(())
+        self.writer
+            .write_fmt(format_args!(" {}.{}", created.as_secs(), created.as_millis() % 1000))
     }
 
     #[inline]
@@ -356,8 +344,7 @@ where
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
         value.encode(&mut UnknownValueEncoder { writer: self.writer } as _)?;
-        self.encode_newline()?;
-        Ok(())
+        self.encode_newline()
     }
 
     fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
@@ -365,8 +352,7 @@ where
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
         value.encode(&mut GaugeValueEncoder { writer: self.writer } as _)?;
-        self.encode_newline()?;
-        Ok(())
+        self.encode_newline()
     }
 
     fn encode_counter(
@@ -411,8 +397,7 @@ where
         self.encode_suffix("info")?;
         self.encode_label_set(Some(label_set))?;
         self.writer.write_str(" 1")?;
-        self.encode_newline()?;
-        Ok(())
+        self.encode_newline()
     }
 
     fn encode_histogram(
@@ -492,9 +477,7 @@ where
 
         // encode `*_gcount` metric
         self.encode_gcount(count)?;
-        self.encode_newline()?;
-
-        Ok(())
+        self.encode_newline()
     }
 
     fn encode_summary(
@@ -610,8 +593,7 @@ macro_rules! encode_integer_value_impls {
             fn [<encode_ $integer _value>](&mut self, value: $integer) -> fmt::Result {
                 self.writer.write_str("=\"")?;
                 self.writer.write_str(itoa::Buffer::new().format(value))?;
-                self.writer.write_str("\"")?;
-                Ok(())
+                self.writer.write_str("\"")
             }
         )* }
     )
@@ -624,8 +606,7 @@ macro_rules! encode_float_value_impls {
             fn [<encode_ $float _value>](&mut self, value: $float) -> fmt::Result {
                 self.writer.write_str("=\"")?;
                 self.writer.write_str(dtoa::Buffer::new().format(value))?;
-                self.writer.write_str("\"")?;
-                Ok(())
+                self.writer.write_str("\"")
             }
         )* }
     )
@@ -640,24 +621,21 @@ where
         if !self.first {
             self.writer.write_str(",")?;
         }
-        self.writer.write_str(name)?;
-        Ok(())
+        self.writer.write_str(name)
     }
 
     #[inline]
     fn encode_str_value(&mut self, value: &str) -> fmt::Result {
         self.writer.write_str("=\"")?;
         self.writer.write_str(value)?;
-        self.writer.write_str("\"")?;
-        Ok(())
+        self.writer.write_str("\"")
     }
 
     #[inline]
     fn encode_bool_value(&mut self, value: bool) -> fmt::Result {
         self.writer.write_str("=\"")?;
         self.writer.write_str(if value { "true" } else { "false" })?;
-        self.writer.write_str("\"")?;
-        Ok(())
+        self.writer.write_str("\"")
     }
 
     encode_integer_value_impls! {
@@ -683,8 +661,7 @@ macro_rules! encode_integer_number_impls {
         paste::paste! { $(
             #[inline]
             fn [<encode_ $integer>](&mut self, value: $integer) -> fmt::Result {
-                self.writer.write_str(itoa::Buffer::new().format(value))?;
-                Ok(())
+                self.writer.write_str(itoa::Buffer::new().format(value))
             }
         )* }
     )
@@ -695,8 +672,7 @@ macro_rules! encode_float_number_impls {
         paste::paste! { $(
             #[inline]
             fn [<encode_ $float>](&mut self, value: $float) -> fmt::Result {
-                self.writer.write_str(dtoa::Buffer::new().format(value))?;
-                Ok(())
+                self.writer.write_str(dtoa::Buffer::new().format(value))
             }
         )* }
     )
