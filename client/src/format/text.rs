@@ -289,22 +289,6 @@ where
         self.writer.write_str("}")
     }
 
-    fn encode_sum(&mut self, sum: f64) -> fmt::Result {
-        self.encode_metric_name()?;
-        self.encode_suffix("sum")?;
-        self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(sum))
-    }
-
-    fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
-        self.encode_metric_name()?;
-        self.encode_suffix("gsum")?;
-        self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(gsum))
-    }
-
     fn encode_count(&mut self, count: u64) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_suffix("count")?;
@@ -313,12 +297,28 @@ where
         self.writer.write_str(itoa::Buffer::new().format(count))
     }
 
+    fn encode_sum(&mut self, sum: f64) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("sum")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(dtoa::Buffer::new().format(sum))
+    }
+
     fn encode_gcount(&mut self, gcount: u64) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_suffix("gcount")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
         self.writer.write_str(itoa::Buffer::new().format(gcount))
+    }
+
+    fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
+        self.encode_metric_name()?;
+        self.encode_suffix("gsum")?;
+        self.encode_label_set(None)?;
+        self.writer.write_str(" ")?;
+        self.writer.write_str(dtoa::Buffer::new().format(gsum))
     }
 
     fn encode_created(&mut self, created: Duration) -> fmt::Result {
@@ -410,11 +410,11 @@ where
         // encode bucket metrics
         let mut cumulative_count = 0;
         for bucket in buckets {
-            let upper_bound = bucket.upper_bound();
-            let bucket_count = bucket.count();
             self.encode_metric_name()?;
             self.encode_suffix("bucket")?;
 
+            let upper_bound = bucket.upper_bound();
+            let bucket_count = bucket.count();
             if upper_bound == f64::INFINITY {
                 self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
             } else {
@@ -430,12 +430,12 @@ where
             self.encode_newline()?;
         }
 
-        // encode `*_sum` metric
-        self.encode_sum(sum)?;
-        self.encode_newline()?;
-
         // encode `*_count` metric
         self.encode_count(count)?;
+        self.encode_newline()?;
+
+        // encode `*_sum` metric
+        self.encode_sum(sum)?;
         self.encode_newline()?;
 
         // encode `*_created` metric if available
@@ -451,11 +451,11 @@ where
         // encode bucket metrics
         let mut cumulative_count = 0;
         for bucket in buckets {
-            let upper_bound = bucket.upper_bound();
-            let bucket_count = bucket.count();
             self.encode_metric_name()?;
             self.encode_suffix("bucket")?;
 
+            let upper_bound = bucket.upper_bound();
+            let bucket_count = bucket.count();
             if upper_bound == f64::INFINITY {
                 self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
             } else {
@@ -471,12 +471,12 @@ where
             self.encode_newline()?;
         }
 
-        // encode `*_gsum` metric
-        self.encode_gsum(sum)?;
-        self.encode_newline()?;
-
         // encode `*_gcount` metric
         self.encode_gcount(count)?;
+        self.encode_newline()?;
+
+        // encode `*_gsum` metric
+        self.encode_gsum(sum)?;
         self.encode_newline()
     }
 
@@ -499,12 +499,12 @@ where
             self.encode_newline()?;
         }
 
-        // encode `*_sum` metric
-        self.encode_sum(sum)?;
-        self.encode_newline()?;
-
         // encode `*_count` metric
         self.encode_count(count)?;
+        self.encode_newline()?;
+
+        // encode `*_sum` metric
+        self.encode_sum(sum)?;
         self.encode_newline()?;
 
         // encode `*_created` metric if available
