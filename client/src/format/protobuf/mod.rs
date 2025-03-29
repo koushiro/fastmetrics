@@ -170,7 +170,7 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
                 }
             },
             r#type: {
-                let metric_type: openmetrics_data_model::MetricType = metadata.metric_type().into();
+                let metric_type = openmetrics_data_model::MetricType::from(metadata.metric_type());
                 metric_type as i32
             },
             unit: if let Some(unit) = metadata.unit() {
@@ -187,7 +187,6 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
         self.const_labels.encode(&mut LabelSetEncoder { labels: &mut labels })?;
 
         Ok(Box::new(MetricEncoder {
-            metric_type: metadata.metric_type(),
             metrics: &mut self
                 .metric_families
                 .last_mut()
@@ -199,7 +198,6 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
 }
 
 struct MetricEncoder<'a> {
-    metric_type: MetricType,
     metrics: &'a mut Vec<openmetrics_data_model::Metric>,
     labels: Vec<openmetrics_data_model::Label>,
 }
@@ -406,7 +404,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         let mut labels = self.labels.clone();
         label_set.encode(&mut LabelSetEncoder { labels: &mut labels })?;
 
-        Ok(Box::new(MetricEncoder { metric_type: self.metric_type, metrics: self.metrics, labels }))
+        Ok(Box::new(MetricEncoder { metrics: self.metrics, labels }))
     }
 }
 

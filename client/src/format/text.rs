@@ -191,10 +191,7 @@ where
 
         Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
-
-            name: metadata.name(),
             metric_name,
-
             const_labels: self.const_labels,
             family_labels: None,
         }))
@@ -203,10 +200,8 @@ where
 
 struct MetricEncoder<'a, W> {
     writer: &'a mut W,
-
-    name: &'a str,
+    // [namespace_]name[_unit]
     metric_name: Cow<'a, str>,
-
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
 }
@@ -363,10 +358,10 @@ where
     }
 
     fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
-        // encode every state
+        // encode state metrics
         for (state, enabled) in states {
             self.encode_metric_name()?;
-            self.encode_label_set(Some(&[(self.name, state)]))?;
+            self.encode_label_set(Some(&[(self.metric_name.clone(), state)]))?;
             self.writer.write_str(" ")?;
             if enabled {
                 self.writer.write_str(itoa::Buffer::new().format(1))?;
@@ -393,7 +388,7 @@ where
         count: u64,
         created: Option<Duration>,
     ) -> fmt::Result {
-        // encode bucket metrics
+        // encode `*_bucket` metrics
         let mut cumulative_count = 0;
         for bucket in buckets {
             self.encode_metric_name()?;
@@ -430,7 +425,7 @@ where
     }
 
     fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
-        // encode bucket metrics
+        // encode `*_bucket` metrics
         let mut cumulative_count = 0;
         for bucket in buckets {
             self.encode_metric_name()?;
@@ -499,10 +494,7 @@ where
 
         Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
-
-            name: self.name,
             metric_name: self.metric_name.clone(),
-
             const_labels: self.const_labels,
             family_labels: Some(label_set),
         }))
