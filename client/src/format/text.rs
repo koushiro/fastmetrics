@@ -13,6 +13,7 @@ use crate::{
             bucket::{Bucket, BUCKET_LABEL},
             quantile::{Quantile, QUANTILE_LABEL},
         },
+        MetricType,
     },
     registry::{Registry, RegistrySystem},
 };
@@ -149,42 +150,24 @@ where
         self
     }
 
-    fn encode_type(&mut self, metadata: &Metadata) -> fmt::Result {
-        self.writer.write_str("# TYPE ")?;
-        self.encode_metric_name(metadata)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(metadata.metric_type().as_str())?;
+    fn encode_type(&mut self, metric_name: &str, ty: MetricType) -> fmt::Result {
+        let ty = ty.as_str();
+        self.writer.write_fmt(format_args!("# TYPE {metric_name} {ty}"))?;
         self.encode_newline()
     }
 
-    fn encode_help(&mut self, metadata: &Metadata) -> fmt::Result {
-        self.writer.write_str("# HELP ")?;
-        self.encode_metric_name(metadata)?;
-        self.writer.write_str(" ")?;
-        self.writer.write_str(metadata.help())?;
+    fn encode_help(&mut self, metric_name: &str, help: &str) -> fmt::Result {
+        self.writer.write_fmt(format_args!("# HELP {metric_name} {help}"))?;
         self.encode_newline()
     }
 
-    fn encode_unit(&mut self, metadata: &Metadata) -> fmt::Result {
-        if let Some(unit) = metadata.unit() {
-            self.writer.write_str("# UNIT ")?;
-            self.encode_metric_name(metadata)?;
-            self.writer.write_str(" ")?;
-            self.writer.write_str(unit.as_str())?;
+    fn encode_unit(&mut self, metric_name: &str, unit: Option<&Unit>) -> fmt::Result {
+        if let Some(unit) = unit {
+            let unit = unit.as_str();
+            self.writer.write_fmt(format_args!("# UNIT {metric_name} {unit}"))?;
             self.encode_newline()?;
         }
         Ok(())
-    }
-
-    #[inline]
-    fn encode_metric_name(&mut self, metadata: &Metadata) -> fmt::Result {
-        MetricNameEncoder {
-            writer: self.writer,
-            namespace: self.namespace,
-            name: metadata.name(),
-            unit: metadata.unit(),
-        }
-        .encode()
     }
 
     #[inline]
@@ -201,15 +184,17 @@ where
         &'s mut self,
         metadata: &'s Metadata,
     ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
-        self.encode_type(metadata)?;
-        self.encode_help(metadata)?;
-        self.encode_unit(metadata)?;
+        let metric_name = metric_name(self.namespace, metadata.name(), metadata.unit());
+        self.encode_type(metric_name.as_ref(), metadata.metric_type())?;
+        self.encode_help(metric_name.as_ref(), metadata.help())?;
+        self.encode_unit(metric_name.as_ref(), metadata.unit())?;
 
         Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
-            namespace: self.namespace,
+
             name: metadata.name(),
-            unit: metadata.unit(),
+            metric_name,
+
             const_labels: self.const_labels,
             family_labels: None,
         }))
@@ -219,9 +204,8 @@ where
 struct MetricEncoder<'a, W> {
     writer: &'a mut W,
 
-    namespace: Option<&'a str>,
     name: &'a str,
-    unit: Option<&'a Unit>,
+    metric_name: Cow<'a, str>,
 
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
@@ -233,13 +217,7 @@ where
 {
     #[inline]
     fn encode_metric_name(&mut self) -> fmt::Result {
-        MetricNameEncoder {
-            writer: self.writer,
-            namespace: self.namespace,
-            name: self.name,
-            unit: self.unit,
-        }
-        .encode()
+        self.writer.write_str(self.metric_name.as_ref())
     }
 
     #[inline]
@@ -294,7 +272,8 @@ where
         self.encode_suffix("count")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(count))
+        self.writer.write_str(itoa::Buffer::new().format(count))?;
+        self.encode_newline()
     }
 
     fn encode_sum(&mut self, sum: f64) -> fmt::Result {
@@ -302,7 +281,8 @@ where
         self.encode_suffix("sum")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(sum))
+        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.encode_newline()
     }
 
     fn encode_gcount(&mut self, gcount: u64) -> fmt::Result {
@@ -310,7 +290,8 @@ where
         self.encode_suffix("gcount")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(itoa::Buffer::new().format(gcount))
+        self.writer.write_str(itoa::Buffer::new().format(gcount))?;
+        self.encode_newline()
     }
 
     fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
@@ -318,15 +299,20 @@ where
         self.encode_suffix("gsum")?;
         self.encode_label_set(None)?;
         self.writer.write_str(" ")?;
-        self.writer.write_str(dtoa::Buffer::new().format(gsum))
+        self.writer.write_str(dtoa::Buffer::new().format(gsum))?;
+        self.encode_newline()
     }
 
     fn encode_created(&mut self, created: Duration) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_suffix("created")?;
         self.encode_label_set(None)?;
-        self.writer
-            .write_fmt(format_args!(" {}.{}", created.as_secs(), created.as_millis() % 1000))
+        self.writer.write_fmt(format_args!(
+            " {}.{}",
+            created.as_secs(),
+            created.as_millis() % 1000
+        ))?;
+        self.encode_newline()
     }
 
     #[inline]
@@ -371,13 +357,13 @@ where
         // encode `*_created` metric if available
         if let Some(created) = created {
             self.encode_created(created)?;
-            self.encode_newline()?;
         }
 
         Ok(())
     }
 
     fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
+        // encode every state
         for (state, enabled) in states {
             self.encode_metric_name()?;
             self.encode_label_set(Some(&[(self.name, state)]))?;
@@ -432,16 +418,12 @@ where
 
         // encode `*_count` metric
         self.encode_count(count)?;
-        self.encode_newline()?;
-
         // encode `*_sum` metric
         self.encode_sum(sum)?;
-        self.encode_newline()?;
 
         // encode `*_created` metric if available
         if let Some(created) = created {
             self.encode_created(created)?;
-            self.encode_newline()?;
         }
 
         Ok(())
@@ -473,11 +455,8 @@ where
 
         // encode `*_gcount` metric
         self.encode_gcount(count)?;
-        self.encode_newline()?;
-
         // encode `*_gsum` metric
-        self.encode_gsum(sum)?;
-        self.encode_newline()
+        self.encode_gsum(sum)
     }
 
     fn encode_summary(
@@ -501,16 +480,12 @@ where
 
         // encode `*_count` metric
         self.encode_count(count)?;
-        self.encode_newline()?;
-
         // encode `*_sum` metric
         self.encode_sum(sum)?;
-        self.encode_newline()?;
 
         // encode `*_created` metric if available
         if let Some(created) = created {
             self.encode_created(created)?;
-            self.encode_newline()?;
         }
 
         Ok(())
@@ -524,38 +499,28 @@ where
 
         Ok(Box::new(MetricEncoder::<'s, W> {
             writer: self.writer,
-            namespace: self.namespace,
+
             name: self.name,
-            unit: self.unit,
+            metric_name: self.metric_name.clone(),
+
             const_labels: self.const_labels,
             family_labels: Some(label_set),
         }))
     }
 }
 
-struct MetricNameEncoder<'a, W> {
-    writer: &'a mut W,
+fn metric_name<'a>(
     namespace: Option<&'a str>,
     name: &'a str,
     unit: Option<&'a Unit>,
-}
-
-impl<W> MetricNameEncoder<'_, W>
-where
-    W: fmt::Write,
-{
-    #[inline]
-    fn encode(&mut self) -> fmt::Result {
-        if let Some(namespace) = self.namespace {
-            self.writer.write_str(namespace)?;
-            self.writer.write_str("_")?;
-        }
-        self.writer.write_str(self.name)?;
-        if let Some(unit) = self.unit {
-            self.writer.write_str("_")?;
-            self.writer.write_str(unit.as_str())?;
-        }
-        Ok(())
+) -> Cow<'a, str> {
+    match (namespace, unit) {
+        (Some(namespace), Some(unit)) => {
+            Cow::Owned(format!("{namespace}_{}_{}", name, unit.as_str()))
+        },
+        (Some(namespace), None) => Cow::Owned(format!("{namespace}_{name}")),
+        (None, Some(unit)) => Cow::Owned(format!("{name}_{}", unit.as_str())),
+        (None, None) => Cow::Borrowed(name),
     }
 }
 
