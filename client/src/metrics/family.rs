@@ -357,60 +357,6 @@ where
         F: FnOnce(&M) -> R,
         S: BuildHasher,
     {
-        self.with_or_insert(labels, self.metric_factory.new_metric(), func)
-    }
-
-    /// Gets a reference to an existing metric or inserts a provided one with the specified labels,
-    /// then applies a function to it.
-    ///
-    /// This method will:
-    /// 1. Check if a metric exists for the given labels
-    /// 2. If it exists, apply the function to it
-    /// 3. If it doesn't exist, insert the provided metric and then apply the function
-    ///
-    /// # Parameters
-    ///
-    /// - `labels`: The labels to identify the metric
-    /// - `metric`: The new metric instance to insert
-    /// - `func`: Function to apply to the metric
-    ///
-    /// # Returns
-    ///
-    /// Returns `Some(R)` where R is the return value of `func` after applying it to
-    /// either the existing or newly inserted metric.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openmetrics_client::{
-    /// #    metrics::{counter::Counter, family::Family},
-    /// #    registry::{Registry, RegistryError},
-    /// # };
-    /// #
-    /// # fn main() -> Result<(), RegistryError> {
-    /// let mut registry = Registry::default();
-    ///
-    /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let http_requests = Family::<LabelSet, Counter>::default();
-    ///
-    /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
-    ///
-    /// let labels = vec![("method", "GET"), ("status", "200")];
-    /// http_requests.with_or_insert(&labels, Counter::with_created(), |req| req.inc());
-    /// assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// # Note
-    ///
-    /// In most cases, you should use [`Family::with_or_new`] unless you know what you're doing.
-    pub fn with_or_insert<R, F>(&self, labels: &LS, metric: M, func: F) -> Option<R>
-    where
-        LS: Clone + Eq + Hash,
-        F: FnOnce(&M) -> R,
-        S: BuildHasher,
-    {
         let guard = self.read();
         if let Some(metric) = guard.get(labels) {
             return Some(func(metric));
@@ -418,7 +364,7 @@ where
         drop(guard);
 
         let mut write_guard = self.write();
-        write_guard.entry(labels.clone()).or_insert(metric);
+        write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
 
         let read_guard = RwLockWriteGuard::downgrade(write_guard);
         read_guard.get(labels).map(func)

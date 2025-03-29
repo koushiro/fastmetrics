@@ -4,10 +4,54 @@ use rand::{
     Rng,
 };
 
+mod prometheus_client_setup {
+    use prometheus_client::metrics::{
+        counter::Counter,
+        family::Family,
+        histogram::{exponential_buckets, Histogram},
+    };
+
+    pub struct Families<L> {
+        pub counter: Family<L, Counter>,
+        pub histogram: Family<L, Histogram>,
+    }
+
+    pub fn setup_families<L>() -> Families<L>
+    where
+        L: Clone + Eq + std::hash::Hash,
+    {
+        let counter = Family::<L, Counter>::default();
+        let histogram = Family::<L, Histogram>::new_with_constructor(|| {
+            Histogram::new(exponential_buckets(0.005f64, 2f64, 10))
+        });
+
+        Families { counter, histogram }
+    }
+}
+
+mod openmetrics_client_setup {
+    use openmetrics_client::metrics::{
+        counter::Counter,
+        family::Family,
+        histogram::{exponential_buckets, Histogram},
+    };
+
+    pub struct Families<L> {
+        pub counter: Family<L, Counter>,
+        pub histogram: Family<L, Histogram>,
+    }
+
+    pub fn setup_families<L>() -> Families<L> {
+        let counter = Family::<L, Counter>::default();
+        let histogram =
+            Family::<L, Histogram>::new(|| Histogram::new(exponential_buckets(0.005f64, 2f64, 10)));
+        Families { counter, histogram }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Labels {
     method: Method,
-    status: u32,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -18,11 +62,10 @@ enum Method {
 
 impl Labels {
     const fn method(&self) -> &'static str {
-        stringify!(self.method)
-    }
-
-    const fn status(&self) -> &'static str {
-        stringify!(self.status)
+        match self.method {
+            Method::Get => "GET",
+            Method::Put => "PUT",
+        }
     }
 }
 
@@ -32,163 +75,196 @@ impl Distribution<Labels> for StandardUniform {
             true => Method::Get,
             false => Method::Put,
         };
-        let status = rng.random_range(1..=10);
-        Labels { method, status }
+        Labels { method }
     }
 }
 
-fn prometheus_client_family(c: &mut Criterion) {
-    use prometheus_client::metrics::{counter::Counter, family::Family};
+struct Input {
+    labels: Labels,
+    value: f64,
+}
 
-    let mut group = c.benchmark_group("prometheus_client::family");
+fn setup_input() -> Input {
+    let mut rng = rand::rng();
+    let labels = rng.random::<Labels>();
+    let value = rng.random_range(0f64..100f64);
+    Input { labels, value }
+}
 
-    group.bench_function("counter family without labels", |b| {
-        let family = Family::<(), Counter>::default();
-
-        b.iter(|| {
-            let _ret = family.get_or_create(black_box(&())).inc();
-        });
-    });
-    group.bench_function("counter family with [(&'static str, &'static str)] labels", |b| {
-        let family = Family::<[(&'static str, &'static str); 2], Counter>::default();
-        let mut rng = rand::rng();
-
-        b.iter_batched(
-            || {
-                let labels = rng.random::<Labels>();
-                [("method", labels.method()), ("status", labels.status())]
-            },
-            |labels| {
-                let _ret = family.get_or_create(black_box(&labels)).inc();
-            },
-            BatchSize::SmallInput,
-        );
-    });
-    group.bench_function("counter family with Vec<(&'static str, &'static str)> labels", |b| {
-        let family = Family::<Vec<(&'static str, &'static str)>, Counter>::default();
-        let mut rng = rand::rng();
+fn bench_family_without_labels(c: &mut Criterion) {
+    let mut group = c.benchmark_group("family without labels");
+    group.bench_function("prometheus_client", |b| {
+        let families = prometheus_client_setup::setup_families::<()>();
 
         b.iter_batched(
             || {
-                let labels = rng.random::<Labels>();
-                vec![("method", labels.method()), ("status", labels.status())]
+                let mut rng = rand::rng();
+                rng.random_range(0f64..100f64)
             },
-            |labels| {
-                let _ret = family.get_or_create(&black_box(labels)).inc();
+            |input| {
+                families.counter.get_or_create(black_box(&())).inc();
+                families.histogram.get_or_create(black_box(&())).observe(input);
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("counter family with Vec<(String, String)> labels", |b| {
-        let family = Family::<Vec<(String, String)>, Counter>::default();
-        let mut rng = rand::rng();
+    group.bench_function("openmetrics_client", |b| {
+        let families = openmetrics_client_setup::setup_families::<()>();
 
         b.iter_batched(
             || {
-                let labels = rng.random::<Labels>();
-                vec![
-                    ("method".to_owned(), labels.method().to_owned()),
-                    ("status".to_owned(), labels.status().to_owned()),
-                ]
+                let mut rng = rand::rng();
+                rng.random_range(0f64..100f64)
             },
-            |labels| {
-                let _ret = family.get_or_create(&black_box(labels)).inc();
+            |input| {
+                families.counter.with_or_new(black_box(&()), |counter| counter.inc());
+                families.histogram.with_or_new(black_box(&()), |hist| hist.observe(input));
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("counter family with custom labels", |b| {
-        let family = Family::<Labels, Counter>::default();
-        let mut rng = rand::rng();
-
-        b.iter_batched(
-            || rng.random::<Labels>(),
-            |labels| {
-                let _ret = family.get_or_create(&black_box(labels)).inc();
-            },
-            BatchSize::SmallInput,
-        );
-    });
-
     group.finish();
 }
 
-fn openmetrics_client_family(c: &mut Criterion) {
-    use openmetrics_client::metrics::{counter::Counter, family::Family};
-
-    let mut group = c.benchmark_group("openmetrics_client::family");
-
-    group.bench_function("counter family without labels", |b| {
-        let family = Family::<(), Counter>::default();
-        family.with_or_new(&(), |_| {});
-
-        b.iter(|| {
-            let _ret = family.with(black_box(&()), |counter| counter.inc());
-        })
-    });
-    group.bench_function("counter family with [(&'static str, &'static str)] labels", |b| {
-        let family = Family::<[(&'static str, &'static str); 2], Counter>::default();
-        let mut rng = rand::rng();
+fn bench_family_with_string_labels(c: &mut Criterion) {
+    type StrArrayLabels = [(&'static str, &'static str); 1];
+    let mut group = c.benchmark_group("family with [(&'static str, &'static str)] labels");
+    group.bench_function("prometheus_client", |b| {
+        let families = prometheus_client_setup::setup_families::<StrArrayLabels>();
 
         b.iter_batched(
             || {
-                let labels = rng.random::<Labels>();
-                [("method", labels.method()), ("status", labels.status())]
+                let input = setup_input();
+                ([("method", input.labels.method())], input.value)
             },
-            |labels| {
-                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
+            |(labels, value)| {
+                families.counter.get_or_create(black_box(&labels)).inc();
+                families.histogram.get_or_create(black_box(&labels)).observe(value)
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("counter family with Vec<(&'static str, &'static str)> labels", |b| {
-        let family = Family::<Vec<(&'static str, &'static str)>, Counter>::default();
-        let mut rng = rand::rng();
+    group.bench_function("openmetrics_client", |b| {
+        let families = openmetrics_client_setup::setup_families::<StrArrayLabels>();
 
         b.iter_batched(
             || {
-                let labels = rng.random::<Labels>();
-                vec![("method", labels.method()), ("status", labels.status())]
+                let input = setup_input();
+                ([("method", input.labels.method())], input.value)
             },
-            |labels| {
-                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
+            |(labels, value)| {
+                families.counter.with_or_new(black_box(&labels), |counter| counter.inc());
+                families.histogram.with_or_new(black_box(&labels), |hist| hist.observe(value));
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("counter family with Vec<(String, String)> labels", |b| {
-        let family = Family::<Vec<(String, String)>, Counter>::default();
-        let mut rng = rand::rng();
+    group.finish();
+
+    type StrVecLabels = Vec<(&'static str, &'static str)>;
+    let mut group = c.benchmark_group("family with Vec<(&'static str, &'static str)> labels");
+    group.bench_function("prometheus_client", |b| {
+        let families = prometheus_client_setup::setup_families::<StrVecLabels>();
 
         b.iter_batched(
             || {
-                let labels = rng.random::<Labels>();
-                vec![
-                    ("method".to_owned(), labels.method().to_owned()),
-                    ("status".to_owned(), labels.status().to_owned()),
-                ]
+                let input = setup_input();
+                (vec![("method", input.labels.method())], input.value)
             },
-            |labels| {
-                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
+            |(labels, value)| {
+                families.counter.get_or_create(black_box(&labels)).inc();
+                families.histogram.get_or_create(black_box(&labels)).observe(value)
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("counter family with custom labels", |b| {
-        let family = Family::<Labels, Counter>::default();
-        let mut rng = rand::rng();
+    group.bench_function("openmetrics_client", |b| {
+        let families = openmetrics_client_setup::setup_families::<StrVecLabels>();
 
         b.iter_batched(
-            || rng.random::<Labels>(),
-            |labels| {
-                let _ret = family.with_or_new(black_box(&labels), |counter| counter.inc());
+            || {
+                let input = setup_input();
+                (vec![("method", input.labels.method())], input.value)
+            },
+            |(labels, value)| {
+                families.counter.with_or_new(black_box(&labels), |counter| counter.inc());
+                families.histogram.with_or_new(black_box(&labels), |hist| hist.observe(value));
             },
             BatchSize::SmallInput,
         );
     });
+    group.finish();
 
+    type OwnedStrVecLabels = Vec<(String, String)>;
+    let mut group = c.benchmark_group("family with Vec<(String, String)> labels");
+    group.bench_function("prometheus_client", |b| {
+        let families = prometheus_client_setup::setup_families::<OwnedStrVecLabels>();
+
+        b.iter_batched(
+            || {
+                let input = setup_input();
+                (vec![("method".to_owned(), input.labels.method().to_owned())], input.value)
+            },
+            |(labels, value)| {
+                families.counter.get_or_create(black_box(&labels)).inc();
+                families.histogram.get_or_create(black_box(&labels)).observe(value)
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("openmetrics_client", |b| {
+        let families = openmetrics_client_setup::setup_families::<OwnedStrVecLabels>();
+
+        b.iter_batched(
+            || {
+                let input = setup_input();
+                (vec![("method".to_owned(), input.labels.method().to_owned())], input.value)
+            },
+            |(labels, value)| {
+                families.counter.with_or_new(black_box(&labels), |counter| counter.inc());
+                families.histogram.with_or_new(black_box(&labels), |hist| hist.observe(value));
+            },
+            BatchSize::SmallInput,
+        );
+    });
     group.finish();
 }
 
-criterion_group!(benches, prometheus_client_family, openmetrics_client_family);
+fn bench_family_with_custom_labels(c: &mut Criterion) {
+    let mut group = c.benchmark_group("family with custom labels");
+    group.bench_function("prometheus_client", |b| {
+        let families = prometheus_client_setup::setup_families::<Labels>();
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                families.counter.get_or_create(black_box(&input.labels)).inc();
+                families.histogram.get_or_create(black_box(&input.labels)).observe(input.value);
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("openmetrics_client", |b| {
+        let families = openmetrics_client_setup::setup_families::<Labels>();
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                families.counter.with_or_new(black_box(&input.labels), |counter| counter.inc());
+                families
+                    .histogram
+                    .with_or_new(black_box(&input.labels), |hist| hist.observe(input.value));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_family_without_labels,
+    bench_family_with_string_labels,
+    bench_family_with_custom_labels
+);
 criterion_main!(benches);

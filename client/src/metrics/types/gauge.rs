@@ -107,7 +107,6 @@ impl<N: GaugeValue> Gauge<N> {
     /// Increases the [`Gauge`] by `v`, returning the previous value.
     #[inline]
     pub fn inc_by(&self, v: N) -> N {
-        assert!(v >= N::ZERO);
         self.value.inc_by(v)
     }
 
@@ -120,7 +119,6 @@ impl<N: GaugeValue> Gauge<N> {
     /// Decreases the [`Gauge`] by `v`, returning the previous value.
     #[inline]
     pub fn dec_by(&self, v: N) -> N {
-        assert!(v >= N::ZERO);
         self.value.dec_by(v)
     }
 
