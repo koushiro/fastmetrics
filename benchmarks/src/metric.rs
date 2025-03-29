@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     distr::{Distribution, StandardUniform},
     Rng,
@@ -186,11 +187,8 @@ fn bench_stateset(c: &mut Criterion) {
 }
 
 criterion_group!(
-    benches,
-    bench_counter,
-    bench_gauge,
-    bench_histogram,
-    bench_gauge_histogram,
-    bench_stateset
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench_counter, bench_gauge, bench_histogram, bench_gauge_histogram, bench_stateset
 );
 criterion_main!(benches);

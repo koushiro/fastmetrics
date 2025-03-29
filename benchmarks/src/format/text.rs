@@ -1,6 +1,7 @@
 mod common;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use pprof::criterion::{Output, PProfProfiler};
 
 use crate::common::{setup_openmetrics_client_registry, setup_prometheus_client_registry};
 
@@ -41,5 +42,9 @@ fn bench_text_encoding(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_text_encoding);
+criterion_group!(
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench_text_encoding
+);
 criterion_main!(benches);
