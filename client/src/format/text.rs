@@ -150,17 +150,20 @@ where
         self
     }
 
+    #[inline]
     fn encode_type(&mut self, metric_name: &str, ty: MetricType) -> fmt::Result {
         let ty = ty.as_str();
         self.writer.write_fmt(format_args!("# TYPE {metric_name} {ty}"))?;
         self.encode_newline()
     }
 
+    #[inline]
     fn encode_help(&mut self, metric_name: &str, help: &str) -> fmt::Result {
         self.writer.write_fmt(format_args!("# HELP {metric_name} {help}"))?;
         self.encode_newline()
     }
 
+    #[inline]
     fn encode_unit(&mut self, metric_name: &str, unit: Option<&Unit>) -> fmt::Result {
         if let Some(unit) = unit {
             let unit = unit.as_str();
@@ -173,6 +176,21 @@ where
     #[inline]
     fn encode_newline(&mut self) -> fmt::Result {
         self.writer.write_str("\n")
+    }
+}
+
+fn metric_name<'a>(
+    namespace: Option<&'a str>,
+    name: &'a str,
+    unit: Option<&'a Unit>,
+) -> Cow<'a, str> {
+    match (namespace, unit) {
+        (Some(namespace), Some(unit)) => {
+            Cow::Owned(format!("{namespace}_{}_{}", name, unit.as_str()))
+        },
+        (Some(namespace), None) => Cow::Owned(format!("{namespace}_{name}")),
+        (None, Some(unit)) => Cow::Owned(format!("{name}_{}", unit.as_str())),
+        (None, None) => Cow::Borrowed(name),
     }
 }
 
@@ -215,12 +233,6 @@ where
         self.writer.write_str(self.metric_name.as_ref())
     }
 
-    #[inline]
-    fn encode_suffix(&mut self, suffix: &str) -> fmt::Result {
-        self.writer.write_str("_")?;
-        self.writer.write_str(suffix)
-    }
-
     fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
         let has_const_labels = !self.const_labels.is_empty();
         let has_family_labels = match self.family_labels {
@@ -235,12 +247,12 @@ where
         };
 
         if !has_const_labels && !has_family_labels && !has_additional_labels {
+            self.writer.write_str(" ")?;
             return Ok(());
         }
 
         self.writer.write_str("{")?;
         self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
-
         if let Some(family_labels) = self.family_labels {
             if has_family_labels {
                 if has_const_labels {
@@ -249,7 +261,6 @@ where
                 family_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
         }
-
         if let Some(additional_labels) = additional_labels {
             if has_additional_labels {
                 if has_const_labels || has_family_labels {
@@ -258,52 +269,47 @@ where
                 additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
         }
-
-        self.writer.write_str("}")
+        self.writer.write_str("} ")
     }
 
     fn encode_count(&mut self, count: u64) -> fmt::Result {
         self.encode_metric_name()?;
-        self.encode_suffix("count")?;
+        self.writer.write_str("_count")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         self.writer.write_str(itoa::Buffer::new().format(count))?;
         self.encode_newline()
     }
 
     fn encode_sum(&mut self, sum: f64) -> fmt::Result {
         self.encode_metric_name()?;
-        self.encode_suffix("sum")?;
+        self.writer.write_str("_sum")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         self.writer.write_str(dtoa::Buffer::new().format(sum))?;
         self.encode_newline()
     }
 
     fn encode_gcount(&mut self, gcount: u64) -> fmt::Result {
         self.encode_metric_name()?;
-        self.encode_suffix("gcount")?;
+        self.writer.write_str("_gcount")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         self.writer.write_str(itoa::Buffer::new().format(gcount))?;
         self.encode_newline()
     }
 
     fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
         self.encode_metric_name()?;
-        self.encode_suffix("gsum")?;
+        self.writer.write_str("_gsum")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         self.writer.write_str(dtoa::Buffer::new().format(gsum))?;
         self.encode_newline()
     }
 
     fn encode_created(&mut self, created: Duration) -> fmt::Result {
         self.encode_metric_name()?;
-        self.encode_suffix("created")?;
+        self.writer.write_str("_created")?;
         self.encode_label_set(None)?;
         self.writer.write_fmt(format_args!(
-            " {}.{}",
+            "{}.{}",
             created.as_secs(),
             created.as_millis() % 1000
         ))?;
@@ -323,7 +329,6 @@ where
     fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         value.encode(&mut UnknownValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()
     }
@@ -331,7 +336,6 @@ where
     fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         value.encode(&mut GaugeValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()
     }
@@ -343,9 +347,8 @@ where
     ) -> fmt::Result {
         // encode `*_total` metric
         self.encode_metric_name()?;
-        self.encode_suffix("total")?;
+        self.writer.write_str("_total")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(" ")?;
         total.encode(&mut CounterValueEncoder { writer: self.writer } as _)?;
         self.encode_newline()?;
 
@@ -362,7 +365,6 @@ where
         for (state, enabled) in states {
             self.encode_metric_name()?;
             self.encode_label_set(Some(&[(self.metric_name.clone(), state)]))?;
-            self.writer.write_str(" ")?;
             if enabled {
                 self.writer.write_str(itoa::Buffer::new().format(1))?;
             } else {
@@ -375,9 +377,9 @@ where
 
     fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result {
         self.encode_metric_name()?;
-        self.encode_suffix("info")?;
+        self.writer.write_str("_info")?;
         self.encode_label_set(Some(label_set))?;
-        self.writer.write_str(" 1")?;
+        self.writer.write_str("1")?;
         self.encode_newline()
     }
 
@@ -392,20 +394,15 @@ where
         let mut cumulative_count = 0;
         for bucket in buckets {
             self.encode_metric_name()?;
-            self.encode_suffix("bucket")?;
+            self.writer.write_str("_bucket")?;
 
             let upper_bound = bucket.upper_bound();
             let bucket_count = bucket.count();
             if upper_bound == f64::INFINITY {
                 self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
             } else {
-                self.encode_label_set(Some(&[(
-                    BUCKET_LABEL,
-                    ryu::Buffer::new().format(upper_bound),
-                )]))?;
+                self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
             }
-
-            self.writer.write_str(" ")?;
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_newline()?;
@@ -429,20 +426,15 @@ where
         let mut cumulative_count = 0;
         for bucket in buckets {
             self.encode_metric_name()?;
-            self.encode_suffix("bucket")?;
+            self.writer.write_str("_bucket")?;
 
             let upper_bound = bucket.upper_bound();
             let bucket_count = bucket.count();
             if upper_bound == f64::INFINITY {
                 self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
             } else {
-                self.encode_label_set(Some(&[(
-                    BUCKET_LABEL,
-                    ryu::Buffer::new().format(upper_bound),
-                )]))?;
+                self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
             }
-
-            self.writer.write_str(" ")?;
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_newline()?;
@@ -464,11 +456,7 @@ where
         // encode quantile metrics
         for quantile in quantiles {
             self.encode_metric_name()?;
-            self.encode_label_set(Some(&[(
-                QUANTILE_LABEL,
-                dtoa::Buffer::new().format(quantile.quantile()),
-            )]))?;
-            self.writer.write_str(" ")?;
+            self.encode_label_set(Some(&[(QUANTILE_LABEL, quantile.quantile())]))?;
             self.writer.write_str(dtoa::Buffer::new().format(quantile.value()))?;
             self.encode_newline()?;
         }
@@ -498,21 +486,6 @@ where
             const_labels: self.const_labels,
             family_labels: Some(label_set),
         }))
-    }
-}
-
-fn metric_name<'a>(
-    namespace: Option<&'a str>,
-    name: &'a str,
-    unit: Option<&'a Unit>,
-) -> Cow<'a, str> {
-    match (namespace, unit) {
-        (Some(namespace), Some(unit)) => {
-            Cow::Owned(format!("{namespace}_{}_{}", name, unit.as_str()))
-        },
-        (Some(namespace), None) => Cow::Owned(format!("{namespace}_{name}")),
-        (None, Some(unit)) => Cow::Owned(format!("{name}_{}", unit.as_str())),
-        (None, None) => Cow::Borrowed(name),
     }
 }
 

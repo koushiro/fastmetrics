@@ -56,7 +56,7 @@ pub fn setup_prometheus_client_registry(
         for _ in 0..observe_time {
             let labels = rng.random::<Labels>();
             counter_family.get_or_create(&labels).inc();
-            let observed_value = rng.random_range(0f64..1_000_000f64);
+            let observed_value = rng.random_range(0f64..100f64);
             histogram_family.get_or_create(&labels).observe(observed_value);
         }
     }
@@ -94,7 +94,7 @@ pub fn setup_openmetrics_client_registry(
         for _ in 0..observe_time {
             let labels = rng.random::<Labels>();
             counter_family.with_or_new(&labels, |counter| counter.inc());
-            let observed_value = rng.random_range(0f64..1_000_000f64);
+            let observed_value = rng.random_range(0f64..100f64);
             histogram_family.with_or_new(&labels, |hist| hist.observe(observed_value));
         }
     }
