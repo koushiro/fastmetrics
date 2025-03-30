@@ -4,7 +4,7 @@ use std::{borrow::Cow, fmt, time::Duration};
 
 use crate::{
     encoder::{
-        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
+        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue, EncodeMetric,
         EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::{
@@ -92,11 +92,11 @@ where
 
     fn encode_registry(&mut self) -> fmt::Result {
         for (metadata, metric) in &self.registry.metrics {
-            let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
+            MetricFamilyEncoder::new(&mut self.writer)
                 .with_namespace(self.registry.namespace())
-                .with_const_labels(&self.registry.const_labels);
-            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
-            metric.encode(metric_encoder.as_mut())?
+                .with_const_labels(&self.registry.const_labels)
+                // impl EncodeMetric for Box<dyn Metric> {...}
+                .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -106,11 +106,11 @@ where
 
     fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
         for (metadata, metric) in &system.metrics {
-            let mut family_encoder = MetricFamilyEncoder::new(&mut self.writer)
+            MetricFamilyEncoder::new(&mut self.writer)
                 .with_namespace(Some(system.namespace()))
-                .with_const_labels(&system.const_labels);
-            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
-            metric.encode(metric_encoder.as_mut())?
+                .with_const_labels(&system.const_labels)
+                // impl EncodeMetric for Box<dyn Metric> {...}
+                .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
             self.encode_registry_system(system)?
@@ -198,21 +198,19 @@ impl<W> encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn encode_metadata<'s>(
-        &'s mut self,
-        metadata: &'s Metadata,
-    ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
+    fn encode(mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
         let metric_name = metric_name(self.namespace, metadata.name(), metadata.unit());
+
         self.encode_type(metric_name.as_ref(), metadata.metric_type())?;
         self.encode_help(metric_name.as_ref(), metadata.help())?;
         self.encode_unit(metric_name.as_ref(), metadata.unit())?;
 
-        Ok(Box::new(MetricEncoder::<'s, W> {
+        metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name,
             const_labels: self.const_labels,
             family_labels: None,
-        }))
+        })
     }
 }
 
@@ -366,9 +364,9 @@ where
             self.encode_metric_name()?;
             self.encode_label_set(Some(&[(self.metric_name.clone(), state)]))?;
             if enabled {
-                self.writer.write_str(itoa::Buffer::new().format(1))?;
+                self.writer.write_str("1")?;
             } else {
-                self.writer.write_str(itoa::Buffer::new().format(0))?;
+                self.writer.write_str("0")?;
             }
             self.encode_newline()?;
         }
@@ -474,18 +472,14 @@ where
         Ok(())
     }
 
-    fn encode_family<'s>(
-        &'s mut self,
-        label_set: &'s dyn EncodeLabelSet,
-    ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
         debug_assert!(self.family_labels.is_none());
-
-        Ok(Box::new(MetricEncoder::<'s, W> {
+        metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name: self.metric_name.clone(),
             const_labels: self.const_labels,
             family_labels: Some(label_set),
-        }))
+        })
     }
 }
 

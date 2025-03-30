@@ -4,7 +4,7 @@ use std::{borrow::Cow, fmt, io, time::Duration};
 
 use crate::{
     encoder::{
-        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue,
+        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue, EncodeMetric,
         EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::{
@@ -89,11 +89,11 @@ impl<'a> Encoder<'a> {
     fn encode(&mut self) -> fmt::Result {
         for (metadata, metric) in &self.registry.metrics {
             let metric_families = &mut self.metric_set.metric_families;
-            let mut family_encoder = MetricFamilyEncoder::new(metric_families)
+            MetricFamilyEncoder::new(metric_families)
                 .with_namespace(self.registry.namespace())
-                .with_const_labels(&self.registry.const_labels);
-            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
-            metric.encode(metric_encoder.as_mut())?
+                .with_const_labels(&self.registry.const_labels)
+                // impl EncodeMetric for Box<dyn Metric> {...}
+                .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -104,11 +104,11 @@ impl<'a> Encoder<'a> {
     fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
         for (metadata, metric) in &system.metrics {
             let metric_families = &mut self.metric_set.metric_families;
-            let mut family_encoder = MetricFamilyEncoder::new(metric_families)
+            MetricFamilyEncoder::new(metric_families)
                 .with_namespace(Some(system.namespace()))
-                .with_const_labels(&system.const_labels);
-            let mut metric_encoder = family_encoder.encode_metadata(metadata)?;
-            metric.encode(metric_encoder.as_mut())?
+                .with_const_labels(&system.const_labels)
+                // impl EncodeMetric for Box<dyn Metric> {...}
+                .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -158,10 +158,7 @@ impl From<MetricType> for openmetrics_data_model::MetricType {
 }
 
 impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
-    fn encode_metadata<'s>(
-        &'s mut self,
-        metadata: &'s Metadata,
-    ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
+    fn encode(self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
         let family = openmetrics_data_model::MetricFamily {
             name: {
                 match self.namespace {
@@ -186,14 +183,14 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
         let mut labels = vec![];
         self.const_labels.encode(&mut LabelSetEncoder { labels: &mut labels })?;
 
-        Ok(Box::new(MetricEncoder {
+        metric.encode(&mut MetricEncoder {
             metrics: &mut self
                 .metric_families
                 .last_mut()
                 .expect("metric families must not be none")
                 .metrics,
             labels,
-        }))
+        })
     }
 }
 
@@ -397,14 +394,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode_family<'s>(
-        &'s mut self,
-        label_set: &'s dyn EncodeLabelSet,
-    ) -> Result<Box<dyn encoder::MetricEncoder + 's>, fmt::Error> {
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
         let mut labels = self.labels.clone();
         label_set.encode(&mut LabelSetEncoder { labels: &mut labels })?;
-
-        Ok(Box::new(MetricEncoder { metrics: self.metrics, labels }))
+        metric.encode(&mut MetricEncoder { metrics: self.metrics, labels })
     }
 }
 

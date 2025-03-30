@@ -10,9 +10,9 @@ A pure-Rust implementation of the [OpenMetrics](https://github.com/prometheus/Op
 
 - Full support for [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification
 - Type-safe metric creation and manipulation
+- Fast encoding in both text and protobuf exposition format
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
-- Encoding in both text and protobuf exposition format
 - Optional derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
 
 ## TODO

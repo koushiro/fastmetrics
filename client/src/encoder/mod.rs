@@ -11,28 +11,22 @@ use crate::metrics::{
     summary::*, unknown::*, MetricType, TypedMetric,
 };
 
-/// Trait for encoding metric metadata.
+/// Trait for encoding metric with metadata.
 ///
-/// This trait is responsible for encoding the metadata associated with metrics, including:
+/// This trait is responsible for encoding metric with the metadata, which includes:
 ///
 /// - name
 /// - TYPE (gauge, counter, etc.)
 /// - HELP
 /// - UNIT (if any)
 pub trait MetricFamilyEncoder {
-    /// Encodes metadata of a metric and returns a [`MetricEncoder`] to encode the metric itself.
+    /// Encodes metric with metadata.
     ///
     /// # Arguments
     ///
     /// * `metadata` - The metadata to encode, containing name, type, help and unit
-    ///
-    /// # Returns
-    ///
-    /// Returns a [`MetricEncoder`] that can be used to encode the actual metric values.
-    fn encode_metadata<'s>(
-        &'s mut self,
-        metadata: &'s Metadata,
-    ) -> Result<Box<dyn MetricEncoder + 's>, fmt::Error>;
+    /// * `metric` - The metric to encode
+    fn encode(self, metadata: &Metadata, metrics: &dyn EncodeMetric) -> fmt::Result;
 }
 
 /// Trait for encoding different types of metrics.
@@ -47,8 +41,6 @@ pub trait MetricEncoder {
     fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result;
 
     /// Encodes a counter metric.
-    ///
-    /// This method handles both the `total` value and optional `created` timestamp.
     fn encode_counter(
         &mut self,
         total: &dyn EncodeCounterValue,
@@ -82,11 +74,8 @@ pub trait MetricEncoder {
         created: Option<Duration>,
     ) -> fmt::Result;
 
-    /// Creates an encoder for a metric family with the specified label set.
-    fn encode_family<'s>(
-        &'s mut self,
-        label_set: &'s dyn EncodeLabelSet,
-    ) -> Result<Box<dyn MetricEncoder + 's>, fmt::Error>;
+    /// Encodes a metric with the specified label set.
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result;
 }
 
 /// Trait for types that can be encoded as metrics.
@@ -236,8 +225,7 @@ where
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let guard = self.read();
         for (labels, metric) in guard.iter() {
-            let mut encoder = encoder.encode_family(labels)?;
-            metric.encode(encoder.as_mut())?;
+            encoder.encode(labels, metric)?;
         }
         Ok(())
     }
