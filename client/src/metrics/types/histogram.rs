@@ -29,21 +29,22 @@ use crate::metrics::{MetricType, TypedMetric};
 /// hist.observe(3.0);  // Falls into ≤3.0 bucket
 /// hist.observe(20.0); // Falls into +Inf bucket
 ///
-/// // Get bucket counts
-/// let snapshot = hist.snapshot();
-/// let buckets = snapshot.buckets();
-/// assert_eq!(buckets[0].upper_bound(), 1.0);
-/// assert_eq!(buckets[0].count(), 1);  // One value ≤1.0
-/// assert_eq!(buckets[1].upper_bound(), 2.0);
-/// assert_eq!(buckets[1].count(), 1);  // One value ≤2.0
-/// assert_eq!(buckets[2].upper_bound(), 3.0);
-/// assert_eq!(buckets[2].count(), 1);  // One value ≤5.0
-/// assert_eq!(buckets[10].upper_bound(), f64::INFINITY);
-/// assert_eq!(buckets[10].count(), 1);  // One value in +Inf bucket
-///
-/// // Get count and sum statistics
-/// assert_eq!(snapshot.count(), 4);      // Total number of observations
-/// assert_eq!(snapshot.sum(), 25.0);     // Sum of all observed values
+/// // Check snapshot
+/// hist.snapshot_with(|s| {
+///     // Get bucket counts
+///     let buckets = s.buckets();
+///     assert_eq!(buckets[0].upper_bound(), 1.0);
+///     assert_eq!(buckets[0].count(), 1);  // One value ≤1.0
+///     assert_eq!(buckets[1].upper_bound(), 2.0);
+///     assert_eq!(buckets[1].count(), 1);  // One value ≤2.0
+///     assert_eq!(buckets[2].upper_bound(), 3.0);
+///     assert_eq!(buckets[2].count(), 1);  // One value ≤5.0
+///     assert_eq!(buckets[10].upper_bound(), f64::INFINITY);
+///     assert_eq!(buckets[10].count(), 1);  // One value in +Inf bucket
+///     // Get count and sum statistics
+///     assert_eq!(s.count(), 4);      // Total number of observations
+///     assert_eq!(s.sum(), 25.0);     // Sum of all observed values
+/// });
 ///
 /// // Create a histogram with created timestamp
 /// let hist = Histogram::with_created(linear_buckets(1.0, 1.0, 10));
@@ -60,8 +61,8 @@ pub struct Histogram {
 #[derive(Clone)]
 pub struct HistogramSnapshot {
     buckets: Vec<Bucket>,
-    sum: f64,
     count: u64,
+    sum: f64,
 }
 
 impl HistogramSnapshot {
@@ -70,14 +71,14 @@ impl HistogramSnapshot {
         &self.buckets
     }
 
-    /// Gets the current `sum` of all observed values.
-    pub const fn sum(&self) -> f64 {
-        self.sum
-    }
-
     /// Gets the current `count` of all observations.
     pub const fn count(&self) -> u64 {
         self.count
+    }
+
+    /// Gets the current `sum` of all observed values.
+    pub const fn sum(&self) -> f64 {
+        self.sum
     }
 }
 
@@ -159,9 +160,12 @@ impl Histogram {
     }
 
     /// Returns a snapshot of the [`Histogram`] at the current time.
-    pub fn snapshot(&self) -> HistogramSnapshot {
+    pub fn snapshot_with<F, R>(&self, func: F) -> R
+    where
+        F: FnOnce(&HistogramSnapshot) -> R,
+    {
         let snapshot = self.inner.read();
-        snapshot.clone()
+        func(&snapshot)
     }
 
     /// Gets the optional `created` value of the [`Histogram`].
@@ -181,22 +185,25 @@ mod tests {
     #[test]
     fn test_histogram_initialization() {
         let hist = Histogram::default();
-        let snapshot = hist.snapshot();
-        let buckets = snapshot.buckets();
-        assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
-        assert_eq!(snapshot.sum(), 0.0);
-        assert_eq!(snapshot.count(), 0);
+        hist.snapshot_with(|s| {
+            let buckets = s.buckets();
+            assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
+            assert_eq!(s.count(), 0);
+            assert_eq!(s.sum(), 0.0);
+        });
+
         assert!(hist.created().is_none());
 
         let bounds = vec![1.0, 2.0, 5.0];
         let hist = Histogram::new(bounds);
-        let snapshot = hist.snapshot();
-        let buckets = snapshot.buckets();
-        assert_eq!(buckets.len(), 4); // Including +Inf bucket
-        assert_eq!(buckets[0].upper_bound(), 1.0);
-        assert_eq!(buckets[1].upper_bound(), 2.0);
-        assert_eq!(buckets[2].upper_bound(), 5.0);
-        assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
+        hist.snapshot_with(|s| {
+            let buckets = s.buckets();
+            assert_eq!(buckets.len(), 4); // Including +Inf bucket
+            assert_eq!(buckets[0].upper_bound(), 1.0);
+            assert_eq!(buckets[1].upper_bound(), 2.0);
+            assert_eq!(buckets[2].upper_bound(), 5.0);
+            assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
+        });
 
         let hist = Histogram::with_created(vec![1.0, 2.0]);
         assert!(hist.created().is_some());
@@ -211,14 +218,15 @@ mod tests {
         hist.observe(3.0);
         hist.observe(6.0);
 
-        let snapshot = hist.snapshot();
-        let buckets = snapshot.buckets();
-        assert_eq!(buckets[0].count(), 1); // ≤1.0
-        assert_eq!(buckets[1].count(), 1); // ≤2.0
-        assert_eq!(buckets[2].count(), 1); // ≤5.0
-        assert_eq!(buckets[3].count(), 1); // +Inf
-        assert_eq!(snapshot.count(), 4);
-        assert_eq!(snapshot.sum(), 11.0);
+        hist.snapshot_with(|s| {
+            let buckets = s.buckets();
+            assert_eq!(buckets[0].count(), 1); // ≤1.0
+            assert_eq!(buckets[1].count(), 1); // ≤2.0
+            assert_eq!(buckets[2].count(), 1); // ≤5.0
+            assert_eq!(buckets[3].count(), 1); // +Inf
+            assert_eq!(s.count(), 4);
+            assert_eq!(s.sum(), 11.0);
+        });
     }
 
     #[test]
@@ -228,9 +236,10 @@ mod tests {
         hist.observe(-1.0); // Negative value
         hist.observe(f64::NAN); // NaN value
 
-        let snapshot = hist.snapshot();
-        assert_eq!(snapshot.count(), 0);
-        assert_eq!(snapshot.sum(), 0.0);
+        hist.snapshot_with(|s| {
+            assert_eq!(s.count(), 0);
+            assert_eq!(s.sum(), 0.0);
+        });
     }
 
     #[test]
@@ -250,8 +259,9 @@ mod tests {
 
         handle.join().unwrap();
 
-        let snapshot = hist.snapshot();
-        assert_eq!(snapshot.count(), 200);
-        assert_eq!(snapshot.sum(), 10100.0);
+        hist.snapshot_with(|s| {
+            assert_eq!(s.count(), 200);
+            assert_eq!(s.sum(), 10100.0);
+        });
     }
 }

@@ -5,6 +5,7 @@
 //! See [`Family`] for more details.
 
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::{self, Debug},
     hash::{BuildHasher, Hash, Hasher},
@@ -20,8 +21,8 @@ use crate::metrics::{MetricType, TypedMetric};
 /// There are four pieces of metadata: name, TYPE, UNIT and HELP.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Metadata {
-    name: String,
-    help: String,
+    name: Cow<'static, str>,
+    help: Cow<'static, str>,
     ty: MetricType,
     unit: Option<Unit>,
 }
@@ -37,12 +38,12 @@ impl Hash for Metadata {
 impl Metadata {
     /// Creates a new [`Metadata`] of metric family.
     pub fn new(
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         ty: MetricType,
         unit: Option<Unit>,
     ) -> Self {
-        Self { name: name.into(), help: help.into() + ".", ty, unit }
+        Self { name: name.into(), help: help.into(), ty, unit }
     }
 
     /// Returns the name of the metric family.
@@ -50,7 +51,7 @@ impl Metadata {
     /// The name uniquely identifies the metric family in the registry and
     /// is used when exposing metrics in the OpenMetrics format.
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_ref()
     }
 
     /// Returns the help text of the metric family.
@@ -58,7 +59,7 @@ impl Metadata {
     /// The help text provides a description of what the metric measures and
     /// is included in the OpenMetrics output as a HELP comment.
     pub fn help(&self) -> &str {
-        &self.help
+        self.help.as_ref()
     }
 
     /// Returns the type of the metric family.
@@ -92,7 +93,7 @@ pub enum Unit {
     Volts,
     Amperes,
     Celsius,
-    Other(String),
+    Other(Cow<'static, str>),
 }
 
 impl Unit {
@@ -108,7 +109,7 @@ impl Unit {
             Unit::Volts => "volts",
             Unit::Amperes => "amperes",
             Unit::Celsius => "celsius",
-            Unit::Other(other) => other.as_str(),
+            Unit::Other(other) => other.as_ref(),
         }
     }
 }
@@ -309,8 +310,8 @@ where
         guard.get(labels).map(func)
     }
 
-    /// Gets a reference to an existing metric or creates a new one with the specified labels,
-    /// then applies a function to it.
+    /// Gets a reference to an existing metric or creates a new one using given metric factory
+    /// if it doesn't exist, then applies a function to it.
     ///
     /// This method will:
     /// 1. Check if a metric exists for the given labels
@@ -356,56 +357,6 @@ where
         F: FnOnce(&M) -> R,
         S: BuildHasher,
     {
-        self.with_or_insert(labels, self.metric_factory.new_metric(), func)
-    }
-
-    /// Gets a reference to an existing metric or creates a new one with the specified labels,
-    /// then applies a function to it.
-    ///
-    /// This method will:
-    /// 1. Check if a metric exists for the given labels
-    /// 2. If it exists, apply the function to it
-    /// 3. If it doesn't exist, insert the provided metric and then apply the function
-    ///
-    /// # Parameters
-    ///
-    /// - `labels`: The labels to identify the metric
-    /// - `metric`: The new metric instance to insert if one doesn't exist
-    /// - `func`: Function to apply to the metric
-    ///
-    /// # Returns
-    ///
-    /// Returns `Some(R)` where R is the return value of `func` after applying it to
-    /// either the existing or newly inserted metric.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use openmetrics_client::{
-    /// #    metrics::{counter::Counter, family::Family},
-    /// #    registry::{Registry, RegistryError},
-    /// # };
-    /// #
-    /// # fn main() -> Result<(), RegistryError> {
-    /// let mut registry = Registry::default();
-    ///
-    /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let http_requests = Family::<LabelSet, Counter>::default();
-    ///
-    /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
-    ///
-    /// let labels = vec![("method", "GET"), ("status", "200")];
-    /// http_requests.with_or_insert(&labels, Counter::with_created(), |req| req.inc());
-    /// assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn with_or_insert<R, F>(&self, labels: &LS, metric: M, func: F) -> Option<R>
-    where
-        LS: Clone + Eq + Hash,
-        F: FnOnce(&M) -> R,
-        S: BuildHasher,
-    {
         let guard = self.read();
         if let Some(metric) = guard.get(labels) {
             return Some(func(metric));
@@ -413,7 +364,7 @@ where
         drop(guard);
 
         let mut write_guard = self.write();
-        write_guard.entry(labels.clone()).or_insert(metric);
+        write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
 
         let read_guard = RwLockWriteGuard::downgrade(write_guard);
         read_guard.get(labels).map(func)

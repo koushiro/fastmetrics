@@ -150,8 +150,8 @@ impl RegistrySystem {
     /// [Registry::register]: crate::registry::Registry::register
     pub fn register(
         &mut self,
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, None, metric)
@@ -163,8 +163,8 @@ impl RegistrySystem {
     /// [Registry::register_with_unit]: crate::registry::Registry::register_with_unit
     pub fn register_with_unit(
         &mut self,
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         unit: Unit,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
@@ -179,8 +179,8 @@ impl RegistrySystem {
 
     fn do_register(
         &mut self,
-        name: impl Into<String>,
-        help: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
+        help: impl Into<Cow<'static, str>>,
         unit: Option<Unit>,
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {

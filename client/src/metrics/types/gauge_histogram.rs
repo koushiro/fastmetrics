@@ -28,21 +28,22 @@ use crate::metrics::{MetricType, TypedMetric};
 /// hist.observe(100.0);    // Falls into ≤100.0 bucket
 /// hist.observe(1000.0);   // Falls into +Inf bucket
 ///
-/// // Get bucket counts
-/// let snapshot = hist.snapshot();
-/// let buckets = snapshot.buckets();
-/// assert_eq!(buckets[1].upper_bound(), -200.0);
-/// assert_eq!(buckets[1].count(), 1);  // One value ≤-200.0
-/// assert_eq!(buckets[3].upper_bound(), 0.0);
-/// assert_eq!(buckets[3].count(), 1);  // One value ≤0.0
-/// assert_eq!(buckets[4].upper_bound(), 100.0);
-/// assert_eq!(buckets[4].count(), 1);  // One value ≤100.0
-/// assert_eq!(buckets[6].upper_bound(), f64::INFINITY);
-/// assert_eq!(buckets[6].count(), 1);  // One value in +Inf bucket
-///
-/// // Get gcount and gsum statistics
-/// assert_eq!(snapshot.gcount(), 4);       // Total number of observations
-/// assert_eq!(snapshot.gsum(), 850.0);     // Sum of all observed values
+/// // Check snapshot
+/// hist.snapshot_with(|s| {
+///     // Get bucket counts
+///     let buckets = s.buckets();
+///     assert_eq!(buckets[1].upper_bound(), -200.0);
+///     assert_eq!(buckets[1].count(), 1);  // One value ≤-200.0
+///     assert_eq!(buckets[3].upper_bound(), 0.0);
+///     assert_eq!(buckets[3].count(), 1);  // One value ≤0.0
+///     assert_eq!(buckets[4].upper_bound(), 100.0);
+///     assert_eq!(buckets[4].count(), 1);  // One value ≤100.0
+///     assert_eq!(buckets[6].upper_bound(), f64::INFINITY);
+///     assert_eq!(buckets[6].count(), 1);  // One value in +Inf bucket
+///     // Get gcount and gsum statistics
+///     assert_eq!(s.gcount(), 4);       // Total number of observations
+///     assert_eq!(s.gsum(), 850.0);     // Sum of all observed values
+/// });
 /// ```
 #[derive(Clone)]
 pub struct GaugeHistogram {
@@ -63,14 +64,14 @@ impl GaugeHistogramSnapshot {
         &self.buckets
     }
 
-    /// Gets the current `gsum` of all observed values.
-    pub const fn gsum(&self) -> f64 {
-        self.gsum
-    }
-
     /// Gets the current `gcount` of all observations.
     pub const fn gcount(&self) -> u64 {
         self.gcount
+    }
+
+    /// Gets the current `gsum` of all observed values.
+    pub const fn gsum(&self) -> f64 {
+        self.gsum
     }
 }
 
@@ -80,8 +81,8 @@ impl Debug for GaugeHistogram {
 
         f.debug_struct("GaugeHistogram")
             .field("buckets", &snapshot.buckets())
-            .field("gsum", &snapshot.gsum())
             .field("gcount", &snapshot.gcount())
+            .field("gsum", &snapshot.gsum())
             .finish()
     }
 }
@@ -138,8 +139,12 @@ impl GaugeHistogram {
     }
 
     /// Returns a snapshot of the [`GaugeHistogram`] at the current time.
-    pub fn snapshot(&self) -> GaugeHistogramSnapshot {
-        self.inner.read().clone()
+    pub fn snapshot_with<F, R>(&self, func: F) -> R
+    where
+        F: FnOnce(&GaugeHistogramSnapshot) -> R,
+    {
+        let snapshot = self.inner.read();
+        func(&snapshot)
     }
 }
 
@@ -154,21 +159,23 @@ mod tests {
     #[test]
     fn test_gauge_histogram_initialization() {
         let hist = GaugeHistogram::default();
-        let snapshot = hist.snapshot();
-        let buckets = snapshot.buckets();
-        assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
-        assert_eq!(snapshot.gsum(), 0.0);
-        assert_eq!(snapshot.gcount(), 0);
+        hist.snapshot_with(|s| {
+            let buckets = s.buckets();
+            assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
+            assert_eq!(s.gcount(), 0);
+            assert_eq!(s.gsum(), 0.0);
+        });
 
         let bounds = vec![1.0, 2.0, 5.0];
         let hist = GaugeHistogram::new(bounds);
-        let snapshot = hist.snapshot();
-        let buckets = snapshot.buckets();
-        assert_eq!(buckets.len(), 4); // Including +Inf bucket
-        assert_eq!(buckets[0].upper_bound(), 1.0);
-        assert_eq!(buckets[1].upper_bound(), 2.0);
-        assert_eq!(buckets[2].upper_bound(), 5.0);
-        assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
+        hist.snapshot_with(|s| {
+            let buckets = s.buckets();
+            assert_eq!(buckets.len(), 4); // Including +Inf bucket
+            assert_eq!(buckets[0].upper_bound(), 1.0);
+            assert_eq!(buckets[1].upper_bound(), 2.0);
+            assert_eq!(buckets[2].upper_bound(), 5.0);
+            assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
+        });
     }
 
     #[test]
@@ -180,14 +187,15 @@ mod tests {
         hist.observe(100.0);
         hist.observe(1000.0);
 
-        let snapshot = hist.snapshot();
-        let buckets = snapshot.buckets();
-        assert_eq!(buckets[1].count(), 1); // ≤-200.0
-        assert_eq!(buckets[3].count(), 1); // ≤0.0
-        assert_eq!(buckets[4].count(), 1); // ≤100.0
-        assert_eq!(buckets[6].count(), 1); // +Inf
-        assert_eq!(snapshot.gcount(), 4);
-        assert_eq!(snapshot.gsum(), 850.0);
+        hist.snapshot_with(|s| {
+            let buckets = s.buckets();
+            assert_eq!(buckets[1].count(), 1); // ≤-200.0
+            assert_eq!(buckets[3].count(), 1); // ≤0.0
+            assert_eq!(buckets[4].count(), 1); // ≤100.0
+            assert_eq!(buckets[6].count(), 1); // +Inf
+            assert_eq!(s.gcount(), 4);
+            assert_eq!(s.gsum(), 850.0);
+        });
     }
 
     #[test]
@@ -197,9 +205,10 @@ mod tests {
         hist.observe(-1.0); // Negative value, valid
         hist.observe(f64::NAN); // NaN value, invalid
 
-        let snapshot = hist.snapshot();
-        assert_eq!(snapshot.gcount(), 1);
-        assert_eq!(snapshot.gsum(), -1.0);
+        hist.snapshot_with(|s| {
+            assert_eq!(s.gcount(), 1);
+            assert_eq!(s.gsum(), -1.0);
+        });
     }
 
     #[test]
@@ -225,8 +234,9 @@ mod tests {
 
         handle.join().unwrap();
 
-        let snapshot = hist.snapshot();
-        assert_eq!(snapshot.gcount(), 400);
-        assert_eq!(snapshot.gsum(), 0.0);
+        hist.snapshot_with(|s| {
+            assert_eq!(s.gcount(), 400);
+            assert_eq!(s.gsum(), 0.0);
+        });
     }
 }

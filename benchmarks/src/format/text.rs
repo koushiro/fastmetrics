@@ -1,18 +1,19 @@
 mod common;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use pprof::criterion::{Output, PProfProfiler};
 
 use crate::common::{setup_openmetrics_client_registry, setup_prometheus_client_registry};
 
-fn prometheus_client_text_format(c: &mut Criterion) {
-    let mut group = c.benchmark_group("prometheus_client::text");
+fn bench_text_encoding(c: &mut Criterion) {
+    let mut group = c.benchmark_group("text::encode");
 
     let metric_counts = [10, 100];
-    let observe_times = [10, 100, 1000, 10000];
+    let observe_times = [10, 100, 1_000, 10_000, 100_000];
 
     for count in metric_counts {
         for times in observe_times {
-            let id = format!("encode: {count} metrics * {times} observe times");
+            let id = format!("prometheus_client: {count} metrics * {times} observe times");
             group.bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
 
@@ -23,21 +24,8 @@ fn prometheus_client_text_format(c: &mut Criterion) {
                     black_box(&mut buffer);
                 });
             });
-        }
-    }
 
-    group.finish();
-}
-
-fn openmetrics_client_text_format(c: &mut Criterion) {
-    let mut group = c.benchmark_group("openmetrics_client::text");
-
-    let metric_counts = [10, 100];
-    let observe_times = [10, 100, 1000, 10000];
-
-    for count in metric_counts {
-        for times in observe_times {
-            let id = format!("encode: {count} metrics * {times} observe times");
+            let id = format!("openmetrics_client: {count} metrics * {times} observe times");
             group.bench_function(id, |b| {
                 let registry = setup_openmetrics_client_registry(count, times);
 
@@ -54,5 +42,9 @@ fn openmetrics_client_text_format(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, prometheus_client_text_format, openmetrics_client_text_format);
+criterion_group!(
+    name = benches;
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    targets = bench_text_encoding
+);
 criterion_main!(benches);

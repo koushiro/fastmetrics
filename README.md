@@ -68,7 +68,7 @@ registry.register(
 // Update metrics
 requests.inc();
 let labels = Labels { method: Method::Get, status: 200 };
-http_requests.with_or_default(&labels, |req| req.inc());
+http_requests.with_or_new(&labels, |req| req.inc());
 
 // Export metrics in text format
 let mut output = String::new();
