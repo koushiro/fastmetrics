@@ -394,11 +394,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode<'s>(
-        &'s mut self,
-        label_set: &'s dyn EncodeLabelSet,
-        metric: &'s dyn EncodeMetric,
-    ) -> fmt::Result {
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
         let mut labels = self.labels.clone();
         label_set.encode(&mut LabelSetEncoder { labels: &mut labels })?;
         metric.encode(&mut MetricEncoder { metrics: self.metrics, labels })

@@ -472,13 +472,9 @@ where
         Ok(())
     }
 
-    fn encode<'s>(
-        &'s mut self,
-        label_set: &'s dyn EncodeLabelSet,
-        metric: &'s dyn EncodeMetric,
-    ) -> fmt::Result {
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
         debug_assert!(self.family_labels.is_none());
-        metric.encode(&mut MetricEncoder::<'s, W> {
+        metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name: self.metric_name.clone(),
             const_labels: self.const_labels,

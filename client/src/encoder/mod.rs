@@ -75,11 +75,7 @@ pub trait MetricEncoder {
     ) -> fmt::Result;
 
     /// Encodes a metric with the specified label set.
-    fn encode<'s>(
-        &'s mut self,
-        label_set: &'s dyn EncodeLabelSet,
-        metric: &'s dyn EncodeMetric,
-    ) -> fmt::Result;
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result;
 }
 
 /// Trait for types that can be encoded as metrics.
