@@ -50,17 +50,17 @@ use crate::{
 /// ```
 pub struct RegistrySystem {
     // namespace: prefix + system_name
-    pub(crate) namespace: String,
-    pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    namespace: Cow<'static, str>,
+    const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 
     pub(crate) metrics: HashMap<Metadata, Box<dyn Metric + 'static>>,
-    pub(crate) subsystems: HashMap<String, RegistrySystem>,
+    pub(crate) subsystems: HashMap<Cow<'static, str>, RegistrySystem>,
 }
 
 /// A builder for constructing [`RegistrySystem`] instances with custom configuration.
 pub struct RegistrySystemBuilder {
-    prefix: Option<String>,
-    pub(crate) system_name: String,
+    prefix: Option<Cow<'static, str>>,
+    pub(crate) system_name: Cow<'static, str>,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
@@ -84,11 +84,11 @@ impl RegistrySystemBuilder {
 
 // Private methods
 impl RegistrySystemBuilder {
-    fn new(system_name: impl Into<String>) -> Self {
+    fn new(system_name: impl Into<Cow<'static, str>>) -> Self {
         Self { prefix: None, system_name: system_name.into(), const_labels: vec![] }
     }
 
-    pub(crate) fn with_prefix(mut self, prefix: Option<impl Into<String>>) -> Self {
+    pub(crate) fn with_prefix(mut self, prefix: Option<impl Into<Cow<'static, str>>>) -> Self {
         self.prefix = prefix.map(|prefix| prefix.into());
         self
     }
@@ -112,7 +112,7 @@ impl RegistrySystemBuilder {
 
     pub(crate) fn build(self) -> RegistrySystem {
         let namespace = match self.prefix {
-            Some(prefix) => format!("{}_{}", prefix, self.system_name),
+            Some(prefix) => Cow::Owned(format!("{}_{}", prefix, self.system_name)),
             None => self.system_name,
         };
         RegistrySystem {
@@ -126,7 +126,7 @@ impl RegistrySystemBuilder {
 
 impl RegistrySystem {
     /// Creates a [`RegistrySystemBuilder`] to build [`RegistrySystem`] instance.
-    pub fn builder(system_name: impl Into<String>) -> RegistrySystemBuilder {
+    pub fn builder(system_name: impl Into<Cow<'static, str>>) -> RegistrySystemBuilder {
         let system_name = system_name.into();
         assert!(is_lowercase(&system_name), "invalid subsystem name, must be lowercase");
         RegistrySystemBuilder::new(system_name)
@@ -138,7 +138,7 @@ impl RegistrySystem {
     }
 
     /// Returns the `constant labels` of [`RegistrySystem`].
-    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
+    pub fn constant_labels(&self) -> &[(Cow<'static, str>, Cow<'static, str>)] {
         &self.const_labels
     }
 }
@@ -208,10 +208,10 @@ impl RegistrySystem {
     /// Similar to [Registry::subsystem] method.
     ///
     /// [Registry::subsystem]: crate::registry::Registry::subsystem
-    pub fn subsystem(&mut self, name: impl Into<String>) -> &mut Self {
+    pub fn subsystem(&mut self, name: impl Into<Cow<'static, str>>) -> &mut Self {
         let name = name.into();
         self.subsystems.entry(name).or_insert_with_key(|name| {
-            RegistrySystem::builder(name)
+            RegistrySystem::builder(name.clone())
                 // inherit prefix from this subsystem
                 .with_prefix(Some(self.namespace.clone()))
                 // inherit constant labels from this subsystem

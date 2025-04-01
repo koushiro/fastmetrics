@@ -113,22 +113,22 @@ impl EncodeMetric for Box<dyn Metric> {
 /// ```
 #[derive(Default)]
 pub struct Registry {
-    namespace: Option<String>,
-    pub(crate) const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+    namespace: Option<Cow<'static, str>>,
+    const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     pub(crate) metrics: HashMap<Metadata, Box<dyn Metric + 'static>>,
-    pub(crate) subsystems: HashMap<String, RegistrySystem>,
+    pub(crate) subsystems: HashMap<Cow<'static, str>, RegistrySystem>,
 }
 
 /// A builder for constructing [`Registry`] instances with custom configuration.
 #[derive(Default)]
 pub struct RegistryBuilder {
-    namespace: Option<String>,
+    namespace: Option<Cow<'static, str>>,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
 impl RegistryBuilder {
     /// Sets a `namespace` prefix for all metrics.
-    pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
+    pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         self.namespace = Some(namespace.into());
         self
     }
@@ -171,7 +171,7 @@ impl Registry {
     }
 
     /// Returns the `constant labels` of [`Registry`].
-    pub fn constant_labels(&self) -> &[(Cow<'_, str>, Cow<'_, str>)] {
+    pub fn constant_labels(&self) -> &[(Cow<'static, str>, Cow<'static, str>)] {
         &self.const_labels
     }
 }
@@ -309,11 +309,10 @@ impl Registry {
     /// assert_eq!(nested_subsystem.namespace(), "myapp_subsystem1_subsystem2");
     /// assert_eq!(nested_subsystem.constant_labels(), [("env".into(), "prod".into())]);
     /// ```
-    pub fn subsystem(&mut self, name: impl Into<String>) -> &mut RegistrySystem {
+    pub fn subsystem(&mut self, name: impl Into<Cow<'static, str>>) -> &mut RegistrySystem {
         let name = name.into();
-        // self.attach_subsystem(RegistrySystem::builder(name))
         self.subsystems.entry(name).or_insert_with_key(|name| {
-            RegistrySystem::builder(name)
+            RegistrySystem::builder(name.clone())
                 // inherit prefix from the registry
                 .with_prefix(self.namespace.clone())
                 // inherit constant labels from the registry
