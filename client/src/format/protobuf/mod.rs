@@ -89,11 +89,13 @@ impl<'a> Encoder<'a> {
     fn encode(&mut self) -> fmt::Result {
         for (metadata, metric) in &self.registry.metrics {
             let metric_families = &mut self.metric_set.metric_families;
-            MetricFamilyEncoder::new(metric_families)
-                .with_namespace(self.registry.namespace())
-                .with_const_labels(&self.registry.const_labels)
-                // impl EncodeMetric for Box<dyn Metric> {...}
-                .encode(metadata, metric)?;
+            MetricFamilyEncoder {
+                metric_families,
+                namespace: self.registry.namespace(),
+                const_labels: self.registry.constant_labels(),
+            }
+            // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -104,11 +106,13 @@ impl<'a> Encoder<'a> {
     fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
         for (metadata, metric) in &system.metrics {
             let metric_families = &mut self.metric_set.metric_families;
-            MetricFamilyEncoder::new(metric_families)
-                .with_namespace(Some(system.namespace()))
-                .with_const_labels(&system.const_labels)
-                // impl EncodeMetric for Box<dyn Metric> {...}
-                .encode(metadata, metric)?;
+            MetricFamilyEncoder {
+                metric_families,
+                namespace: Some(system.namespace()),
+                const_labels: system.constant_labels(),
+            }
+            // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -121,25 +125,6 @@ struct MetricFamilyEncoder<'a> {
     metric_families: &'a mut Vec<openmetrics_data_model::MetricFamily>,
     namespace: Option<&'a str>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
-}
-
-impl<'a> MetricFamilyEncoder<'a> {
-    fn new(families: &'a mut Vec<openmetrics_data_model::MetricFamily>) -> MetricFamilyEncoder<'a> {
-        Self { metric_families: families, namespace: None, const_labels: &[] }
-    }
-
-    fn with_namespace(mut self, namespace: Option<&'a str>) -> MetricFamilyEncoder<'a> {
-        self.namespace = namespace;
-        self
-    }
-
-    fn with_const_labels(
-        mut self,
-        const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
-    ) -> MetricFamilyEncoder<'a> {
-        self.const_labels = const_labels;
-        self
-    }
 }
 
 impl From<MetricType> for openmetrics_data_model::MetricType {

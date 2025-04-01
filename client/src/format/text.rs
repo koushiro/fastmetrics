@@ -92,11 +92,13 @@ where
 
     fn encode_registry(&mut self) -> fmt::Result {
         for (metadata, metric) in &self.registry.metrics {
-            MetricFamilyEncoder::new(&mut self.writer)
-                .with_namespace(self.registry.namespace())
-                .with_const_labels(&self.registry.const_labels)
-                // impl EncodeMetric for Box<dyn Metric> {...}
-                .encode(metadata, metric)?;
+            MetricFamilyEncoder {
+                writer: self.writer,
+                namespace: self.registry.namespace(),
+                const_labels: self.registry.constant_labels(),
+            }
+            // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -106,11 +108,13 @@ where
 
     fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
         for (metadata, metric) in &system.metrics {
-            MetricFamilyEncoder::new(&mut self.writer)
-                .with_namespace(Some(system.namespace()))
-                .with_const_labels(&system.const_labels)
-                // impl EncodeMetric for Box<dyn Metric> {...}
-                .encode(metadata, metric)?;
+            MetricFamilyEncoder {
+                writer: self.writer,
+                namespace: Some(system.namespace()),
+                const_labels: system.constant_labels(),
+            }
+            // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
             self.encode_registry_system(system)?
@@ -129,27 +133,10 @@ struct MetricFamilyEncoder<'a, W> {
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
 }
 
-impl<'a, W> MetricFamilyEncoder<'a, W>
+impl<W> MetricFamilyEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn new(writer: &'a mut W) -> MetricFamilyEncoder<'a, W> {
-        Self { writer, namespace: None, const_labels: &[] }
-    }
-
-    fn with_namespace(mut self, namespace: Option<&'a str>) -> MetricFamilyEncoder<'a, W> {
-        self.namespace = namespace;
-        self
-    }
-
-    fn with_const_labels(
-        mut self,
-        labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
-    ) -> MetricFamilyEncoder<'a, W> {
-        self.const_labels = labels;
-        self
-    }
-
     #[inline]
     fn encode_type(&mut self, metric_name: &str, ty: MetricType) -> fmt::Result {
         let ty = ty.as_str();
@@ -179,11 +166,7 @@ where
     }
 }
 
-fn metric_name<'a>(
-    namespace: Option<&'a str>,
-    name: &'a str,
-    unit: Option<&'a Unit>,
-) -> Cow<'a, str> {
+fn metric_name<'a>(namespace: Option<&str>, name: &'a str, unit: Option<&Unit>) -> Cow<'a, str> {
     match (namespace, unit) {
         (Some(namespace), Some(unit)) => {
             Cow::Owned(format!("{namespace}_{}_{}", name, unit.as_str()))
@@ -250,7 +233,9 @@ where
         }
 
         self.writer.write_str("{")?;
-        self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+        if has_const_labels {
+            self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+        }
         if let Some(family_labels) = self.family_labels {
             if has_family_labels {
                 if has_const_labels {
