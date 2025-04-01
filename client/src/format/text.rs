@@ -474,7 +474,7 @@ struct LabelSetEncoder<'a, W> {
 }
 
 impl<'a, W> LabelSetEncoder<'a, W> {
-    const fn new(writer: &'a mut W) -> LabelSetEncoder<'a, W> {
+    fn new(writer: &'a mut W) -> LabelSetEncoder<'a, W> {
         Self { writer, first: true }
     }
 }
