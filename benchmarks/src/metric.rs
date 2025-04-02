@@ -8,7 +8,7 @@ fn bench_counter(c: &mut Criterion) {
         use prometheus::IntCounter;
         let counter = IntCounter::new("my_counter", "My counter").unwrap();
 
-        b.iter(|| black_box(counter.inc()));
+        b.iter(|| counter.inc());
     });
     group.bench_function("prometheus_client", |b| {
         use prometheus_client::metrics::counter::Counter;
@@ -33,7 +33,7 @@ fn bench_gauge(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.set(black_box(input))),
+            |input| gauge.set(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -66,7 +66,7 @@ fn bench_gauge(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.add(black_box(input))),
+            |input| gauge.add(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -99,7 +99,7 @@ fn bench_gauge(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.sub(black_box(input))),
+            |input| gauge.sub(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -139,7 +139,7 @@ fn bench_histogram(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random_range(0f64..100f64),
-            |input| black_box(histogram.observe(black_box(input))),
+            |input| histogram.observe(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -149,7 +149,7 @@ fn bench_histogram(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random_range(0f64..100f64),
-            |input| black_box(histogram.observe(black_box(input))),
+            |input| histogram.observe(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -159,7 +159,7 @@ fn bench_histogram(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random_range(0f64..100f64),
-            |input| black_box(histogram.observe(black_box(input))),
+            |input| histogram.observe(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -175,7 +175,9 @@ fn bench_gauge_histogram(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random_range(-100f64..200f64),
-            |input| black_box(histogram.observe(black_box(input))),
+            |input| {
+                black_box(histogram.observe(black_box(input)));
+            },
             BatchSize::SmallInput,
         );
     });
