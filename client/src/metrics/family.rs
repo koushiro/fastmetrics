@@ -379,7 +379,7 @@ impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
 mod tests {
     use super::*;
     use crate::{
-        encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
+        encoder::{EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
         format::text,
         metrics::{
             counter::Counter,
@@ -402,8 +402,8 @@ mod tests {
 
     impl EncodeLabelSet for Labels {
         fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
-            ("method", &self.method).encode(encoder.label_encoder().as_mut())?;
-            ("status", self.status).encode(encoder.label_encoder().as_mut())?;
+            encoder.encode(&("method", &self.method))?;
+            encoder.encode(&("status", self.status))?;
             Ok(())
         }
     }

@@ -11,10 +11,8 @@ pub use openmetrics_client_derive::{EncodeLabelSet, EncodeLabelValue};
 
 /// Trait for encoding a set of labels.
 pub trait LabelSetEncoder {
-    /// Creates a new label encoder for encoding individual label within a set.
-    ///
-    /// Returns a new [`LabelEncoder`] for handling a single label (name-value pair).
-    fn label_encoder<'s>(&'s mut self) -> Box<dyn LabelEncoder + 's>;
+    /// Encodes a single label.
+    fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result;
 }
 
 /// Trait for types that can be encoded as a set of labels.
@@ -61,7 +59,7 @@ macro_rules! impl_encode_label_set_for_container {
             #[inline]
             fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
                 for label in self.iter() {
-                    label.encode(encoder.label_encoder().as_mut())?
+                    encoder.encode(label)?;
                 }
                 Ok(())
             }
@@ -80,7 +78,19 @@ impl_encode_label_set_for_container! { <T: EncodeLabel> EncodeLabelSet for Vec<T
 impl_encode_label_set_for_container! { <T: EncodeLabel> EncodeLabelSet for VecDeque<T> }
 impl_encode_label_set_for_container! { <T: EncodeLabel> EncodeLabelSet for LinkedList<T> }
 impl_encode_label_set_for_container! { <T: EncodeLabel> EncodeLabelSet for BTreeSet<T> }
-impl_encode_label_set_for_container! { <K: EncodeLabelName, V: EncodeLabelValue> EncodeLabelSet for BTreeMap<K, V> }
+
+impl<K: EncodeLabelName, V: EncodeLabelValue> EncodeLabelSet for BTreeMap<K, V> {
+    fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+        for label in self.iter() {
+            encoder.encode(&label)?;
+        }
+        Ok(())
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+}
 
 macro_rules! impl_enable_label_set_for_deref {
     (<$($desc:tt)+) => (

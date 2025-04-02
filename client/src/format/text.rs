@@ -4,8 +4,8 @@ use std::{borrow::Cow, fmt, time::Duration};
 
 use crate::{
     encoder::{
-        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue, EncodeMetric,
-        EncodeUnknownValue, MetricFamilyEncoder as _,
+        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabel, EncodeLabelSet, EncodeLabelValue,
+        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::{
         family::{Metadata, Unit},
@@ -483,10 +483,10 @@ impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn label_encoder<'s>(&'s mut self) -> Box<dyn encoder::LabelEncoder + 's> {
+    fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result {
         let first = self.first;
         self.first = false;
-        Box::new(LabelEncoder { writer: self.writer, first })
+        label.encode(&mut LabelEncoder { writer: self.writer, first })
     }
 }
 

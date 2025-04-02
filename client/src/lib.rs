@@ -57,8 +57,8 @@
 //! // Can use `#[derive(EncodeLabelSet)]` to simplify the code, but need to enable `derive` feature
 //! impl EncodeLabelSet for Labels {
 //!     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
-//!         ("method", &self.method).encode(encoder.label_encoder().as_mut())?;
-//!         ("status", self.status).encode(encoder.label_encoder().as_mut())?;
+//!         encoder.encode(&("method", &self.method))?;
+//!         encoder.encode(&("status", &self.status))?;
 //!         Ok(())
 //!     }
 //! }
