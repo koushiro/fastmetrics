@@ -31,7 +31,7 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
             let ident = f.ident.as_ref().unwrap();
             let ident_str = ident.to_string();
             quote! {
-                (&#ident_str, &self.#ident).encode(encoder.label_encoder().as_mut())?
+                encoder.encode(&(#ident_str, &self.#ident))?
             }
         })
         .collect::<Vec<_>>();

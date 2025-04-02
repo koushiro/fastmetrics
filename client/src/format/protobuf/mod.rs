@@ -4,8 +4,8 @@ use std::{borrow::Cow, fmt, io, time::Duration};
 
 use crate::{
     encoder::{
-        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabelSet, EncodeLabelValue, EncodeMetric,
-        EncodeUnknownValue, MetricFamilyEncoder as _,
+        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabel, EncodeLabelSet, EncodeLabelValue,
+        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::{
         family::Metadata,
@@ -391,10 +391,11 @@ struct LabelSetEncoder<'a> {
 }
 
 impl encoder::LabelSetEncoder for LabelSetEncoder<'_> {
-    fn label_encoder<'s>(&'s mut self) -> Box<dyn encoder::LabelEncoder + 's> {
+    fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result {
         self.labels.push(openmetrics_data_model::Label::default());
-        let label = self.labels.last_mut().expect("labels must not be none");
-        Box::new(LabelEncoder { label })
+        label.encode(&mut LabelEncoder {
+            label: self.labels.last_mut().expect("labels must not be none"),
+        })
     }
 }
 
