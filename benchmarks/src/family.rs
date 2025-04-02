@@ -5,6 +5,30 @@ use rand::{
     Rng,
 };
 
+mod prometheus_setup {
+    use prometheus::{exponential_buckets, histogram_opts, opts, HistogramVec, IntCounterVec};
+
+    pub struct Families {
+        pub counter: IntCounterVec,
+        pub histogram: HistogramVec,
+    }
+
+    pub fn set_families(label_names: &[&str]) -> Families {
+        let counter =
+            IntCounterVec::new(opts! {"my_counter", "my_counter help"}, label_names).unwrap();
+        let histogram = HistogramVec::new(
+            histogram_opts! {
+                "my_histogram",
+                "my_histogram help",
+                exponential_buckets(0.005f64, 2f64, 10).unwrap()
+            },
+            label_names,
+        )
+        .unwrap();
+        Families { counter, histogram }
+    }
+}
+
 mod prometheus_client_setup {
     use prometheus_client::metrics::{
         counter::Counter,
@@ -94,6 +118,22 @@ fn setup_input() -> Input {
 
 fn bench_family_without_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family without labels");
+    group.bench_function("prometheus", |b| {
+        let empty_labels: &[&str] = &[];
+        let families = prometheus_setup::set_families(empty_labels);
+
+        b.iter_batched(
+            || {
+                let mut rng = rand::rng();
+                rng.random_range(0f64..100f64)
+            },
+            |input| {
+                families.counter.with_label_values(black_box(empty_labels)).inc();
+                families.histogram.with_label_values(black_box(empty_labels)).observe(input);
+            },
+            BatchSize::SmallInput,
+        );
+    });
     group.bench_function("prometheus_client", |b| {
         let families = prometheus_client_setup::setup_families::<()>();
 
@@ -233,6 +273,21 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
 
 fn bench_family_with_custom_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family with custom labels");
+    group.bench_function("prometheus", |b| {
+        let families = prometheus_setup::set_families(&["method"]);
+
+        b.iter_batched(
+            || {
+                let input = setup_input();
+                ([input.labels.method()], input.value)
+            },
+            |(labels, value)| {
+                families.counter.with_label_values(black_box(&labels)).inc();
+                families.histogram.with_label_values(black_box(&labels)).observe(value);
+            },
+            BatchSize::SmallInput,
+        );
+    });
     group.bench_function("prometheus_client", |b| {
         let families = prometheus_client_setup::setup_families::<Labels>();
 

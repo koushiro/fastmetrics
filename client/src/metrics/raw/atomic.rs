@@ -36,18 +36,22 @@ macro_rules! impl_atomic_for_integer {
     ($($ty:ident, $atomic:ident, $size:expr)*) => ($(
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
+            #[inline]
             fn inc_by(&self, v: $ty) -> $ty {
                 self.fetch_add(v, Ordering::Relaxed)
             }
 
+            #[inline]
             fn dec_by(&self, v: $ty) -> $ty {
                 self.fetch_sub(v, Ordering::Relaxed)
             }
 
+            #[inline]
             fn set(&self, v: $ty) -> $ty {
                 self.swap(v, Ordering::Relaxed)
             }
 
+            #[inline]
             fn get(&self) -> $ty {
                 self.load(Ordering::Relaxed)
             }
@@ -68,6 +72,7 @@ macro_rules! impl_atomic_for_float  {
     ($($ty:ident, $atomic:ident, $size:expr)*) => ($(
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
+            #[inline]
             fn inc_by(&self, v: $ty) -> $ty {
                 let mut old_u = self.load(Ordering::Relaxed);
 
@@ -83,6 +88,7 @@ macro_rules! impl_atomic_for_float  {
                 old_f
             }
 
+            #[inline]
             fn dec_by(&self, v: $ty) -> $ty {
                 let mut old_u = self.load(Ordering::Relaxed);
 
@@ -98,11 +104,13 @@ macro_rules! impl_atomic_for_float  {
                 old_f
             }
 
+            #[inline]
             fn set(&self, v: $ty) -> $ty {
                 let old_u = self.swap($ty::to_bits(v), Ordering::Relaxed);
                 $ty::from_bits(old_u)
             }
 
+            #[inline]
             fn get(&self) -> $ty {
                 let value = self.load(Ordering::Relaxed);
                 $ty::from_bits(value)
