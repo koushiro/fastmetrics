@@ -88,7 +88,7 @@ impl<K: EncodeLabelName, V: EncodeLabelValue> EncodeLabelSet for BTreeMap<K, V> 
     }
 
     fn is_empty(&self) -> bool {
-        self.is_empty()
+        BTreeMap::is_empty(self)
     }
 }
 
