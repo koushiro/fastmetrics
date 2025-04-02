@@ -14,6 +14,7 @@ pprof = { version = "0.14.0", default-features = false, features = [
     # Enable the feature on Mac M1
     "frame-pointer",
 ] }
+prometheus = "0.14"
 prometheus-client = { version = "0.23", features = ["protobuf"] }
 prost_0_12 = { package = "prost", version = "0.12" }
 rand = "0.9.0"
