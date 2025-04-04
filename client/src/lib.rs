@@ -5,7 +5,7 @@
 //!
 //! # Features
 //!
-//! - Full support for [OpenMetrics]  specification
+//! - Full support for [OpenMetrics] specification
 //! - Fast encoding in both text and protobuf exposition format
 //! - Type-safe metric creation and manipulation
 //! - Hierarchical metric organization with namespaces and subsystems
