@@ -17,23 +17,12 @@
 //! # Example
 //!
 //! ```rust
-//! use openmetrics_client::{
-//!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
-//!     format::text,
-//!     metrics::{counter::Counter, family::Family},
-//!     registry::Registry,
-//! };
-//!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create a registry with a namespace and some constant labels
-//! let mut registry = Registry::builder()
-//!     .with_namespace("myapp")
-//!     .with_const_labels([("env", "prod")])
-//!     .build();
-//!
-//! // Register a simple counter
-//! let requests = <Counter>::default();
-//! registry.register("requests", "Total requests processed", requests.clone())?;
+//! # use openmetrics_client::{
+//! #     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
+//! #     format::text,
+//! #     metrics::{counter::Counter, family::Family},
+//! #     registry::Registry,
+//! # };
 //!
 //! #[derive(Clone, Eq, PartialEq, Hash)]
 //! struct Labels {
@@ -66,6 +55,17 @@
 //!     }
 //! }
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create a registry with a namespace and some constant labels
+//! let mut registry = Registry::builder()
+//!     .with_namespace("myapp")
+//!     .with_const_labels([("env", "prod")])
+//!     .build();
+//!
+//! // Register a simple counter
+//! let requests = <Counter>::default();
+//! registry.register("requests", "Total requests processed", requests.clone())?;
+//!
 //! // Register a counter metric family for tracking requests with labels
 //! let http_requests = Family::<Labels, Counter>::default();
 //! registry.register(
@@ -74,10 +74,11 @@
 //!     http_requests.clone()
 //! )?;
 //!
-//! // Update metrics
+//! // Update the simple counter
 //! requests.inc();
 //! assert_eq!(requests.total(), 1);
 //!
+//! // Update the counter family
 //! let labels = Labels { method: Method::Get, status: 200 };
 //! http_requests.with_or_new(&labels, |req| req.inc());
 //! assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
