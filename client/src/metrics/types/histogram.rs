@@ -30,7 +30,7 @@ use crate::metrics::{MetricType, TypedMetric};
 /// hist.observe(20.0); // Falls into +Inf bucket
 ///
 /// // Check snapshot
-/// hist.snapshot_with(|s| {
+/// hist.with_snapshot(|s| {
 ///     // Get bucket counts
 ///     let buckets = s.buckets();
 ///     assert_eq!(buckets[0].upper_bound(), 1.0);
@@ -159,8 +159,28 @@ impl Histogram {
         inner.buckets[idx].inc();
     }
 
-    /// Returns a snapshot of the [`Histogram`] at the current time.
-    pub fn snapshot_with<F, R>(&self, func: F) -> R
+    /// Provides temporary access to a snapshot of the histogram's current state.
+    ///
+    /// # Arguments
+    ///
+    /// * `func` - A closure that receives a reference to the [`HistogramSnapshot`].
+    ///
+    /// # Returns
+    ///
+    /// The value returned by the provided closure.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use openmetrics_client::metrics::histogram::{Histogram, linear_buckets};
+    /// let hist = Histogram::new(linear_buckets(1.0, 1.0, 3));
+    /// hist.observe(2.5);
+    ///
+    /// hist.with_snapshot(|s| {
+    ///     assert_eq!(s.count(), 1);
+    /// });
+    /// ```
+    pub fn with_snapshot<F, R>(&self, func: F) -> R
     where
         F: FnOnce(&HistogramSnapshot) -> R,
     {
@@ -185,7 +205,7 @@ mod tests {
     #[test]
     fn test_histogram_initialization() {
         let hist = Histogram::default();
-        hist.snapshot_with(|s| {
+        hist.with_snapshot(|s| {
             let buckets = s.buckets();
             assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
             assert_eq!(s.count(), 0);
@@ -196,7 +216,7 @@ mod tests {
 
         let bounds = vec![1.0, 2.0, 5.0];
         let hist = Histogram::new(bounds);
-        hist.snapshot_with(|s| {
+        hist.with_snapshot(|s| {
             let buckets = s.buckets();
             assert_eq!(buckets.len(), 4); // Including +Inf bucket
             assert_eq!(buckets[0].upper_bound(), 1.0);
@@ -218,7 +238,7 @@ mod tests {
         hist.observe(3.0);
         hist.observe(6.0);
 
-        hist.snapshot_with(|s| {
+        hist.with_snapshot(|s| {
             let buckets = s.buckets();
             assert_eq!(buckets[0].count(), 1); // ≤1.0
             assert_eq!(buckets[1].count(), 1); // ≤2.0
@@ -236,7 +256,7 @@ mod tests {
         hist.observe(-1.0); // Negative value
         hist.observe(f64::NAN); // NaN value
 
-        hist.snapshot_with(|s| {
+        hist.with_snapshot(|s| {
             assert_eq!(s.count(), 0);
             assert_eq!(s.sum(), 0.0);
         });
@@ -259,7 +279,7 @@ mod tests {
 
         handle.join().unwrap();
 
-        hist.snapshot_with(|s| {
+        hist.with_snapshot(|s| {
             assert_eq!(s.count(), 200);
             assert_eq!(s.sum(), 10100.0);
         });

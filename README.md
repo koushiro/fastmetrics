@@ -4,7 +4,8 @@
 [![Documentation](https://docs.rs/openmetrics-client/badge.svg)](https://docs.rs/openmetrics-client)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-A pure-Rust implementation of the [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification for transmitting cloud-native metrics at scale. This library is compatible with Prometheus and supports both text-based and protobuf exposition formats.
+A pure-Rust implementation of the [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification for transmitting cloud-native metrics at scale.
+This library is compatible with Prometheus.
 
 ## Features
 

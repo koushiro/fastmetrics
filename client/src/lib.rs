@@ -1,17 +1,16 @@
 //! OpenMetrics client library for Rust.
 //!
 //! This library provides a pure-Rust implementation of [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md),
-//! a standard for transmitting cloud-native metrics at scale.
-//! It is compatible with Prometheus and supports the text-based exposition format.
+//! a standard for transmitting cloud-native metrics at scale. And this library is compatible with Prometheus.
 //!
 //! # Features
 //!
-//! - Full OpenMetrics data model support
+//! - Full support for [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification
+//! - Fast encoding in both text and protobuf exposition format
 //! - Type-safe metric creation and manipulation
 //! - Hierarchical metric organization with namespaces and subsystems
-//! - Support for all metric types: Counter, Gauge, StateSet, Info
-//! - Label sets and constant labels
-//! - Text exposition format encoding
+//! - Support for variable and constant labels
+//! - Optional derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
 //!
 //! # Usage
 //!
@@ -51,7 +50,7 @@
 //! #[derive(Clone, Eq, PartialEq, Hash)]
 //! struct Labels {
 //!     method: Method,
-//!     status: u32,
+//!     status: u16,
 //! }
 //!
 //! // Can use `#[derive(EncodeLabelSet)]` to simplify the code, but need to enable `derive` feature

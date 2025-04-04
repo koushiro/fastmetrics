@@ -391,7 +391,7 @@ mod tests {
     #[derive(Clone, PartialEq, Eq, Hash)]
     struct Labels {
         method: Method,
-        status: u32,
+        status: u16,
     }
 
     #[derive(Clone, PartialEq, Eq, Hash)]
