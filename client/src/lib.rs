@@ -1,57 +1,33 @@
 //! OpenMetrics client library for Rust.
 //!
-//! This library provides a pure-Rust implementation of [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md),
-//! a standard for transmitting cloud-native metrics at scale.
-//! It is compatible with Prometheus and supports the text-based exposition format.
+//! A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native
+//! metrics at scale, and it's compatible with Prometheus.
 //!
 //! # Features
 //!
-//! - Full OpenMetrics data model support
+//! - Full support for [OpenMetrics] specification
+//! - Fast encoding in both text and protobuf exposition format
 //! - Type-safe metric creation and manipulation
 //! - Hierarchical metric organization with namespaces and subsystems
-//! - Support for all metric types: Counter, Gauge, StateSet, Info
-//! - Label sets and constant labels
-//! - Text exposition format encoding
+//! - Support for variable and constant labels
+//! - Derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
 //!
-//! # Usage
-//!
-//! The main components of this library are:
-//!
-//! - [Registry] - Central collection of all metrics
-//! - Metric types in the [metrics] module (Counter, Gauge, etc.)
-//! - [Family] for collecting metrics with the same label name but different label values
-//! - Text format encoding via [format::text]
-//!
-//! [Registry]: crate::registry::Registry
-//! [metrics]: crate::metrics
-//! [Family]: crate::metrics::family::Family
-//! [format::text]: crate::format::text
+//! [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 //!
 //! # Example
 //!
 //! ```rust
-//! use openmetrics_client::{
-//!     encoder::{EncodeLabelSet, EncodeLabelValue, EncodeLabel, LabelSetEncoder, LabelEncoder},
-//!     format::text,
-//!     metrics::{counter::Counter, family::Family},
-//!     registry::Registry,
-//! };
-//!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create a registry with a namespace and some constant labels
-//! let mut registry = Registry::builder()
-//!     .with_namespace("myapp")
-//!     .with_const_labels([("env", "prod")])
-//!     .build();
-//!
-//! // Register a simple counter
-//! let requests = <Counter>::default();
-//! registry.register("requests", "Total requests processed", requests.clone())?;
+//! # use openmetrics_client::{
+//! #     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
+//! #     format::text,
+//! #     metrics::{counter::Counter, family::Family},
+//! #     registry::Registry,
+//! # };
 //!
 //! #[derive(Clone, Eq, PartialEq, Hash)]
 //! struct Labels {
 //!     method: Method,
-//!     status: u32,
+//!     status: u16,
 //! }
 //!
 //! // Can use `#[derive(EncodeLabelSet)]` to simplify the code, but need to enable `derive` feature
@@ -79,6 +55,17 @@
 //!     }
 //! }
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create a registry with a namespace and some constant labels
+//! let mut registry = Registry::builder()
+//!     .with_namespace("myapp")
+//!     .with_const_labels([("env", "prod")])
+//!     .build();
+//!
+//! // Register a simple counter
+//! let requests = <Counter>::default();
+//! registry.register("requests", "Total requests processed", requests.clone())?;
+//!
 //! // Register a counter metric family for tracking requests with labels
 //! let http_requests = Family::<Labels, Counter>::default();
 //! registry.register(
@@ -87,10 +74,11 @@
 //!     http_requests.clone()
 //! )?;
 //!
-//! // Update metrics
+//! // Update the simple counter
 //! requests.inc();
 //! assert_eq!(requests.total(), 1);
 //!
+//! // Update the counter family
 //! let labels = Labels { method: Method::Get, status: 200 };
 //! http_requests.with_or_new(&labels, |req| req.inc());
 //! assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));

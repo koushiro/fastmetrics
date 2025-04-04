@@ -4,16 +4,19 @@
 [![Documentation](https://docs.rs/openmetrics-client/badge.svg)](https://docs.rs/openmetrics-client)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-A pure-Rust implementation of the [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification for transmitting cloud-native metrics at scale. This library is compatible with Prometheus and supports both text-based and protobuf exposition formats.
+A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
+and it's compatible with Prometheus.
+
+[OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 
 ## Features
 
-- Full support for [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification
-- Type-safe metric creation and manipulation
+- Full support for [OpenMetrics] specification
 - Fast encoding in both text and protobuf exposition format
+- Type-safe metric creation and manipulation
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
-- Optional derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
+- Derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
 
 ## TODO
 
@@ -32,16 +35,6 @@ use openmetrics_client::{
     registry::Registry,
 };
 
-// Create a registry with a namespace and some constant labels
-let mut registry = Registry::builder()
-    .with_namespace("myapp")
-    .with_const_labels([("env", "prod")])
-    .build();
-
-// Register a simple counter
-let requests = <Counter>::default();
-registry.register("requests", "Total requests processed", requests.clone())?;
-
 // Define label types
 // Need to enable `derive` feature to use `#[derive(EncodeLabelSet)]`
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
@@ -57,26 +50,44 @@ enum Method {
     Put,
 }
 
-// Register a counter metric family for tracking requests with labels
-let http_requests = Family::<Labels, Counter>::default();
-registry.register(
-    "http_requests",
-    "Total HTTP requests",
-    http_requests.clone()
-)?;
+fn main() -> Box<dyn std::error::Error> {
+    // Create a registry with a namespace and some constant labels
+    let mut registry = Registry::builder()
+        .with_namespace("myapp")
+        .with_const_labels([("env", "prod")])
+        .build();
 
-// Update metrics
-requests.inc();
-let labels = Labels { method: Method::Get, status: 200 };
-http_requests.with_or_new(&labels, |req| req.inc());
+    // Register a simple counter
+    let requests = <Counter>::default();
+    registry.register("requests", "Total requests processed", requests.clone())?;
 
-// Export metrics in text format
-let mut output = String::new();
-text::encode(&mut output, &registry)?;
-println!("{}", output);
+    // Register a counter metric family for tracking requests with labels
+    let http_requests = Family::<Labels, Counter>::default();
+    registry.register(
+        "http_requests",
+        "Total HTTP requests",
+        http_requests.clone()
+    )?;
+
+    // Update the simple counter
+    requests.inc();
+    assert_eq!(requests.total(), 1);
+
+    // Update the counter family
+    let labels = Labels { method: Method::Get, status: 200 };
+    http_requests.with_or_new(&labels, |req| req.inc());
+    assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
+
+    // Export metrics in text format
+    let mut output = String::new();
+    text::encode(&mut output, &registry)?;
+    println!("{}", output);
+
+    Ok(())
+}
 ```
 
-See [documentation](https://docs.rs/openmetrics-client) and [examples](./examples/) for more details.
+See [documentation](https://docs.rs/openmetrics-client) and [examples](./examples) for more details.
 
 ## Acknowledgment
 
@@ -84,7 +95,7 @@ I drew a lot of inspiration from the following libraries, retaining the designs 
 
 - [prometheus/client_golang](https://github.com/prometheus/client_golang): Official prometheus client library for Golang applications.
 - [prometheus/client_rust](https://github.com/prometheus/client_rust): Official prometheus client library for Rust applications.
-- [tikv/rust-prometheus](https://github.com/tikv/rust-prometheus): Anthor prometheus instrumentation library for Rust applications.
+- [tikv/rust-prometheus](https://github.com/tikv/rust-prometheus): Another prometheus instrumentation library for Rust applications.
 
 ## License
 

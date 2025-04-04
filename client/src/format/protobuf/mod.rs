@@ -33,7 +33,7 @@ pub mod openmetrics_data_model {
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`EncodeError`] if there was an error during
+/// Returns `Ok(())` if encoding was successful, or a [`io::Error`] if there was an error during
 /// protobuf encoding.
 ///
 /// # Example

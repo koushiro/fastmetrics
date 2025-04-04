@@ -8,7 +8,7 @@ use rand::{
 #[derive(openmetrics_client::encoder::EncodeLabelSet)]
 pub struct Labels {
     method: Method,
-    status: u32,
+    status: u16,
 }
 
 impl Labels {
