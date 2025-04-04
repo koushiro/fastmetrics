@@ -1,7 +1,7 @@
 //! OpenMetrics client library for Rust.
 //!
-//! This library provides a pure-Rust implementation of [OpenMetrics], a standard for transmitting
-//! cloud-native metrics at scale. And this library is compatible with Prometheus.
+//! A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native
+//! metrics at scale, and it's compatible with Prometheus.
 //!
 //! # Features
 //!
