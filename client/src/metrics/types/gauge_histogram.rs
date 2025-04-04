@@ -156,7 +156,8 @@ impl GaugeHistogram {
     /// histogram.observe(42.0);
     ///
     /// histogram.with_snapshot(|s| {
-    ///     assert_eq!(s.gsum(), 42.0)
+    ///     assert_eq!(s.gcount(), 1);
+    ///     assert_eq!(s.gsum(), 42.0);
     /// });
     /// ```
     pub fn with_snapshot<F, R>(&self, func: F) -> R

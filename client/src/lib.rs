@@ -1,36 +1,24 @@
 //! OpenMetrics client library for Rust.
 //!
-//! This library provides a pure-Rust implementation of [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md),
-//! a standard for transmitting cloud-native metrics at scale. And this library is compatible with Prometheus.
+//! This library provides a pure-Rust implementation of [OpenMetrics], a standard for transmitting
+//! cloud-native metrics at scale. And this library is compatible with Prometheus.
 //!
 //! # Features
 //!
-//! - Full support for [OpenMetrics](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md) specification
+//! - Full support for [OpenMetrics]  specification
 //! - Fast encoding in both text and protobuf exposition format
 //! - Type-safe metric creation and manipulation
 //! - Hierarchical metric organization with namespaces and subsystems
 //! - Support for variable and constant labels
-//! - Optional derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
+//! - Derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
 //!
-//! # Usage
-//!
-//! The main components of this library are:
-//!
-//! - [Registry] - Central collection of all metrics
-//! - Metric types in the [metrics] module (Counter, Gauge, etc.)
-//! - [Family] for collecting metrics with the same label name but different label values
-//! - Text format encoding via [format::text]
-//!
-//! [Registry]: crate::registry::Registry
-//! [metrics]: crate::metrics
-//! [Family]: crate::metrics::family::Family
-//! [format::text]: crate::format::text
+//! [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 //!
 //! # Example
 //!
 //! ```rust
 //! use openmetrics_client::{
-//!     encoder::{EncodeLabelSet, EncodeLabelValue, EncodeLabel, LabelSetEncoder, LabelEncoder},
+//!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
 //!     format::text,
 //!     metrics::{counter::Counter, family::Family},
 //!     registry::Registry,

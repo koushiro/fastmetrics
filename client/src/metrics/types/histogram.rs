@@ -178,6 +178,7 @@ impl Histogram {
     ///
     /// hist.with_snapshot(|s| {
     ///     assert_eq!(s.count(), 1);
+    ///     assert_eq!(s.sum(), 2.5);
     /// });
     /// ```
     pub fn with_snapshot<F, R>(&self, func: F) -> R
