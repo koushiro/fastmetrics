@@ -9,9 +9,18 @@ publish = false
 anyhow = "1.0"
 axum = "0.8.1"
 openmetrics-client = { path = "../client", version = "0.1", features = ["derive", "protobuf"] }
+rand = "0.9"
 thiserror = "2.0"
 tokio = { version = "1.43", features = ["net", "macros", "rt-multi-thread"] }
 
 [[example]]
-name = "axum-example"
+name = "metrics"
+path = "src/metrics.rs"
+
+[[example]]
+name = "family"
+path = "src/family.rs"
+
+[[example]]
+name = "axum-exporter"
 path = "src/axum.rs"
