@@ -106,9 +106,9 @@ text::encode/openmetrics_client: 100 metrics * 100000 observe times
 
 ## Protobuf Encoding
 
-- prometheus: use [protobuf](https://crates.io/crates/protobuf) as protobuf encoding 
-- prometheus-client: use [prost](https://crates.io/crates/prost) as protobuf encoding
-- openmetrics-client: use [prost](https://crates.io/crates/prost) as protobuf encoding
+- prometheus: use the [protobuf](https://crates.io/crates/protobuf) crate for protobuf encoding 
+- prometheus-client: use the [prost](https://crates.io/crates/prost) crate for protobuf encoding
+- openmetrics-client: use the [prost](https://crates.io/crates/prost) crate for protobuf encoding
 
 ```bash
 cargo bench --bench protobuf  -- --quiet
