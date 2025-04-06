@@ -22,5 +22,5 @@ name = "family"
 path = "src/family.rs"
 
 [[example]]
-name = "axum-example"
+name = "axum-exporter"
 path = "src/axum.rs"
