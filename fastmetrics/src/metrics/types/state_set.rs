@@ -9,7 +9,7 @@ use std::{
 };
 
 #[cfg(feature = "derive")]
-pub use openmetrics_client_derive::StateSetValue;
+pub use fastmetrics_derive::StateSetValue;
 
 use crate::metrics::{MetricType, TypedMetric};
 
@@ -27,7 +27,7 @@ pub trait StateSetValue: Sized + PartialEq + 'static {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::state_set::{StateSet, StateSetValue};
+/// # use fastmetrics::metrics::state_set::{StateSet, StateSetValue};
 /// #[derive(Copy, Clone, Debug, PartialEq, Default)]
 /// enum JobState {
 ///     #[default]
@@ -128,7 +128,7 @@ impl<T: StateSetValue> TypedMetric for StateSet<T> {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::state_set::{ConstStateSet, StateSetValue};
+/// # use fastmetrics::metrics::state_set::{ConstStateSet, StateSetValue};
 /// #[derive(Copy, Clone, Debug, PartialEq)]
 /// enum JobState {
 ///     Pending,

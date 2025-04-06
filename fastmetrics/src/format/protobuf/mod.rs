@@ -39,7 +39,7 @@ pub mod openmetrics_data_model {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::{
+/// # use fastmetrics::{
 /// #     format::protobuf,
 /// #     metrics::counter::Counter,
 /// #     registry::Registry,

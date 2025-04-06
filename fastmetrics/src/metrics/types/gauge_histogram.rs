@@ -18,7 +18,7 @@ use crate::metrics::{MetricType, TypedMetric};
 /// # Example
 ///
 /// ```rust
-/// use openmetrics_client::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
+/// use fastmetrics::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
 /// // Create a gauge histogram with custom bucket boundaries
 /// let hist = GaugeHistogram::new([-273.15, -200.0, -100.0, 0.0, 100.0, 200.0]);
 ///
@@ -151,7 +151,7 @@ impl GaugeHistogram {
     /// # Example
     ///
     /// ```
-    /// # use openmetrics_client::metrics::gauge_histogram::GaugeHistogram;
+    /// # use fastmetrics::metrics::gauge_histogram::GaugeHistogram;
     /// let histogram = GaugeHistogram::default();
     /// histogram.observe(42.0);
     ///

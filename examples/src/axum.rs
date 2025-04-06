@@ -12,7 +12,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, Router},
 };
-use openmetrics_client::{
+use fastmetrics::{
     encoder::{EncodeLabelSet, EncodeLabelValue},
     format::{protobuf, text},
     metrics::{counter::Counter, family::Family},

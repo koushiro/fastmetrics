@@ -7,7 +7,7 @@ use std::{
 };
 
 #[cfg(feature = "derive")]
-pub use openmetrics_client_derive::{EncodeLabelSet, EncodeLabelValue};
+pub use fastmetrics_derive::{EncodeLabelSet, EncodeLabelValue};
 
 /// Trait for encoding a set of labels.
 pub trait LabelSetEncoder {
@@ -24,7 +24,7 @@ pub trait LabelSetEncoder {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::encoder::EncodeLabelSet;
+/// # use fastmetrics::encoder::EncodeLabelSet;
 /// // labels implements `EncodeLabelSet` and can be encoded as a label set
 /// let labels = vec![("method", "GET"), ("status", "200")];
 /// ```
@@ -169,7 +169,7 @@ pub trait LabelEncoder {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::encoder::EncodeLabel;
+/// # use fastmetrics::encoder::EncodeLabel;
 /// let label = ("method", "GET"); // implements `EncodeLabel`
 /// ```
 pub trait EncodeLabel {
@@ -199,7 +199,7 @@ where
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::encoder::EncodeLabelName;
+/// # use fastmetrics::encoder::EncodeLabelName;
 /// let name: &str = "name";                   // str implements `EncodeLabelName`
 /// let name: String = String::from("name");   // String implement `EncodeLabelName`
 /// ```
@@ -245,7 +245,7 @@ impl_encode_label_name_for_deref! { <T> EncodeLabelName for Arc<T> where T: ?Siz
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::encoder::EncodeLabelValue;
+/// # use fastmetrics::encoder::EncodeLabelValue;
 /// let value: &str = "200"; // str implements `EncodeLabelValue`
 /// let value: i32 = 200;    // integers implement `EncodeLabelValue`
 /// let value: bool = true;  // bool implements `EncodeLabelValue`

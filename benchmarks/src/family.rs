@@ -54,8 +54,8 @@ mod prometheus_client_setup {
     }
 }
 
-mod openmetrics_client_setup {
-    use openmetrics_client::metrics::{
+mod fastmetrics_setup {
+    use fastmetrics::metrics::{
         counter::Counter,
         family::Family,
         histogram::{exponential_buckets, Histogram},
@@ -149,8 +149,8 @@ fn bench_family_without_labels(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        let families = openmetrics_client_setup::setup_families::<()>();
+    group.bench_function("fastmetrics", |b| {
+        let families = fastmetrics_setup::setup_families::<()>();
 
         b.iter_batched(
             || {
@@ -185,8 +185,8 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        let families = openmetrics_client_setup::setup_families::<StrArrayLabels>();
+    group.bench_function("fastmetrics", |b| {
+        let families = fastmetrics_setup::setup_families::<StrArrayLabels>();
 
         b.iter_batched(
             || {
@@ -219,8 +219,8 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        let families = openmetrics_client_setup::setup_families::<StrVecLabels>();
+    group.bench_function("fastmetrics", |b| {
+        let families = fastmetrics_setup::setup_families::<StrVecLabels>();
 
         b.iter_batched(
             || {
@@ -253,8 +253,8 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        let families = openmetrics_client_setup::setup_families::<OwnedStrVecLabels>();
+    group.bench_function("fastmetrics", |b| {
+        let families = fastmetrics_setup::setup_families::<OwnedStrVecLabels>();
 
         b.iter_batched(
             || {
@@ -300,8 +300,8 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        let families = openmetrics_client_setup::setup_families::<Labels>();
+    group.bench_function("fastmetrics", |b| {
+        let families = fastmetrics_setup::setup_families::<Labels>();
 
         b.iter_batched(
             setup_input,

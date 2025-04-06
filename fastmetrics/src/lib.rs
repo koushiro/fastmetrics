@@ -17,7 +17,7 @@
 //! # Example
 //!
 //! ```rust
-//! # use openmetrics_client::{
+//! # use fastmetrics::{
 //! #     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
 //! #     format::text,
 //! #     metrics::{counter::Counter, family::Family},

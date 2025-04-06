@@ -81,7 +81,7 @@ impl Bucket {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::histogram::linear_buckets;
+/// # use fastmetrics::metrics::histogram::linear_buckets;
 ///
 /// let buckets: Vec<f64> = linear_buckets(0.0, 1.0, 5).collect();
 /// assert_eq!(buckets, vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -117,7 +117,7 @@ pub fn linear_buckets(start: f64, width: f64, count: usize) -> impl Iterator<Ite
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::histogram::exponential_buckets;
+/// # use fastmetrics::metrics::histogram::exponential_buckets;
 ///
 /// let buckets: Vec<f64> = exponential_buckets(1.0, 2.0, 4).collect();
 /// assert_eq!(buckets, vec![1.0, 2.0, 4.0, 8.0]);
@@ -153,7 +153,7 @@ pub fn exponential_buckets(start: f64, factor: f64, count: usize) -> impl Iterat
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::histogram::exponential_buckets_range;
+/// # use fastmetrics::metrics::histogram::exponential_buckets_range;
 ///
 /// let buckets: Vec<f64> = exponential_buckets_range(1.0, 8.0, 4).collect();
 /// assert_eq!(buckets, vec![1.0, 2.0, 4.0, 8.0]);

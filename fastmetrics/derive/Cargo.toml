@@ -1,9 +1,9 @@
 [package]
-name = "openmetrics-client-derive"
+name = "fastmetrics-derive"
 version = "0.1.0"
-description = "Some derive macros for openmetrics_client."
+description = "Some derive macros for fastmetrics."
 keywords = ["openmetrics", "metrics", "prometheus", "derive", "macros"]
-documentation = "https://docs.rs/openmetrics-client-derive"
+documentation = "https://docs.rs/fastmetrics-derive"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

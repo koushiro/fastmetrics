@@ -158,7 +158,7 @@ cfg_if::cfg_if! {
 /// for different HTTP methods (GET, POST) and status codes (200, 404, etc.).
 ///
 /// ```rust
-/// # use openmetrics_client::{
+/// # use fastmetrics::{
 /// #    metrics::{counter::Counter, family::Family},
 /// #    registry::{Registry, RegistryError},
 /// # };
@@ -242,7 +242,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::metrics::{
+    /// # use fastmetrics::metrics::{
     /// #     counter::Counter,
     /// #     family::Family,
     /// #     histogram::{Histogram, exponential_buckets},
@@ -276,7 +276,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::{
+    /// # use fastmetrics::{
     /// #    metrics::{counter::Counter, family::Family},
     /// #    registry::{Registry, RegistryError},
     /// # };
@@ -332,7 +332,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::{
+    /// # use fastmetrics::{
     /// #    metrics::{counter::Counter, family::Family},
     /// #    registry::{Registry, RegistryError},
     /// # };

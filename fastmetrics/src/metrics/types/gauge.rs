@@ -42,7 +42,7 @@ impl_gauge_value_for! {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::gauge::Gauge;
+/// # use fastmetrics::metrics::gauge::Gauge;
 ///
 /// // Create a default gauge
 /// let gauge = <Gauge>::default();
@@ -144,7 +144,7 @@ impl<N: GaugeValue> TypedMetric for Gauge<N> {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::gauge::ConstGauge;
+/// # use fastmetrics::metrics::gauge::ConstGauge;
 ///
 /// // Create a constant gauge with initial value
 /// let gauge = ConstGauge::new(42);

@@ -4,7 +4,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
 
 use crate::common::{
-    setup_openmetrics_client_registry, setup_prometheus_client_registry, setup_prometheus_registry,
+    setup_fastmetrics_registry, setup_prometheus_client_registry, setup_prometheus_registry,
 };
 
 fn bench_text_encoding(c: &mut Criterion) {
@@ -41,14 +41,14 @@ fn bench_text_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("openmetrics_client: {count} metrics * {times} observe times");
+            let id = format!("fastmetrics: {count} metrics * {times} observe times");
             group.bench_function(id, |b| {
-                let registry = setup_openmetrics_client_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times);
 
                 let mut buffer = String::new();
 
                 b.iter(|| {
-                    openmetrics_client::format::text::encode(&mut buffer, &registry).unwrap();
+                    fastmetrics::format::text::encode(&mut buffer, &registry).unwrap();
                     black_box(&mut buffer);
                 });
             });

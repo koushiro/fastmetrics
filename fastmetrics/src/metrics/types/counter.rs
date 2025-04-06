@@ -41,7 +41,7 @@ impl_counter_value_for! {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::counter::Counter;
+/// # use fastmetrics::metrics::counter::Counter;
 ///
 /// // Create a default counter
 /// let counter = <Counter>::default();
@@ -137,7 +137,7 @@ impl<N: CounterValue> TypedMetric for Counter<N> {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::metrics::counter::ConstCounter;
+/// # use fastmetrics::metrics::counter::ConstCounter;
 ///
 /// // Create a constant counter with initial value
 /// let counter = ConstCounter::new(42_u64);
