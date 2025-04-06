@@ -7,7 +7,7 @@ pub const QUANTILE_LABEL: &str = "quantile";
 ///
 /// A quantile combines a specific quantile point (e.g., 0.5 for median, 0.99 for 99th percentile)
 /// with its corresponding value in the distribution.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct Quantile {
     quantile: f64,
     value: f64,

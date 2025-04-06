@@ -89,6 +89,13 @@ fn main() -> Box<dyn std::error::Error> {
 
 See [documentation](https://docs.rs/openmetrics-client) and [examples](./examples) for more details.
 
+## Performance
+
+Compared with the existing rust client libraries, its text encoding is at least 30% faster than the fastest rust library (prometheus-client),
+while its Protobuf encoding is on par with the fastest rust library (prometheus).
+
+See [benchmarks](./benchmarks/README.md) for more details
+
 ## Acknowledgment
 
 I drew a lot of inspiration from the following libraries, retaining the designs I thought were good and experimenting with some different ones.
