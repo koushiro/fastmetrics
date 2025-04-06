@@ -1,5 +1,5 @@
 use anyhow::Result;
-use openmetrics_client::{
+use fastmetrics::{
     encoder::{EncodeLabelSet, EncodeLabelValue},
     format::text,
     metrics::{

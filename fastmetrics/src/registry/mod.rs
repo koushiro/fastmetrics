@@ -68,7 +68,7 @@ impl EncodeMetric for Box<dyn Metric> {
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::{
+/// # use fastmetrics::{
 /// #    metrics::{counter::Counter, gauge::Gauge},
 /// #    registry::{Registry, RegistryError, RegistrySystem},
 /// # };
@@ -183,7 +183,7 @@ impl Registry {
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::{
+    /// # use fastmetrics::{
     /// #    metrics::counter::Counter,
     /// #    registry::{Registry, RegistryError},
     /// # };
@@ -216,7 +216,7 @@ impl Registry {
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::{
+    /// # use fastmetrics::{
     /// #     metrics::{
     /// #         histogram::Histogram,
     /// #         family::Unit,
@@ -289,7 +289,7 @@ impl Registry {
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::registry::Registry;
+    /// # use fastmetrics::registry::Registry;
     /// let mut registry = Registry::builder()
     ///     .with_namespace("myapp")
     ///     .with_const_labels([("env", "prod")])
@@ -327,7 +327,7 @@ impl Registry {
     /// # Example
     ///
     /// ```rust
-    /// # use openmetrics_client::registry::{Registry, RegistrySystem};
+    /// # use fastmetrics::registry::{Registry, RegistrySystem};
     /// let mut registry = Registry::builder().with_namespace("myapp").build();
     /// assert_eq!(registry.namespace(), Some("myapp"));
     ///

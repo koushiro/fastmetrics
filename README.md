@@ -1,7 +1,7 @@
-# openmetrics-client
+# fastmetrics
 
-[![Crates.io](https://img.shields.io/crates/v/openmetrics-client.svg)](https://crates.io/crates/openmetrics-client)
-[![Documentation](https://docs.rs/openmetrics-client/badge.svg)](https://docs.rs/openmetrics-client)
+[![Crates.io](https://img.shields.io/crates/v/fastmetrics.svg)](https://crates.io/crates/fastmetrics)
+[![Documentation](https://docs.rs/fastmetrics/badge.svg)](https://docs.rs/fastmetrics)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
@@ -28,7 +28,7 @@ and it's compatible with Prometheus.
 ## Usage
 
 ```rust
-use openmetrics_client::{
+use fastmetrics::{
     encoder::{EncodeLabelSet, EncodeLabelValue},
     format::text,
     metrics::{counter::Counter, family::Family},
@@ -87,7 +87,7 @@ fn main() -> Box<dyn std::error::Error> {
 }
 ```
 
-See [documentation](https://docs.rs/openmetrics-client) and [examples](./examples) for more details.
+See [documentation](https://docs.rs/fastmetrics) and [examples](./examples) for more details.
 
 ## Performance
 

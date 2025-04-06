@@ -5,7 +5,7 @@ use rand::{
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[derive(prometheus_client::encoding::EncodeLabelSet)]
-#[derive(openmetrics_client::encoder::EncodeLabelSet)]
+#[derive(fastmetrics::encoder::EncodeLabelSet)]
 pub struct Labels {
     method: Method,
     status: u16,
@@ -37,7 +37,7 @@ impl Labels {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[derive(prometheus_client::encoding::EncodeLabelValue)]
-#[derive(openmetrics_client::encoder::EncodeLabelValue)]
+#[derive(fastmetrics::encoder::EncodeLabelValue)]
 pub enum Method {
     Get,
     Put,
@@ -130,11 +130,11 @@ pub fn setup_prometheus_client_registry(
     registry
 }
 
-pub fn setup_openmetrics_client_registry(
+pub fn setup_fastmetrics_registry(
     metric_count: u32,
     observe_time: u32,
-) -> openmetrics_client::registry::Registry {
-    use openmetrics_client::metrics::{
+) -> fastmetrics::registry::Registry {
+    use fastmetrics::metrics::{
         counter::Counter,
         family::Family,
         histogram::{exponential_buckets, Histogram},
@@ -142,7 +142,7 @@ pub fn setup_openmetrics_client_registry(
 
     let mut rng = rand::rng();
 
-    let mut registry = openmetrics_client::registry::Registry::default();
+    let mut registry = fastmetrics::registry::Registry::default();
 
     for i in 0..metric_count {
         let counter_family = Family::<Labels, Counter>::default();

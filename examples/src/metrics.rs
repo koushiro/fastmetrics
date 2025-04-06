@@ -1,5 +1,5 @@
 use anyhow::Result;
-use openmetrics_client::{
+use fastmetrics::{
     format::text,
     metrics::{
         counter::Counter,

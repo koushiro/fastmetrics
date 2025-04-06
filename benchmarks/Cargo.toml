@@ -1,5 +1,5 @@
 [package]
-name = "openmetrics-client-benchmarks"
+name = "fastmetrics-benchmarks"
 version = "0.0.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -7,7 +7,7 @@ publish = false
 
 [dev-dependencies]
 criterion = "0.5"
-openmetrics-client = { path = "../client", features = ["derive", "protobuf"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
 pprof = { version = "0.14.0", default-features = false, features = [
     "criterion",
     "flamegraph",

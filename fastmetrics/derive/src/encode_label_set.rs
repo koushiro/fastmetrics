@@ -41,9 +41,9 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
     // Generate the trait implementation
     let expanded = quote! {
         #[automatically_derived]
-        impl #impl_generics ::openmetrics_client::encoder::EncodeLabelSet for #name #ty_generics #where_clause {
-            fn encode(&self, encoder: &mut dyn ::openmetrics_client::encoder::LabelSetEncoder) -> ::std::fmt::Result {
-                use ::openmetrics_client::encoder::EncodeLabel;
+        impl #impl_generics ::fastmetrics::encoder::EncodeLabelSet for #name #ty_generics #where_clause {
+            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelSetEncoder) -> ::std::fmt::Result {
+                use ::fastmetrics::encoder::EncodeLabel;
 
                 #(#field_list;)*
 

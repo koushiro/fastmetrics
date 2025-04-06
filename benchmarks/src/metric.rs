@@ -16,8 +16,8 @@ fn bench_counter(c: &mut Criterion) {
 
         b.iter(|| black_box(counter.inc()));
     });
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::counter::Counter;
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::counter::Counter;
         let counter = <Counter>::default();
 
         b.iter(|| black_box(counter.inc()));
@@ -47,8 +47,8 @@ fn bench_gauge(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::gauge::Gauge;
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
         let gauge = <Gauge>::default();
 
         b.iter_batched(
@@ -80,8 +80,8 @@ fn bench_gauge(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::gauge::Gauge;
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
         let gauge = <Gauge>::default();
 
         b.iter_batched(
@@ -113,8 +113,8 @@ fn bench_gauge(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::gauge::Gauge;
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
         let gauge = <Gauge>::default();
 
         b.iter_batched(
@@ -153,8 +153,8 @@ fn bench_histogram(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::histogram::{exponential_buckets, Histogram};
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::histogram::{exponential_buckets, Histogram};
         let histogram = Histogram::new(exponential_buckets(0.005f64, 2f64, 10));
 
         b.iter_batched(
@@ -169,8 +169,8 @@ fn bench_histogram(c: &mut Criterion) {
 /*
 fn bench_gauge_histogram(c: &mut Criterion) {
     let mut group = c.benchmark_group("gauge_histogram::observe");
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
         let histogram = GaugeHistogram::new(linear_buckets(-100f64, 10f64, 20));
 
         b.iter_batched(
@@ -186,8 +186,8 @@ fn bench_gauge_histogram(c: &mut Criterion) {
 
 fn bench_stateset(c: &mut Criterion) {
     let mut group = c.benchmark_group("stateset::set");
-    group.bench_function("openmetrics_client", |b| {
-        use openmetrics_client::metrics::state_set::{StateSet, StateSetValue};
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::state_set::{StateSet, StateSetValue};
 
         #[derive(Copy, Clone, Debug, PartialEq, Default, StateSetValue)]
         enum JobState {

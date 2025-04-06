@@ -42,7 +42,7 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// # use openmetrics_client::{
+/// # use fastmetrics::{
 /// #     format::text,
 /// #     metrics::counter::Counter,
 /// #     registry::Registry,

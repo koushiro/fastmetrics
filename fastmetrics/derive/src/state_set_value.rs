@@ -56,7 +56,7 @@ pub fn expand_derive_state_set_value(input: syn::DeriveInput) -> syn::Result<Tok
     // Generate the trait implementation
     let expanded = quote! {
         #[automatically_derived]
-        impl #impl_generics ::openmetrics_client::metrics::state_set::StateSetValue for #name #ty_generics #where_clause {
+        impl #impl_generics ::fastmetrics::metrics::state_set::StateSetValue for #name #ty_generics #where_clause {
             fn variants() -> &'static [Self] {
                 static VARIANTS: &[#name] = &[
                     #(#variant_list,)*
