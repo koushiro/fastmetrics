@@ -93,8 +93,8 @@ impl<'a> Encoder<'a> {
                 metric_families,
                 namespace: self.registry.namespace(),
                 const_labels: self.registry.constant_labels(),
-            }            // impl EncodeMetric for Box<dyn Metric> {...}
-                .encode(metadata, metric)?;
+            } // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -109,8 +109,8 @@ impl<'a> Encoder<'a> {
                 metric_families,
                 namespace: Some(system.namespace()),
                 const_labels: system.constant_labels(),
-            }            // impl EncodeMetric for Box<dyn Metric> {...}
-                .encode(metadata, metric)?;
+            } // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
             self.encode_registry_system(system)?;
