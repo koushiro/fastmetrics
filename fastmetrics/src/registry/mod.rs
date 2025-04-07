@@ -12,12 +12,11 @@ mod subsystem;
 use std::{
     borrow::Cow,
     collections::hash_map::{self, HashMap},
-    fmt,
 };
 
 pub use self::{errors::*, subsystem::*};
 use crate::{
-    encoder::{EncodeMetric, MetricEncoder},
+    encoder::EncodeMetric,
     metrics::{
         family::{Metadata, Unit},
         MetricType,
@@ -37,17 +36,6 @@ use crate::{
 pub trait Metric: EncodeMetric + Send + Sync {}
 
 impl<T> Metric for T where T: EncodeMetric + Send + Sync {}
-
-// https://github.com/rust-lang/rust/pull/134367
-impl EncodeMetric for Box<dyn Metric> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        self.as_ref().encode(encoder)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        self.as_ref().metric_type()
-    }
-}
 
 /// A registry for collecting and organizing metrics.
 ///
