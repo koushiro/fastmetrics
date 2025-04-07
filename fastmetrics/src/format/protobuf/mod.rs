@@ -318,30 +318,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
     }
 
     fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
-        let buckets = buckets
-            .iter()
-            .map(|b| openmetrics_data_model::histogram_value::Bucket {
-                count: b.count(),
-                upper_bound: b.upper_bound(),
-                exemplar: None,
-            })
-            .collect::<Vec<_>>();
-
-        self.metrics.push(openmetrics_data_model::Metric {
-            labels: self.labels.clone(),
-            metric_points: vec![openmetrics_data_model::MetricPoint {
-                value: Some(openmetrics_data_model::metric_point::Value::HistogramValue(
-                    openmetrics_data_model::HistogramValue {
-                        buckets,
-                        count,
-                        sum: Some(openmetrics_data_model::histogram_value::Sum::DoubleValue(sum)),
-                        created: None,
-                    },
-                )),
-                ..Default::default()
-            }],
-        });
-        Ok(())
+        self.encode_histogram(buckets, sum, count, None)
     }
 
     fn encode_summary(

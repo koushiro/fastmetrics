@@ -255,6 +255,26 @@ where
         self.writer.write_str("} ")
     }
 
+    fn encode_buckets(&mut self, buckets: &[Bucket]) -> fmt::Result {
+        let mut cumulative_count = 0;
+        for bucket in buckets {
+            self.encode_metric_name()?;
+            self.writer.write_str("_bucket")?;
+
+            let upper_bound = bucket.upper_bound();
+            let bucket_count = bucket.count();
+            if upper_bound == f64::INFINITY {
+                self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
+            } else {
+                self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
+            }
+            cumulative_count += bucket_count;
+            self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
+            self.encode_newline()?;
+        }
+        Ok(())
+    }
+
     fn encode_count(&mut self, count: u64) -> fmt::Result {
         self.encode_metric_name()?;
         self.writer.write_str("_count")?;
@@ -374,23 +394,7 @@ where
         created: Option<Duration>,
     ) -> fmt::Result {
         // encode `*_bucket` metrics
-        let mut cumulative_count = 0;
-        for bucket in buckets {
-            self.encode_metric_name()?;
-            self.writer.write_str("_bucket")?;
-
-            let upper_bound = bucket.upper_bound();
-            let bucket_count = bucket.count();
-            if upper_bound == f64::INFINITY {
-                self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
-            } else {
-                self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
-            }
-            cumulative_count += bucket_count;
-            self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
-            self.encode_newline()?;
-        }
-
+        self.encode_buckets(buckets)?;
         // encode `*_count` metric
         self.encode_count(count)?;
         // encode `*_sum` metric
@@ -406,23 +410,7 @@ where
 
     fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
         // encode `*_bucket` metrics
-        let mut cumulative_count = 0;
-        for bucket in buckets {
-            self.encode_metric_name()?;
-            self.writer.write_str("_bucket")?;
-
-            let upper_bound = bucket.upper_bound();
-            let bucket_count = bucket.count();
-            if upper_bound == f64::INFINITY {
-                self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
-            } else {
-                self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
-            }
-            cumulative_count += bucket_count;
-            self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
-            self.encode_newline()?;
-        }
-
+        self.encode_buckets(buckets)?;
         // encode `*_gcount` metric
         self.encode_gcount(count)?;
         // encode `*_gsum` metric
