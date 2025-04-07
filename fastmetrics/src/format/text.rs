@@ -97,7 +97,8 @@ where
                 namespace: self.registry.namespace(),
                 const_labels: self.registry.constant_labels(),
             }
-            .encode(metadata, metric.as_ref())?;
+                // impl EncodeMetric for Box<dyn Metric> {...}
+            .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {
             self.encode_registry_system(system)?;
@@ -112,7 +113,8 @@ where
                 namespace: Some(system.namespace()),
                 const_labels: system.constant_labels(),
             }
-            .encode(metadata, metric.as_ref())?;
+                // impl EncodeMetric for Box<dyn Metric> {...}
+                .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
             self.encode_registry_system(system)?
