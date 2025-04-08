@@ -31,8 +31,10 @@ pub trait MetricFamilyEncoder {
 
 /// Trait for encoding different types of metrics.
 ///
-/// This trait provides methods for encoding all supported metric types in the [OpenMetrics specification](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types).
+/// This trait provides methods for encoding all supported metric types in the [OpenMetrics].
 /// Each method handles a specific metric type with its associated data format.
+///
+/// [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types
 pub trait MetricEncoder {
     /// Encodes an unknown metric.
     fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result;

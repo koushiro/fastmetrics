@@ -2,9 +2,9 @@
 resolver = "2"
 members = [
     "benchmarks",
+    "examples",
     "fastmetrics",
     "fastmetrics/derive",
-    "examples",
 ]
 
 [workspace.package]

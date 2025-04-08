@@ -3,12 +3,13 @@ name = "fastmetrics-examples"
 version = "0.0.0"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 publish = false
 
 [dev-dependencies]
 anyhow = "1.0"
 axum = "0.8.1"
-fastmetrics = { path = "../fastmetrics", version = "0.1", features = ["derive", "protobuf"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
 rand = "0.9"
 thiserror = "2.0"
 tokio = { version = "1.43", features = ["net", "macros", "rt-multi-thread"] }
