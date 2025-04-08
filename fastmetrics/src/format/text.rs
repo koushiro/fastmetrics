@@ -191,6 +191,7 @@ where
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name,
+            metric_type: metadata.metric_type(),
             const_labels: self.const_labels,
             family_labels: None,
         })
@@ -201,6 +202,7 @@ struct MetricEncoder<'a, W> {
     writer: &'a mut W,
     // [namespace_]name[_unit]
     metric_name: Cow<'a, str>,
+    metric_type: MetricType,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
 }
@@ -234,14 +236,20 @@ where
 
         self.writer.write_str("{")?;
         if has_const_labels {
-            self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+            self.const_labels.encode(&mut LabelSetEncoder::new(
+                self.writer,
+                LabelNameCheck::Enable(self.metric_type),
+            ))?;
         }
         if let Some(family_labels) = self.family_labels {
             if has_family_labels {
                 if has_const_labels {
                     self.writer.write_str(",")?;
                 }
-                family_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+                family_labels.encode(&mut LabelSetEncoder::new(
+                    self.writer,
+                    LabelNameCheck::Enable(self.metric_type),
+                ))?;
             }
         }
         if let Some(additional_labels) = additional_labels {
@@ -249,7 +257,8 @@ where
                 if has_const_labels || has_family_labels {
                     self.writer.write_str(",")?;
                 }
-                additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+                additional_labels
+                    .encode(&mut LabelSetEncoder::new(self.writer, LabelNameCheck::Disable))?;
             }
         }
         self.writer.write_str("} ")
@@ -332,14 +341,14 @@ where
     fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
-        value.encode(&mut UnknownValueEncoder { writer: self.writer } as _)?;
+        value.encode(&mut UnknownValueEncoder { writer: self.writer })?;
         self.encode_newline()
     }
 
     fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
-        value.encode(&mut GaugeValueEncoder { writer: self.writer } as _)?;
+        value.encode(&mut GaugeValueEncoder { writer: self.writer })?;
         self.encode_newline()
     }
 
@@ -352,7 +361,7 @@ where
         self.encode_metric_name()?;
         self.writer.write_str("_total")?;
         self.encode_label_set(None)?;
-        total.encode(&mut CounterValueEncoder { writer: self.writer } as _)?;
+        total.encode(&mut CounterValueEncoder { writer: self.writer })?;
         self.encode_newline()?;
 
         // encode `*_created` metric if available
@@ -450,20 +459,28 @@ where
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name: self.metric_name.clone(),
+            metric_type: self.metric_type,
             const_labels: self.const_labels,
             family_labels: Some(label_set),
         })
     }
 }
 
+#[derive(Copy, Clone)]
+enum LabelNameCheck {
+    Enable(MetricType),
+    Disable,
+}
+
 struct LabelSetEncoder<'a, W> {
     writer: &'a mut W,
     first: bool,
+    label_name_check: LabelNameCheck,
 }
 
 impl<'a, W> LabelSetEncoder<'a, W> {
-    fn new(writer: &'a mut W) -> LabelSetEncoder<'a, W> {
-        Self { writer, first: true }
+    fn new(writer: &'a mut W, label_name_check: LabelNameCheck) -> LabelSetEncoder<'a, W> {
+        Self { writer, first: true, label_name_check }
     }
 }
 
@@ -474,13 +491,18 @@ where
     fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result {
         let first = self.first;
         self.first = false;
-        label.encode(&mut LabelEncoder { writer: self.writer, first })
+        label.encode(&mut LabelEncoder {
+            writer: self.writer,
+            first,
+            label_name_check: self.label_name_check,
+        })
     }
 }
 
 struct LabelEncoder<'a, W> {
     writer: &'a mut W,
     first: bool,
+    label_name_check: LabelNameCheck,
 }
 
 macro_rules! encode_integer_value_impls {
@@ -515,6 +537,23 @@ where
 {
     #[inline]
     fn encode_label_name(&mut self, name: &str) -> fmt::Result {
+        match self.label_name_check {
+            // check if the label name is valid
+            LabelNameCheck::Enable(metric_type) => match metric_type {
+                MetricType::Histogram if name == BUCKET_LABEL => {
+                    panic!("A Histogram's Metric's LabelSet MUST NOT have a \"le\" label name");
+                },
+                MetricType::GaugeHistogram if name == BUCKET_LABEL => {
+                    panic!("A GaugeHistogram's Metric's LabelSet MUST NOT have a \"le\" label name")
+                },
+                MetricType::Summary if name == QUANTILE_LABEL => {
+                    panic!("A Summary's Metric's LabelSet MUST NOT have a \"quantile\" label name")
+                },
+                _ => {},
+            },
+            LabelNameCheck::Disable => { /* do nothing */ },
+        }
+
         if !self.first {
             self.writer.write_str(",")?;
         }

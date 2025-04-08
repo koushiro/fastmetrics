@@ -169,7 +169,7 @@ impl RegistrySystem {
         metric: impl Metric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         match metric.metric_type() {
-            MetricType::StateSet | MetricType::Info => {
+            MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
                 return Err(RegistryError::MustHaveAnEmptyUnitString)
             },
             _ => {},
