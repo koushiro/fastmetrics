@@ -23,4 +23,5 @@ impl<LS> Info<LS> {
 
 impl<LS> TypedMetric for Info<LS> {
     const TYPE: MetricType = MetricType::Info;
+    const WITH_TIMESTAMP: bool = false;
 }

@@ -38,4 +38,5 @@ impl<T: UnknownValue> Unknown<T> {
 
 impl<T: UnknownValue> TypedMetric for Unknown<T> {
     const TYPE: MetricType = MetricType::Unknown;
+    const WITH_TIMESTAMP: bool = false;
 }

@@ -197,6 +197,7 @@ impl Histogram {
 
 impl TypedMetric for Histogram {
     const TYPE: MetricType = MetricType::Histogram;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 #[cfg(test)]

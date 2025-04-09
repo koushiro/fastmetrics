@@ -26,7 +26,7 @@ pub trait MetricFamilyEncoder {
     ///
     /// * `metadata` - The metadata to encode, containing name, type, help and unit
     /// * `metric` - The metric to encode
-    fn encode(self, metadata: &Metadata, metrics: &dyn EncodeMetric) -> fmt::Result;
+    fn encode(&mut self, metadata: &Metadata, metrics: &dyn EncodeMetric) -> fmt::Result;
 }
 
 /// Trait for encoding different types of metrics.
@@ -90,6 +90,11 @@ pub trait EncodeMetric {
 
     /// Returns the type of this metric (counter, gauge, etc.).
     fn metric_type(&self) -> MetricType;
+
+    /// Returns the unix timestamp of this metric.
+    fn timestamp(&self) -> Option<Duration> {
+        None
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -219,7 +224,7 @@ impl EncodeMetric for GaugeHistogram {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-impl<LS, M, S> EncodeMetric for Family<LS, M, S>
+impl<LS, M, MF, S> EncodeMetric for Family<LS, M, MF, S>
 where
     LS: EncodeLabelSet,
     M: EncodeMetric + TypedMetric,

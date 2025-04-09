@@ -373,6 +373,7 @@ where
 
 impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
     const TYPE: MetricType = <M as TypedMetric>::TYPE;
+    const WITH_TIMESTAMP: bool = <M as TypedMetric>::WITH_TIMESTAMP;
 }
 
 #[cfg(test)]
