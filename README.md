@@ -22,7 +22,6 @@ and it's compatible with Prometheus.
 
 - [ ] Summary metric type
 - [ ] Exemplar feature in counter and histogram metric
-- [ ] Integrate optional process metrics
 - [ ] ...
 
 ## Usage
@@ -91,7 +90,7 @@ See [documentation](https://docs.rs/fastmetrics) and [examples](./examples) for 
 
 ## Performance
 
-Compared with the existing rust client libraries, its text encoding is at least 30% faster than the fastest rust library (prometheus-client),
+Compared with the existing rust client libraries, its text encoding is about 20%~30% faster than the fastest rust library (prometheus-client),
 while its Protobuf encoding is on par with the fastest rust library (prometheus).
 
 See [benchmarks](./benchmarks/README.md) for more details

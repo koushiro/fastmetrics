@@ -137,6 +137,7 @@ impl<N: GaugeValue> Gauge<N> {
 
 impl<N: GaugeValue> TypedMetric for Gauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 /// A **constant** [`Gauge`], meaning it cannot be changed once created.
@@ -170,6 +171,7 @@ impl<N: GaugeValue> ConstGauge<N> {
 
 impl<N: GaugeValue> TypedMetric for ConstGauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 #[cfg(test)]

@@ -181,7 +181,7 @@ impl<W> encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn encode(mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
+    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
         let metric_name = metric_name(self.namespace, metadata.name(), metadata.unit());
 
         self.encode_type(metric_name.as_ref(), metadata.metric_type())?;
@@ -191,7 +191,8 @@ where
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name,
-            metric_type: metadata.metric_type(),
+            metric_type: metric.metric_type(),
+            timestamp: metric.timestamp(),
             const_labels: self.const_labels,
             family_labels: None,
         })
@@ -203,6 +204,7 @@ struct MetricEncoder<'a, W> {
     // [namespace_]name[_unit]
     metric_name: Cow<'a, str>,
     metric_type: MetricType,
+    timestamp: Option<Duration>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
 }
@@ -279,6 +281,7 @@ where
             }
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
+            self.encode_timestamp()?;
             self.encode_newline()?;
         }
         Ok(())
@@ -289,6 +292,7 @@ where
         self.writer.write_str("_count")?;
         self.encode_label_set(None)?;
         self.writer.write_str(itoa::Buffer::new().format(count))?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -297,6 +301,7 @@ where
         self.writer.write_str("_sum")?;
         self.encode_label_set(None)?;
         self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -305,6 +310,7 @@ where
         self.writer.write_str("_gcount")?;
         self.encode_label_set(None)?;
         self.writer.write_str(itoa::Buffer::new().format(gcount))?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -313,6 +319,7 @@ where
         self.writer.write_str("_gsum")?;
         self.encode_label_set(None)?;
         self.writer.write_str(dtoa::Buffer::new().format(gsum))?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -325,7 +332,20 @@ where
             created.as_secs(),
             created.as_millis() % 1000
         ))?;
+        self.encode_timestamp()?;
         self.encode_newline()
+    }
+
+    #[inline]
+    fn encode_timestamp(&mut self) -> fmt::Result {
+        if let Some(timestamp) = self.timestamp {
+            self.writer.write_fmt(format_args!(
+                " {}.{}",
+                timestamp.as_secs(),
+                timestamp.as_millis() % 1000
+            ))?;
+        }
+        Ok(())
     }
 
     #[inline]
@@ -342,6 +362,7 @@ where
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
         value.encode(&mut UnknownValueEncoder { writer: self.writer })?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -349,6 +370,7 @@ where
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
         value.encode(&mut GaugeValueEncoder { writer: self.writer })?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -362,6 +384,7 @@ where
         self.writer.write_str("_total")?;
         self.encode_label_set(None)?;
         total.encode(&mut CounterValueEncoder { writer: self.writer })?;
+        self.encode_timestamp()?;
         self.encode_newline()?;
 
         // encode `*_created` metric if available
@@ -382,6 +405,7 @@ where
             } else {
                 self.writer.write_str("0")?;
             }
+            self.encode_timestamp()?;
             self.encode_newline()?;
         }
         Ok(())
@@ -392,6 +416,7 @@ where
         self.writer.write_str("_info")?;
         self.encode_label_set(Some(label_set))?;
         self.writer.write_str("1")?;
+        self.encode_timestamp()?;
         self.encode_newline()
     }
 
@@ -438,6 +463,7 @@ where
             self.encode_metric_name()?;
             self.encode_label_set(Some(&[(QUANTILE_LABEL, quantile.quantile())]))?;
             self.writer.write_str(dtoa::Buffer::new().format(quantile.value()))?;
+            self.encode_timestamp()?;
             self.encode_newline()?;
         }
 
@@ -460,6 +486,7 @@ where
             writer: self.writer,
             metric_name: self.metric_name.clone(),
             metric_type: self.metric_type,
+            timestamp: self.timestamp,
             const_labels: self.const_labels,
             family_labels: Some(label_set),
         })

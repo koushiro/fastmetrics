@@ -171,6 +171,7 @@ impl GaugeHistogram {
 
 impl TypedMetric for GaugeHistogram {
     const TYPE: MetricType = MetricType::GaugeHistogram;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 #[cfg(test)]

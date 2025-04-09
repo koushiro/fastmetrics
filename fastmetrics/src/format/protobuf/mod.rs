@@ -143,7 +143,7 @@ impl From<MetricType> for openmetrics_data_model::MetricType {
 }
 
 impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
-    fn encode(self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
+    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
         let family = openmetrics_data_model::MetricFamily {
             name: {
                 match self.namespace {
@@ -175,6 +175,7 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
                 .expect("metric families must not be none")
                 .metrics,
             labels,
+            timestamp: metric.timestamp(),
         })
     }
 }
@@ -182,6 +183,14 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
 struct MetricEncoder<'a> {
     metrics: &'a mut Vec<openmetrics_data_model::Metric>,
     labels: Vec<openmetrics_data_model::Label>,
+    timestamp: Option<Duration>,
+}
+
+fn into_prost_timestamp(duration: Duration) -> prost_types::Timestamp {
+    prost_types::Timestamp {
+        seconds: duration.as_secs() as i64,
+        nanos: duration.subsec_nanos() as i32,
+    }
 }
 
 impl encoder::MetricEncoder for MetricEncoder<'_> {
@@ -195,7 +204,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 value: Some(openmetrics_data_model::metric_point::Value::UnknownValue(
                     openmetrics_data_model::UnknownValue { value: Some(v) },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -211,7 +220,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 value: Some(openmetrics_data_model::metric_point::Value::GaugeValue(
                     openmetrics_data_model::GaugeValue { value: Some(v) },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -231,14 +240,11 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 value: Some(openmetrics_data_model::metric_point::Value::CounterValue(
                     openmetrics_data_model::CounterValue {
                         total: Some(t),
-                        created: created.map(|dur| prost_types::Timestamp {
-                            seconds: dur.as_secs() as i64,
-                            nanos: dur.subsec_nanos() as i32,
-                        }),
+                        created: created.map(into_prost_timestamp),
                         exemplar: None,
                     },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -259,7 +265,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 value: Some(openmetrics_data_model::metric_point::Value::StateSetValue(
                     openmetrics_data_model::StateSetValue { states },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -275,7 +281,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 value: Some(openmetrics_data_model::metric_point::Value::InfoValue(
                     openmetrics_data_model::InfoValue { info: info_labels },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -305,13 +311,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                         buckets,
                         count,
                         sum: Some(openmetrics_data_model::histogram_value::Sum::DoubleValue(sum)),
-                        created: created.map(|dur| prost_types::Timestamp {
-                            seconds: dur.as_secs() as i64,
-                            nanos: dur.subsec_nanos() as i32,
-                        }),
+                        created: created.map(into_prost_timestamp),
                     },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -344,13 +347,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                         quantile,
                         count,
                         sum: Some(openmetrics_data_model::summary_value::Sum::DoubleValue(sum)),
-                        created: created.map(|dur| prost_types::Timestamp {
-                            seconds: dur.as_secs() as i64,
-                            nanos: dur.subsec_nanos() as i32,
-                        }),
+                        created: created.map(into_prost_timestamp),
                     },
                 )),
-                ..Default::default()
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
         Ok(())
@@ -359,7 +359,11 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
     fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
         let mut labels = self.labels.clone();
         label_set.encode(&mut LabelSetEncoder { labels: &mut labels })?;
-        metric.encode(&mut MetricEncoder { metrics: self.metrics, labels })
+        metric.encode(&mut MetricEncoder {
+            metrics: self.metrics,
+            labels,
+            timestamp: metric.timestamp(),
+        })
     }
 }
 

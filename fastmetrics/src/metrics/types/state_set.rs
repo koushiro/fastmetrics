@@ -121,6 +121,7 @@ impl<T: StateSetValue> StateSet<T> {
 
 impl<T: StateSetValue> TypedMetric for StateSet<T> {
     const TYPE: MetricType = MetricType::StateSet;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 /// A **constant** [`StateSet`], meaning it cannot be changed once created.
@@ -191,6 +192,7 @@ impl<T: StateSetValue> ConstStateSet<T> {
 
 impl<T: StateSetValue> TypedMetric for ConstStateSet<T> {
     const TYPE: MetricType = MetricType::StateSet;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 fn find_position<T: StateSetValue>(state: T) -> u8 {

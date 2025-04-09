@@ -130,6 +130,7 @@ impl<N: CounterValue> Counter<N> {
 
 impl<N: CounterValue> TypedMetric for Counter<N> {
     const TYPE: MetricType = MetricType::Counter;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 /// A **constant** [`Counter`], meaning it cannot be changed once created.
@@ -201,6 +202,7 @@ impl<N: CounterValue> ConstCounter<N> {
 
 impl<N: CounterValue> TypedMetric for ConstCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
+    const WITH_TIMESTAMP: bool = false;
 }
 
 #[cfg(test)]
