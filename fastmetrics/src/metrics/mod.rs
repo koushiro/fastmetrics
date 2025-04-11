@@ -25,7 +25,6 @@
 //! [Family]: self::family::Family
 
 pub mod family;
-pub mod raw;
 mod types;
 
 pub use self::types::*;

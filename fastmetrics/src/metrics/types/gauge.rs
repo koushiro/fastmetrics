@@ -8,9 +8,9 @@ use std::{
     sync::{atomic::*, Arc},
 };
 
-use crate::metrics::{
+use crate::{
+    metrics::{MetricType, TypedMetric},
     raw::{Atomic, Number},
-    MetricType, TypedMetric,
 };
 
 /// A marker trait for **gauge** metric value.

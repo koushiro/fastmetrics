@@ -10,8 +10,8 @@ use std::{
 
 use parking_lot::RwLock;
 
-pub use crate::metrics::raw::bucket::*;
 use crate::metrics::{MetricType, TypedMetric};
+pub use crate::raw::bucket::*;
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
 /// buckets.

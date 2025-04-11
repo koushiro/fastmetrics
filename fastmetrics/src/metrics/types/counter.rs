@@ -9,9 +9,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::metrics::{
+use crate::{
+    metrics::{MetricType, TypedMetric},
     raw::{Atomic, Number},
-    MetricType, TypedMetric,
 };
 
 /// A marker trait for **counter** metric value.

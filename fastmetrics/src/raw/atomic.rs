@@ -1,6 +1,6 @@
 use std::sync::atomic::*;
 
-use crate::metrics::raw::number::Number;
+use crate::raw::number::Number;
 
 /// Atomic operations for the [Counter] or [Gauge] value.
 ///

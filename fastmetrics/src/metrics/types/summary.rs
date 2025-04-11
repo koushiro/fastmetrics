@@ -2,4 +2,4 @@
 //!
 //! Not implemented
 
-pub use crate::metrics::raw::quantile::*;
+pub use crate::raw::quantile::*;

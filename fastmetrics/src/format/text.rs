@@ -9,11 +9,11 @@ use crate::{
     },
     metrics::{
         family::{Metadata, Unit},
-        raw::{
-            bucket::{Bucket, BUCKET_LABEL},
-            quantile::{Quantile, QUANTILE_LABEL},
-        },
         MetricType,
+    },
+    raw::{
+        bucket::{Bucket, BUCKET_LABEL},
+        quantile::{Quantile, QUANTILE_LABEL},
     },
     registry::{Registry, RegistrySystem},
 };
