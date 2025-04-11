@@ -1,4 +1,4 @@
-//!  Provides quantile-related functionality for summary metrics in the OpenMetrics.
+//! Provides quantile-related functionality for summary metrics.
 
 /// The label that defines the quantile in a summary.
 pub const QUANTILE_LABEL: &str = "quantile";

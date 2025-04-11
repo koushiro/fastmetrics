@@ -1,4 +1,4 @@
-//! Provides bucket-related functionality for histogram metrics in OpenMetrics.
+//! Provides bucket-related functionality for histogram metrics.
 //!
 //! This module contains implementations for histogram buckets, which are used to track
 //! the distribution of observations in histogram metrics. It also provides utilities
