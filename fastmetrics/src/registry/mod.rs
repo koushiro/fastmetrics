@@ -16,12 +16,10 @@ use std::{
 };
 
 pub use self::{errors::*, subsystem::*};
+pub use crate::raw::Unit;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
-    metrics::{
-        family::{Metadata, Unit},
-        MetricType,
-    },
+    raw::{Metadata, MetricType},
 };
 
 /// The `Metric` trait is a marker trait that combines the encoding capability with thread safety
@@ -217,11 +215,9 @@ impl Registry {
     ///
     /// ```rust
     /// # use fastmetrics::{
-    /// #     metrics::{
-    /// #         histogram::Histogram,
-    /// #         family::Unit,
-    /// #    },
-    /// #    registry::{Registry, RegistryError},
+    /// #     metrics::histogram::Histogram,
+    /// #     raw::metadata::Unit,
+    /// #     registry::{Registry, RegistryError},
     /// # };
     /// # fn main() -> Result<(), RegistryError> {
     /// let mut registry = Registry::default();

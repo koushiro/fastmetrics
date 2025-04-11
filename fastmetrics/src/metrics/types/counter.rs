@@ -9,10 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::{
-    metrics::{MetricType, TypedMetric},
-    raw::{Atomic, Number},
-};
+use crate::raw::{Atomic, MetricType, Number, TypedMetric};
 
 /// A marker trait for **counter** metric value.
 pub trait CounterValue<Rhs = Self>: Number + AddAssign<Rhs> {

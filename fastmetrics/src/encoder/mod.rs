@@ -7,9 +7,12 @@ mod number;
 use std::{fmt, time::Duration};
 
 pub use self::{exemplar::*, label_set::*, number::*};
-use crate::metrics::{
-    counter::*, family::*, gauge::*, gauge_histogram::*, histogram::*, info::*, state_set::*,
-    summary::*, unknown::*, MetricType, TypedMetric,
+use crate::{
+    metrics::{
+        counter::*, family::*, gauge::*, gauge_histogram::*, histogram::*, info::*, state_set::*,
+        summary::*, unknown::*,
+    },
+    raw::{Metadata, MetricType, TypedMetric},
 };
 
 /// Trait for encoding metric with metadata.

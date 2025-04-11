@@ -1,9 +1,6 @@
 //! [Open Metrics Unknown](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#unknown) metric type.
 
-use crate::{
-    metrics::{MetricType, TypedMetric},
-    raw::Number,
-};
+use crate::raw::{MetricType, Number, TypedMetric};
 
 /// A marker trait for **unknown** metric value.
 pub trait UnknownValue: Number {}

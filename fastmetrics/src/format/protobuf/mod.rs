@@ -7,8 +7,7 @@ use crate::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
         EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
-    metrics::{family::Metadata, MetricType},
-    raw::{bucket::Bucket, quantile::Quantile},
+    raw::{bucket::Bucket, quantile::Quantile, Metadata, MetricType},
     registry::{Registry, RegistrySystem},
 };
 

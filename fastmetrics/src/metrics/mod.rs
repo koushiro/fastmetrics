@@ -7,13 +7,12 @@
 //! - [StateSet]: A set of states that can be active/inactive
 //! - [Info]: Static key-value information about the target
 //! - [Histogram]: Statistical distribution of values
-//! - [GaugeHistogram] (TODO): Like histogram but values can decrease
+//! - [GaugeHistogram]: Like histogram but values can decrease
 //! - [Summary] (TODO): Similar to histogram, with quantiles
 //!
 //! The module also provides:
 //!
 //! - [Family]: Collections of metrics with the same name but different labels
-//! - Raw types and common traits used by some metrics
 //!
 //! [Counter]: self::counter
 //! [Gauge]: self::gauge

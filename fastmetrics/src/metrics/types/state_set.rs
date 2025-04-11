@@ -11,7 +11,7 @@ use std::{
 #[cfg(feature = "derive")]
 pub use fastmetrics_derive::StateSetValue;
 
-use crate::metrics::{MetricType, TypedMetric};
+use crate::raw::{MetricType, TypedMetric};
 
 /// A marker trait for **stateset** metric value.
 pub trait StateSetValue: Sized + PartialEq + 'static {

@@ -1,6 +1,6 @@
 //! [Open Metrics Info](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#info) metric type.
 
-use crate::metrics::{MetricType, TypedMetric};
+use crate::raw::{MetricType, TypedMetric};
 
 /// Open Metrics [`Info`] metric, which is used to expose textual information which SHOULD NOT
 /// change during process lifetime.
