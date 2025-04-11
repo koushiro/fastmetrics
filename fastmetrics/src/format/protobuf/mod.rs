@@ -304,7 +304,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         sum: f64,
         created: Option<Duration>,
     ) -> fmt::Result {
-        assert_eq!(buckets.len(), exemplars.len());
+        assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
 
         let buckets = buckets
             .iter()

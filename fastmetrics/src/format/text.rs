@@ -271,7 +271,7 @@ where
         buckets: &[Bucket],
         exemplars: &[Option<&dyn EncodeExemplar>],
     ) -> fmt::Result {
-        assert_eq!(buckets.len(), exemplars.len());
+        assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
 
         let mut cumulative_count = 0;
         for (bucket, exemplar) in buckets.iter().zip(exemplars) {
