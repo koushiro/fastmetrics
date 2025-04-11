@@ -4,8 +4,8 @@ use std::{borrow::Cow, fmt, time::Duration};
 
 use crate::{
     encoder::{
-        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabel, EncodeLabelSet, EncodeLabelValue,
-        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
+        self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
+        EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::{
         family::{Metadata, Unit},
@@ -266,9 +266,15 @@ where
         self.writer.write_str("} ")
     }
 
-    fn encode_buckets(&mut self, buckets: &[Bucket]) -> fmt::Result {
+    fn encode_buckets(
+        &mut self,
+        buckets: &[Bucket],
+        exemplars: &[Option<&dyn EncodeExemplar>],
+    ) -> fmt::Result {
+        assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
+
         let mut cumulative_count = 0;
-        for bucket in buckets {
+        for (bucket, exemplar) in buckets.iter().zip(exemplars) {
             self.encode_metric_name()?;
             self.writer.write_str("_bucket")?;
 
@@ -279,9 +285,13 @@ where
             } else {
                 self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
             }
+
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_timestamp()?;
+            if let Some(exemplar) = exemplar {
+                exemplar.encode(&mut ExemplarEncoder { writer: self.writer })?;
+            }
             self.encode_newline()?;
         }
         Ok(())
@@ -377,6 +387,7 @@ where
     fn encode_counter(
         &mut self,
         total: &dyn EncodeCounterValue,
+        exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
     ) -> fmt::Result {
         // encode `*_total` metric
@@ -385,6 +396,9 @@ where
         self.encode_label_set(None)?;
         total.encode(&mut CounterValueEncoder { writer: self.writer })?;
         self.encode_timestamp()?;
+        if let Some(exemplar) = exemplar {
+            exemplar.encode(&mut ExemplarEncoder { writer: self.writer })?;
+        }
         self.encode_newline()?;
 
         // encode `*_created` metric if available
@@ -423,12 +437,13 @@ where
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
-        sum: f64,
+        exemplars: &[Option<&dyn EncodeExemplar>],
         count: u64,
+        sum: f64,
         created: Option<Duration>,
     ) -> fmt::Result {
         // encode `*_bucket` metrics
-        self.encode_buckets(buckets)?;
+        self.encode_buckets(buckets, exemplars)?;
         // encode `*_count` metric
         self.encode_count(count)?;
         // encode `*_sum` metric
@@ -442,9 +457,15 @@ where
         Ok(())
     }
 
-    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
+    fn encode_gauge_histogram(
+        &mut self,
+        buckets: &[Bucket],
+        exemplars: &[Option<&dyn EncodeExemplar>],
+        count: u64,
+        sum: f64,
+    ) -> fmt::Result {
         // encode `*_bucket` metrics
-        self.encode_buckets(buckets)?;
+        self.encode_buckets(buckets, exemplars)?;
         // encode `*_gcount` metric
         self.encode_gcount(count)?;
         // encode `*_gsum` metric
@@ -481,7 +502,7 @@ where
     }
 
     fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
-        debug_assert!(self.family_labels.is_none());
+        assert!(self.family_labels.is_none());
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name: self.metric_name.clone(),
@@ -689,5 +710,38 @@ where
 
     encode_float_number_impls! {
         f32, f64
+    }
+}
+
+struct ExemplarEncoder<'a, W> {
+    writer: &'a mut W,
+}
+
+impl<W> encoder::ExemplarEncoder for ExemplarEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode(
+        &mut self,
+        labels: &dyn EncodeLabelSet,
+        value: f64,
+        timestamp: Option<Duration>,
+    ) -> fmt::Result {
+        // # { labels } value [timestamp]
+        self.writer.write_str(" # {")?;
+        labels.encode(&mut LabelSetEncoder::new(self.writer, LabelNameCheck::Disable))?;
+        self.writer.write_str("} ")?;
+
+        self.writer.write_str(dtoa::Buffer::new().format(value))?;
+
+        if let Some(timestamp) = timestamp {
+            self.writer.write_fmt(format_args!(
+                " {}.{}",
+                timestamp.as_secs(),
+                timestamp.as_millis() % 1000
+            ))?;
+        }
+
+        Ok(())
     }
 }
