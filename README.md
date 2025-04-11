@@ -21,7 +21,7 @@ and it's compatible with Prometheus.
 ## TODO
 
 - [ ] Summary metric type
-- [ ] Exemplar feature in counter and histogram metric
+- [ ] Add more tests
 - [ ] ...
 
 ## Usage

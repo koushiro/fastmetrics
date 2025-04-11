@@ -1,11 +1,12 @@
 //! Encoder module provides traits for encoding metrics and their metadata.
 
+mod exemplar;
 mod label_set;
 mod number;
 
 use std::{fmt, time::Duration};
 
-pub use self::{label_set::*, number::*};
+pub use self::{exemplar::*, label_set::*, number::*};
 use crate::metrics::{
     counter::*, family::*, gauge::*, gauge_histogram::*, histogram::*, info::*, state_set::*,
     summary::*, unknown::*, MetricType, TypedMetric,
@@ -26,7 +27,7 @@ pub trait MetricFamilyEncoder {
     ///
     /// * `metadata` - The metadata to encode, containing name, type, help and unit
     /// * `metric` - The metric to encode
-    fn encode(&mut self, metadata: &Metadata, metrics: &dyn EncodeMetric) -> fmt::Result;
+    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result;
 }
 
 /// Trait for encoding different types of metrics.
@@ -46,6 +47,7 @@ pub trait MetricEncoder {
     fn encode_counter(
         &mut self,
         total: &dyn EncodeCounterValue,
+        exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
     ) -> fmt::Result;
 
@@ -56,16 +58,27 @@ pub trait MetricEncoder {
     fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result;
 
     /// Encodes a histogram metric.
+    ///
+    /// **NOTE**: the slice length of `buckets` and `exemplars` should be the same.
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
-        sum: f64,
+        exemplars: &[Option<&dyn EncodeExemplar>],
         count: u64,
+        sum: f64,
         created: Option<Duration>,
     ) -> fmt::Result;
 
     /// Encodes a gauge histogram metric.
-    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result;
+    ///
+    /// **NOTE**: the slice length of `buckets` and `exemplars` should be the same.
+    fn encode_gauge_histogram(
+        &mut self,
+        buckets: &[Bucket],
+        exemplars: &[Option<&dyn EncodeExemplar>],
+        count: u64,
+        sum: f64,
+    ) -> fmt::Result;
 
     /// Encodes a summary metric.
     fn encode_summary(
@@ -137,7 +150,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let total = self.total();
         let created = self.created();
-        encoder.encode_counter(&total, created)
+        encoder.encode_counter(&total, None, created)
     }
 
     fn metric_type(&self) -> MetricType {
@@ -149,7 +162,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let total = self.total();
         let created = self.created();
-        encoder.encode_counter(&total, created)
+        encoder.encode_counter(&total, None, created)
     }
 
     fn metric_type(&self) -> MetricType {
@@ -198,7 +211,11 @@ impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
 impl EncodeMetric for Histogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let created = self.created();
-        self.with_snapshot(|s| encoder.encode_histogram(s.buckets(), s.sum(), s.count(), created))
+        self.with_snapshot(|s| {
+            let buckets = s.buckets();
+            let exemplars = vec![Some(&() as &dyn EncodeExemplar); buckets.len()];
+            encoder.encode_histogram(buckets, &exemplars, s.count(), s.sum(), created)
+        })
     }
 
     fn metric_type(&self) -> MetricType {
@@ -210,7 +227,11 @@ impl EncodeMetric for Histogram {
 
 impl EncodeMetric for GaugeHistogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        self.with_snapshot(|s| encoder.encode_gauge_histogram(s.buckets(), s.gsum(), s.gcount()))
+        self.with_snapshot(|s| {
+            let buckets = s.buckets();
+            let exemplars = vec![Some(&() as &dyn EncodeExemplar); buckets.len()];
+            encoder.encode_gauge_histogram(s.buckets(), &exemplars, s.gcount(), s.gsum())
+        })
     }
 
     fn metric_type(&self) -> MetricType {

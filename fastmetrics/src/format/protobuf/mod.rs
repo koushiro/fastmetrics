@@ -4,8 +4,8 @@ use std::{borrow::Cow, fmt, io, time::Duration};
 
 use crate::{
     encoder::{
-        self, EncodeCounterValue, EncodeGaugeValue, EncodeLabel, EncodeLabelSet, EncodeLabelValue,
-        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
+        self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
+        EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     metrics::{
         family::Metadata,
@@ -229,10 +229,19 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
     fn encode_counter(
         &mut self,
         total: &dyn EncodeCounterValue,
+        exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
     ) -> fmt::Result {
         let mut t = openmetrics_data_model::counter_value::Total::IntValue(0);
         total.encode(&mut CounterValueEncoder { total: &mut t })?;
+
+        let exemplar = if let Some(exemplar) = exemplar {
+            let mut e = openmetrics_data_model::Exemplar::default();
+            exemplar.encode(&mut ExemplarEncoder { exemplar: &mut e })?;
+            Some(e)
+        } else {
+            None
+        };
 
         self.metrics.push(openmetrics_data_model::Metric {
             labels: self.labels.clone(),
@@ -241,7 +250,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                     openmetrics_data_model::CounterValue {
                         total: Some(t),
                         created: created.map(into_prost_timestamp),
-                        exemplar: None,
+                        exemplar,
                     },
                 )),
                 timestamp: self.timestamp.map(into_prost_timestamp),
@@ -290,18 +299,30 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
-        sum: f64,
+        exemplars: &[Option<&dyn EncodeExemplar>],
         count: u64,
+        sum: f64,
         created: Option<Duration>,
     ) -> fmt::Result {
+        assert_eq!(buckets.len(), exemplars.len());
+
         let buckets = buckets
             .iter()
-            .map(|b| openmetrics_data_model::histogram_value::Bucket {
-                count: b.count(),
-                upper_bound: b.upper_bound(),
-                exemplar: None,
+            .zip(exemplars.iter())
+            .map(|(b, e)| {
+                Ok(openmetrics_data_model::histogram_value::Bucket {
+                    count: b.count(),
+                    upper_bound: b.upper_bound(),
+                    exemplar: if let Some(exemplar) = e {
+                        let mut e = openmetrics_data_model::Exemplar::default();
+                        exemplar.encode(&mut ExemplarEncoder { exemplar: &mut e })?;
+                        Some(e)
+                    } else {
+                        None
+                    },
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, fmt::Error>>()?;
 
         self.metrics.push(openmetrics_data_model::Metric {
             labels: self.labels.clone(),
@@ -320,8 +341,14 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode_gauge_histogram(&mut self, buckets: &[Bucket], sum: f64, count: u64) -> fmt::Result {
-        self.encode_histogram(buckets, sum, count, None)
+    fn encode_gauge_histogram(
+        &mut self,
+        buckets: &[Bucket],
+        exemplars: &[Option<&dyn EncodeExemplar>],
+        count: u64,
+        sum: f64,
+    ) -> fmt::Result {
+        self.encode_histogram(buckets, exemplars, count, sum, None)
     }
 
     fn encode_summary(
@@ -527,6 +554,24 @@ impl encoder::CounterValueEncoder for CounterValueEncoder<'_> {
 
     fn encode_f64(&mut self, value: f64) -> fmt::Result {
         *self.total = openmetrics_data_model::counter_value::Total::DoubleValue(value);
+        Ok(())
+    }
+}
+
+struct ExemplarEncoder<'a> {
+    exemplar: &'a mut openmetrics_data_model::Exemplar,
+}
+
+impl encoder::ExemplarEncoder for ExemplarEncoder<'_> {
+    fn encode(
+        &mut self,
+        label_set: &dyn EncodeLabelSet,
+        value: f64,
+        timestamp: Option<Duration>,
+    ) -> fmt::Result {
+        label_set.encode(&mut LabelSetEncoder { labels: &mut self.exemplar.label })?;
+        self.exemplar.value = value;
+        self.exemplar.timestamp = timestamp.map(into_prost_timestamp);
         Ok(())
     }
 }
