@@ -1,4 +1,4 @@
-//! TODO: doc
+//! Provides quantile-related functionality for summary metrics.
 
 /// The label that defines the quantile in a summary.
 pub const QUANTILE_LABEL: &str = "quantile";

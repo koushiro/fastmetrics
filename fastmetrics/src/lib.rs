@@ -99,4 +99,5 @@
 pub mod encoder;
 pub mod format;
 pub mod metrics;
+pub mod raw;
 pub mod registry;

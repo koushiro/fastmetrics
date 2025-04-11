@@ -10,8 +10,11 @@ use std::{
 
 use parking_lot::RwLock;
 
-pub use crate::metrics::raw::bucket::*;
-use crate::metrics::{MetricType, TypedMetric};
+pub use crate::raw::bucket::*;
+use crate::{
+    encoder::{EncodeMetric, MetricEncoder},
+    raw::{MetricType, TypedMetric},
+};
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
 /// buckets.
@@ -198,6 +201,21 @@ impl Histogram {
 impl TypedMetric for Histogram {
     const TYPE: MetricType = MetricType::Histogram;
     const WITH_TIMESTAMP: bool = false;
+}
+
+impl EncodeMetric for Histogram {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let created = self.created();
+        self.with_snapshot(|s| {
+            let buckets = s.buckets();
+            let exemplars = vec![None; buckets.len()];
+            encoder.encode_histogram(buckets, &exemplars, s.count(), s.sum(), created)
+        })
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Histogram
+    }
 }
 
 #[cfg(test)]

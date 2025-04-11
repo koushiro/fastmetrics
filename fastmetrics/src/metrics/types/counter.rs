@@ -9,9 +9,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::metrics::{
-    raw::{Atomic, Number},
-    MetricType, TypedMetric,
+use crate::{
+    encoder::{EncodeCounterValue, EncodeMetric, MetricEncoder},
+    raw::{Atomic, MetricType, Number, TypedMetric},
 };
 
 /// A marker trait for **counter** metric value.
@@ -133,6 +133,18 @@ impl<N: CounterValue> TypedMetric for Counter<N> {
     const WITH_TIMESTAMP: bool = false;
 }
 
+impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let total = self.total();
+        let created = self.created();
+        encoder.encode_counter(&total, None, created)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Counter
+    }
+}
+
 /// A **constant** [`Counter`], meaning it cannot be changed once created.
 ///
 /// # Example
@@ -203,6 +215,18 @@ impl<N: CounterValue> ConstCounter<N> {
 impl<N: CounterValue> TypedMetric for ConstCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
     const WITH_TIMESTAMP: bool = false;
+}
+
+impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let total = self.total();
+        let created = self.created();
+        encoder.encode_counter(&total, None, created)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Counter
+    }
 }
 
 #[cfg(test)]

@@ -4,10 +4,10 @@ use fastmetrics::{
     format::text,
     metrics::{
         counter::Counter,
-        family::{Family, Unit},
+        family::Family,
         histogram::{exponential_buckets, Histogram},
     },
-    registry::Registry,
+    registry::{Registry, Unit},
 };
 use rand::{
     distr::{Distribution, StandardUniform},

@@ -6,7 +6,9 @@
 
 mod atomic;
 pub mod bucket;
+pub mod metadata;
 mod number;
 pub mod quantile;
+mod types;
 
-pub use self::{atomic::Atomic, number::Number};
+pub use self::{atomic::Atomic, metadata::*, number::Number, types::*};

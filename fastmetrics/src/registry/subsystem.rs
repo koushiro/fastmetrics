@@ -4,10 +4,7 @@ use std::{
 };
 
 use crate::{
-    metrics::{
-        family::{Metadata, Unit},
-        MetricType,
-    },
+    raw::{Metadata, MetricType, Unit},
     registry::{is_lowercase, is_snake_case, Metric, RegistryError},
 };
 
