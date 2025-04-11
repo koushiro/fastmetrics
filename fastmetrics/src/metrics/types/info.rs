@@ -1,6 +1,11 @@
 //! [Open Metrics Info](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#info) metric type.
 
-use crate::raw::{MetricType, TypedMetric};
+use std::fmt;
+
+use crate::{
+    encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
+    raw::{MetricType, TypedMetric},
+};
 
 /// Open Metrics [`Info`] metric, which is used to expose textual information which SHOULD NOT
 /// change during process lifetime.
@@ -24,4 +29,14 @@ impl<LS> Info<LS> {
 impl<LS> TypedMetric for Info<LS> {
     const TYPE: MetricType = MetricType::Info;
     const WITH_TIMESTAMP: bool = false;
+}
+
+impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        encoder.encode_info(self.get())
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Info
+    }
 }

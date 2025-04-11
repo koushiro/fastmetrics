@@ -11,7 +11,10 @@ use std::{
 #[cfg(feature = "derive")]
 pub use fastmetrics_derive::StateSetValue;
 
-use crate::raw::{MetricType, TypedMetric};
+use crate::{
+    encoder::{EncodeMetric, MetricEncoder},
+    raw::{MetricType, TypedMetric},
+};
 
 /// A marker trait for **stateset** metric value.
 pub trait StateSetValue: Sized + PartialEq + 'static {
@@ -124,6 +127,17 @@ impl<T: StateSetValue> TypedMetric for StateSet<T> {
     const WITH_TIMESTAMP: bool = false;
 }
 
+impl<T: StateSetValue> EncodeMetric for StateSet<T> {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let states = self.states();
+        encoder.encode_stateset(states)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::StateSet
+    }
+}
+
 /// A **constant** [`StateSet`], meaning it cannot be changed once created.
 ///
 /// # Example
@@ -193,6 +207,17 @@ impl<T: StateSetValue> ConstStateSet<T> {
 impl<T: StateSetValue> TypedMetric for ConstStateSet<T> {
     const TYPE: MetricType = MetricType::StateSet;
     const WITH_TIMESTAMP: bool = false;
+}
+
+impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let states = self.states();
+        encoder.encode_stateset(states)
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::StateSet
+    }
 }
 
 fn find_position<T: StateSetValue>(state: T) -> u8 {

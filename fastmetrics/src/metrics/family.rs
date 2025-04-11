@@ -13,7 +13,10 @@ use std::{
 
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::raw::{MetricType, TypedMetric};
+use crate::{
+    encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
+    raw::{MetricType, TypedMetric},
+};
 
 /// A trait for creating new metric instances.
 ///
@@ -275,6 +278,24 @@ where
 impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
     const TYPE: MetricType = <M as TypedMetric>::TYPE;
     const WITH_TIMESTAMP: bool = <M as TypedMetric>::WITH_TIMESTAMP;
+}
+
+impl<LS, M, MF, S> EncodeMetric for Family<LS, M, MF, S>
+where
+    LS: EncodeLabelSet,
+    M: EncodeMetric + TypedMetric,
+{
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let guard = self.read();
+        for (labels, metric) in guard.iter() {
+            encoder.encode(labels, metric)?;
+        }
+        Ok(())
+    }
+
+    fn metric_type(&self) -> MetricType {
+        <M as TypedMetric>::TYPE
+    }
 }
 
 #[cfg(test)]

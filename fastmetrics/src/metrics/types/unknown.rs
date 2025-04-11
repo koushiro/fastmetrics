@@ -1,6 +1,11 @@
 //! [Open Metrics Unknown](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#unknown) metric type.
 
-use crate::raw::{MetricType, Number, TypedMetric};
+use std::fmt;
+
+use crate::{
+    encoder::{EncodeMetric, EncodeUnknownValue, MetricEncoder},
+    raw::{MetricType, Number, TypedMetric},
+};
 
 /// A marker trait for **unknown** metric value.
 pub trait UnknownValue: Number {}
@@ -38,4 +43,14 @@ impl<T: UnknownValue> Unknown<T> {
 impl<T: UnknownValue> TypedMetric for Unknown<T> {
     const TYPE: MetricType = MetricType::Unknown;
     const WITH_TIMESTAMP: bool = false;
+}
+
+impl<T: EncodeUnknownValue + UnknownValue> EncodeMetric for Unknown<T> {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        encoder.encode_unknown(self.get())
+    }
+
+    fn metric_type(&self) -> MetricType {
+        MetricType::Unknown
+    }
 }
