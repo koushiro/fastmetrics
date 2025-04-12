@@ -255,23 +255,21 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn with_or_new<R, F>(&self, labels: &LS, func: F) -> Option<R>
+    pub fn with_or_new<R, F>(&self, labels: &LS, func: F) -> R
     where
         LS: Clone + Eq + Hash,
         F: FnOnce(&M) -> R,
         S: BuildHasher,
     {
-        let guard = self.read();
-        if let Some(metric) = guard.get(labels) {
-            return Some(func(metric));
+        let read_guard = self.read();
+        if let Some(metric) = read_guard.get(labels) {
+            return func(metric);
         }
-        drop(guard);
+        drop(read_guard);
 
         let mut write_guard = self.write();
-        write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
-
-        let read_guard = RwLockWriteGuard::downgrade(write_guard);
-        read_guard.get(labels).map(func)
+        let metric = write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
+        func(metric)
     }
 }
 
