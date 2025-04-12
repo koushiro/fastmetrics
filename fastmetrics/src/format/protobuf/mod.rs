@@ -90,7 +90,6 @@ impl<'a> Encoder<'a> {
                 namespace: self.registry.namespace(),
                 const_labels: self.registry.constant_labels(),
             }
-            // impl EncodeMetric for Box<dyn Metric> {...}
             .encode(metadata, metric)?;
         }
         for system in self.registry.subsystems.values() {

@@ -31,7 +31,10 @@ impl<LS> TypedMetric for Info<LS> {
     const WITH_TIMESTAMP: bool = false;
 }
 
-impl<LS: EncodeLabelSet> EncodeMetric for Info<LS> {
+impl<LS> EncodeMetric for Info<LS>
+where
+    LS: EncodeLabelSet + Send + Sync,
+{
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         encoder.encode_info(self.get())
     }

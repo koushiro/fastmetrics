@@ -12,40 +12,14 @@ mod subsystem;
 use std::{
     borrow::Cow,
     collections::hash_map::{self, HashMap},
-    fmt,
 };
 
 pub use self::{errors::*, subsystem::*};
 pub use crate::raw::Unit;
 use crate::{
-    encoder::{EncodeMetric, MetricEncoder},
+    encoder::EncodeMetric,
     raw::{Metadata, MetricType},
 };
-
-/// The `Metric` trait is a marker trait that combines the encoding capability with thread safety
-/// requirements needed for metrics that can be stored in the registry.
-/// Metrics implementing this trait can:
-///
-/// - Be encoded into OpenMetrics/Prometheus format
-/// - Be safely accessed from multiple threads
-/// - Be registered with the `Registry` or `RegistrySystem`
-///
-/// This trait is automatically implemented for any type that implements
-/// `EncodeMetric`, `Send`, and `Sync`.
-pub trait Metric: EncodeMetric + Send + Sync {}
-
-impl<T> Metric for T where T: EncodeMetric + Send + Sync {}
-
-// https://github.com/rust-lang/rust/pull/134367
-impl EncodeMetric for Box<dyn Metric> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
-        self.as_ref().encode(encoder)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        self.as_ref().metric_type()
-    }
-}
 
 /// A registry for collecting and organizing metrics.
 ///
@@ -113,7 +87,7 @@ impl EncodeMetric for Box<dyn Metric> {
 pub struct Registry {
     namespace: Option<Cow<'static, str>>,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
-    pub(crate) metrics: HashMap<Metadata, Box<dyn Metric + 'static>>,
+    pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
     pub(crate) subsystems: HashMap<Cow<'static, str>, RegistrySystem>,
 }
 
@@ -204,7 +178,7 @@ impl Registry {
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
-        metric: impl Metric + 'static,
+        metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, None, metric)
     }
@@ -239,7 +213,7 @@ impl Registry {
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
         unit: Unit,
-        metric: impl Metric + 'static,
+        metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         match metric.metric_type() {
             MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
@@ -255,7 +229,7 @@ impl Registry {
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
         unit: Option<Unit>,
-        metric: impl Metric + 'static,
+        metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let name = name.into();
         if !is_snake_case(&name) {
