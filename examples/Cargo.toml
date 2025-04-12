@@ -10,8 +10,11 @@ publish = false
 anyhow = "1.0"
 axum = "0.8.1"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
+pin-project = "1.1"
 rand = "0.9"
 thiserror = "2.0"
+tower = "0.5"
+tower-http = { version = "0.6.2", features = ["normalize-path"] }
 tokio = { version = "1.43", features = ["net", "macros", "rt-multi-thread"] }
 
 [[example]]
@@ -24,4 +27,4 @@ path = "src/family.rs"
 
 [[example]]
 name = "axum-exporter"
-path = "src/axum.rs"
+path = "src/exporter/axum.rs"

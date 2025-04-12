@@ -53,9 +53,7 @@ impl Bucket {
         self.upper_bound
     }
 
-    /// Returns the current count of observations in this bucket.
-    ///
-    /// This represents the number of observations that fall within this bucket's range.
+    /// Returns the number of observations that fall within the range of this bucket **ONLY**.
     pub const fn count(&self) -> u64 {
         self.count
     }

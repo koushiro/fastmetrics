@@ -7,7 +7,7 @@
 //!
 //! - Full support for [OpenMetrics] specification
 //! - Fast encoding in both text and protobuf exposition format
-//! - Type-safe metric creation and manipulation
+//! - Customizable metric types (currently a set of commonly used metric types are provided)
 //! - Hierarchical metric organization with namespaces and subsystems
 //! - Support for variable and constant labels
 //! - Derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)

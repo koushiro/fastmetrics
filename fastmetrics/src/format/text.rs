@@ -109,7 +109,6 @@ where
                 namespace: Some(system.namespace()),
                 const_labels: system.constant_labels(),
             }
-            // impl EncodeMetric for Box<dyn Metric> {...}
             .encode(metadata, metric)?;
         }
         for system in system.subsystems.values() {
