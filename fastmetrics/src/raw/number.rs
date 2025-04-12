@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 /// A marker trait for number types.
-pub trait Number: Copy + PartialOrd + Debug {
+pub trait Number: Copy + PartialOrd + Debug + Send + Sync {
     /// The multiplicative identity element of Self, 0.
     const ZERO: Self;
     /// The multiplicative identity element of Self, 1.

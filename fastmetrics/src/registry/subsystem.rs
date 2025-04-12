@@ -4,8 +4,9 @@ use std::{
 };
 
 use crate::{
+    encoder::EncodeMetric,
     raw::{Metadata, MetricType, Unit},
-    registry::{is_lowercase, is_snake_case, Metric, RegistryError},
+    registry::{is_lowercase, is_snake_case, RegistryError},
 };
 
 /// A subsystem within a registry that provides metric organization and labeling.
@@ -50,7 +51,7 @@ pub struct RegistrySystem {
     namespace: Cow<'static, str>,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 
-    pub(crate) metrics: HashMap<Metadata, Box<dyn Metric + 'static>>,
+    pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
     pub(crate) subsystems: HashMap<Cow<'static, str>, RegistrySystem>,
 }
 
@@ -149,7 +150,7 @@ impl RegistrySystem {
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
-        metric: impl Metric + 'static,
+        metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         self.do_register(name, help, None, metric)
     }
@@ -163,7 +164,7 @@ impl RegistrySystem {
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
         unit: Unit,
-        metric: impl Metric + 'static,
+        metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         match metric.metric_type() {
             MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
@@ -179,7 +180,7 @@ impl RegistrySystem {
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
         unit: Option<Unit>,
-        metric: impl Metric + 'static,
+        metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let name = name.into();
         if !is_snake_case(&name) {

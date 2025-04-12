@@ -282,8 +282,10 @@ impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
 
 impl<LS, M, MF, S> EncodeMetric for Family<LS, M, MF, S>
 where
-    LS: EncodeLabelSet,
+    LS: EncodeLabelSet + Send + Sync,
     M: EncodeMetric + TypedMetric,
+    MF: Send + Sync,
+    S: Send + Sync,
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let guard = self.read();

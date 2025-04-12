@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// A marker trait for **stateset** metric value.
-pub trait StateSetValue: Sized + PartialEq + 'static {
+pub trait StateSetValue: PartialEq + Sized + Send + Sync + 'static {
     /// Return all variants of [`StateSet`] value.
     fn variants() -> &'static [Self];
     /// Return the string representation for the [`StateSet`] value.
