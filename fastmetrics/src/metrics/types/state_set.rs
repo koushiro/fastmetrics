@@ -240,6 +240,7 @@ fn gen_states<T: StateSetValue>(current: &T) -> Vec<(&str, bool)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metrics::check_text_encoding;
 
     #[derive(Copy, Clone, Debug, PartialEq, Default)]
     enum TestState {
@@ -321,6 +322,67 @@ mod tests {
         assert_eq!(
             states,
             vec![("pending", false), ("running", true), ("completed", false), ("failed", false)]
+        );
+    }
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let stateset = StateSet::<TestState>::default();
+                registry.register("my_stateset", "My stateset help", stateset.clone()).unwrap();
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_stateset stateset
+                    # HELP my_stateset My stateset help
+                    my_stateset{my_stateset="pending"} 1
+                    my_stateset{my_stateset="running"} 0
+                    my_stateset{my_stateset="completed"} 0
+                    my_stateset{my_stateset="failed"} 0
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let stateset = StateSet::default();
+                registry.register("my_stateset", "My stateset help", stateset.clone()).unwrap();
+                stateset.set(TestState::Running);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_stateset stateset
+                    # HELP my_stateset My stateset help
+                    my_stateset{my_stateset="pending"} 0
+                    my_stateset{my_stateset="running"} 1
+                    my_stateset{my_stateset="completed"} 0
+                    my_stateset{my_stateset="failed"} 0
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let stateset = ConstStateSet::new(TestState::Running);
+                registry.register("my_stateset", "My stateset help", stateset.clone()).unwrap();
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_stateset stateset
+                    # HELP my_stateset My stateset help
+                    my_stateset{my_stateset="pending"} 0
+                    my_stateset{my_stateset="running"} 1
+                    my_stateset{my_stateset="completed"} 0
+                    my_stateset{my_stateset="failed"} 0
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
         );
     }
 }

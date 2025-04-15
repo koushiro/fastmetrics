@@ -6,7 +6,7 @@ use std::{
     fmt::{self, Debug},
     ops::AddAssign,
     sync::{atomic::*, Arc},
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use crate::{
@@ -41,6 +41,7 @@ impl_counter_value_for! {
 /// # Example
 ///
 /// ```rust
+/// # use std::time::SystemTime;
 /// # use fastmetrics::metrics::counter::Counter;
 ///
 /// // Create a default counter
@@ -57,7 +58,10 @@ impl_counter_value_for! {
 /// assert_eq!(counter.total(), 6);
 ///
 /// // Create a counter with created timestamp
-/// let counter = <Counter>::with_created();
+/// let created = SystemTime::UNIX_EPOCH
+///     .elapsed()
+///     .expect("UNIX timestamp when the counter was created");
+/// let counter = <Counter>::with_created(created);
 /// assert!(counter.created().is_some());
 /// ```
 pub struct Counter<N: CounterValue = u64> {
@@ -92,15 +96,8 @@ impl<N: CounterValue> Default for Counter<N> {
 
 impl<N: CounterValue> Counter<N> {
     /// Creates a [`Counter`] with a `created` timestamp.
-    pub fn with_created() -> Self {
-        Self {
-            total: Default::default(),
-            created: Some(
-                SystemTime::UNIX_EPOCH
-                    .elapsed()
-                    .expect("UNIX timestamp when the counter was created"),
-            ),
-        }
+    pub fn with_created(created: Duration) -> Self {
+        Self { total: Default::default(), created: Some(created) }
     }
 
     /// Increases the [`Counter`] by 1, returning the previous value.
@@ -150,6 +147,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
 /// # Example
 ///
 /// ```rust
+/// # use std::time::SystemTime;
 /// # use fastmetrics::metrics::counter::ConstCounter;
 ///
 /// // Create a constant counter with initial value
@@ -158,7 +156,10 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
 /// assert!(counter.created().is_none());
 ///
 /// // Create a constant counter with created timestamp
-/// let counter = ConstCounter::with_created(42_u64);
+/// let created = SystemTime::UNIX_EPOCH
+///     .elapsed()
+///     .expect("UNIX timestamp when the counter was created");
+/// let counter = ConstCounter::with_created(42_u64, created);
 /// assert_eq!(counter.total(), 42);
 /// assert!(counter.created().is_some());
 /// ```
@@ -188,15 +189,8 @@ impl<N: CounterValue> ConstCounter<N> {
     }
 
     /// Creates a [`ConstCounter`] with a constant `total` value and a `created` timestamp.
-    pub fn with_created(total: N) -> Self {
-        Self {
-            total,
-            created: Some(
-                SystemTime::UNIX_EPOCH
-                    .elapsed()
-                    .expect("UNIX timestamp when the counter was created"),
-            ),
-        }
+    pub fn with_created(total: N, created: Duration) -> Self {
+        Self { total, created: Some(created) }
     }
 
     /// Gets the current `total` value of the [`ConstCounter`].
@@ -232,6 +226,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{metrics::check_text_encoding, registry::Unit};
 
     #[test]
     fn test_counter_initialization() {
@@ -239,7 +234,10 @@ mod tests {
         assert_eq!(counter.total(), 0);
         assert!(counter.created().is_none());
 
-        let counter = <Counter>::with_created();
+        let created = std::time::SystemTime::UNIX_EPOCH
+            .elapsed()
+            .expect("UNIX timestamp when the counter was created");
+        let counter = <Counter>::with_created(created);
         assert_eq!(counter.total(), 0);
         assert!(counter.created().is_some());
     }
@@ -293,11 +291,99 @@ mod tests {
         assert_eq!(counter.total(), 42);
         assert!(counter.created.is_none());
 
-        let counter = ConstCounter::with_created(42_u64);
+        let created = std::time::SystemTime::UNIX_EPOCH
+            .elapsed()
+            .expect("UNIX timestamp when the counter was created");
+        let counter = ConstCounter::with_created(42_u64, created);
         assert_eq!(counter.total(), 42);
         assert!(counter.created.is_some());
 
         let clone = counter.clone();
         assert_eq!(clone.total(), 42);
+    }
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let counter = <Counter>::default();
+                registry.register("my_counter", "My counter help", counter.clone()).unwrap();
+                counter.inc_by(100);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_counter counter
+                    # HELP my_counter My counter help
+                    my_counter_total 100
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        let created = std::time::SystemTime::UNIX_EPOCH
+            .elapsed()
+            .expect("SystemTime when the counter was created");
+        check_text_encoding(
+            |registry| {
+                let counter = <Counter>::with_created(created);
+                registry.register("my_counter", "My counter help", counter.clone()).unwrap();
+                counter.inc_by(100);
+            },
+            |output| {
+                let expected = indoc::formatdoc! {r#"
+                    # TYPE my_counter counter
+                    # HELP my_counter My counter help
+                    my_counter_total 100
+                    my_counter_created {}.{}
+                    # EOF
+                    "#,
+                    created.as_secs(),
+                    created.as_millis() % 1000
+                };
+                assert_eq!(expected, output);
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let counter = <Counter>::default();
+                registry
+                    .register_with_unit(
+                        "my_counter",
+                        "My counter help",
+                        Unit::Bytes,
+                        counter.clone(),
+                    )
+                    .unwrap();
+                counter.inc_by(100);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_counter_bytes counter
+                    # HELP my_counter_bytes My counter help
+                    # UNIT my_counter_bytes bytes
+                    my_counter_bytes_total 100
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let counter = <ConstCounter>::new(42u64);
+                registry.register("my_counter", "My counter help", counter.clone()).unwrap();
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_counter counter
+                    # HELP my_counter My counter help
+                    my_counter_total 42
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
     }
 }

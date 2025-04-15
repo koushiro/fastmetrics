@@ -27,3 +27,19 @@ pub mod family;
 mod types;
 
 pub use self::types::*;
+
+#[cfg(test)]
+fn check_text_encoding<S, H>(setup: S, handle: H)
+where
+    S: Fn(&mut crate::registry::Registry),
+    H: Fn(String),
+{
+    let mut registry = crate::registry::Registry::default();
+
+    setup(&mut registry);
+
+    let mut output = String::new();
+    crate::format::text::encode(&mut output, &registry).unwrap();
+
+    handle(output);
+}

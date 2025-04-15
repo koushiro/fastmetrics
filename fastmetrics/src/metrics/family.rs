@@ -147,13 +147,13 @@ where
     ///
     /// ```rust
     /// # use fastmetrics::metrics::{
-    /// #     counter::Counter,
+    /// #     gauge::Gauge,
     /// #     family::Family,
     /// #     histogram::{Histogram, exponential_buckets},
     /// # };
     /// // Create a family with a custom factory function
     /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let counter_family: Family<LabelSet, Counter> = Family::new(|| Counter::with_created());
+    /// let gauge_family: Family<LabelSet, Gauge> = Family::new(|| Gauge::new(100));
     /// let histogram_family: Family<LabelSet, Histogram> = Family::new(|| {
     ///     Histogram::new(exponential_buckets(1.0, 2.0, 10))
     /// });
@@ -303,12 +303,11 @@ mod tests {
     use super::*;
     use crate::{
         encoder::{EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
-        format::text,
         metrics::{
+            check_text_encoding,
             counter::Counter,
             histogram::{exponential_buckets, Histogram},
         },
-        registry::Registry,
     };
 
     #[derive(Clone, PartialEq, Eq, Hash)]
@@ -342,39 +341,61 @@ mod tests {
 
     #[test]
     fn test_metric_family() {
-        let mut registry = Registry::default();
+        check_text_encoding(
+            |registry| {
+                let http_requests = Family::<Labels, Counter>::default();
+                registry
+                    .register("http_requests", "Total HTTP requests", http_requests.clone())
+                    .unwrap();
 
-        let http_requests = Family::<Labels, Counter>::default();
-        let http_requests_duration_seconds =
-            Family::<(), Histogram>::new(|| Histogram::new(exponential_buckets(0.005, 2.0, 10)));
-        registry
-            .register("http_requests", "Total HTTP requests", http_requests.clone())
-            .unwrap();
-        registry
-            .register(
-                "http_requests_duration_seconds",
-                "Duration of HTTP requests",
-                http_requests_duration_seconds.clone(),
-            )
-            .unwrap();
+                // Create metrics with different labels
+                let labels = Labels { method: Method::Get, status: 200 };
+                http_requests.with_or_new(&labels, |metric| metric.inc());
+                let labels = Labels { method: Method::Put, status: 200 };
+                http_requests.with_or_new(&labels, |metric| metric.inc());
+            },
+            |output| {
+                // println!("{}", output);
+                assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
+                assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
+            },
+        );
 
-        // Create metrics with different labels
-        let labels = Labels { method: Method::Get, status: 200 };
-        http_requests.with_or_new(&labels, |metric| metric.inc());
-        http_requests_duration_seconds.with_or_new(&(), |hist| hist.observe(0.1));
+        check_text_encoding(
+            |registry| {
+                let http_requests_duration_seconds = Family::<Labels, Histogram>::new(|| {
+                    Histogram::new(exponential_buckets(0.005, 2.0, 10))
+                });
 
-        let labels = Labels { method: Method::Put, status: 200 };
-        http_requests.with_or_new(&labels, |metric| metric.inc());
-        http_requests_duration_seconds.with_or_new(&(), |hist| hist.observe(2.0));
+                registry
+                    .register(
+                        "http_requests_duration_seconds",
+                        "Duration of HTTP requests",
+                        http_requests_duration_seconds.clone(),
+                    )
+                    .unwrap();
 
-        let mut output = String::new();
-        text::encode(&mut output, &registry).unwrap();
-
-        // println!("{}", output);
-        assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
-        assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
-
-        assert!(output.contains(r#"http_requests_duration_seconds_sum 2.1"#));
-        assert!(output.contains(r#"http_requests_duration_seconds_count 2"#));
+                // Create metrics with different labels
+                let labels = Labels { method: Method::Get, status: 200 };
+                http_requests_duration_seconds.with_or_new(&labels, |hist| hist.observe(0.1));
+                let labels = Labels { method: Method::Put, status: 200 };
+                http_requests_duration_seconds.with_or_new(&labels, |hist| hist.observe(2.0));
+            },
+            |output| {
+                // println!("{}", output);
+                assert!(output.contains(
+                    r#"http_requests_duration_seconds_count{method="GET",status="200"} 1"#
+                ));
+                assert!(output.contains(
+                    r#"http_requests_duration_seconds_sum{method="GET",status="200"} 0.1"#
+                ));
+                assert!(output.contains(
+                    r#"http_requests_duration_seconds_count{method="PUT",status="200"} 1"#
+                ));
+                assert!(output.contains(
+                    r#"http_requests_duration_seconds_sum{method="PUT",status="200"} 2.0"#
+                ));
+            },
+        );
     }
 }
