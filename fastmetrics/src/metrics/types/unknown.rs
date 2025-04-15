@@ -54,3 +54,28 @@ impl<T: EncodeUnknownValue + UnknownValue> EncodeMetric for Unknown<T> {
         MetricType::Unknown
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metrics::check_text_encoding;
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let unknown = Unknown::new(1);
+                registry.register("my_unknown", "My unknown help", unknown.clone()).unwrap();
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_unknown unknown
+                    # HELP my_unknown My unknown help
+                    my_unknown 1
+                    # EOF
+                "#};
+                assert_eq!(output, expected);
+            },
+        );
+    }
+}

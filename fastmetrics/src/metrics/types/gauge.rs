@@ -197,6 +197,7 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{metrics::check_text_encoding, registry::Unit};
 
     #[test]
     fn test_gauge_initialization() {
@@ -273,5 +274,61 @@ mod tests {
 
         let clone = gauge.clone();
         assert_eq!(clone.get(), 42);
+    }
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let gauge = <Gauge>::default();
+                registry.register("my_gauge", "My gauge help", gauge.clone()).unwrap();
+                gauge.set(100);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_gauge gauge
+                    # HELP my_gauge My gauge help
+                    my_gauge 100
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let gauge = <Gauge>::default();
+                registry
+                    .register_with_unit("my_gauge", "My gauge help", Unit::Bytes, gauge.clone())
+                    .unwrap();
+                gauge.set(100);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_gauge_bytes gauge
+                    # HELP my_gauge_bytes My gauge help
+                    # UNIT my_gauge_bytes bytes
+                    my_gauge_bytes 100
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let gauge = <ConstGauge>::new(42i64);
+                registry.register("my_gauge", "My gauge help", gauge.clone()).unwrap();
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_gauge gauge
+                    # HELP my_gauge My gauge help
+                    my_gauge 42
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
     }
 }

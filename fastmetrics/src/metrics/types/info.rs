@@ -43,3 +43,30 @@ where
         MetricType::Info
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::metrics::check_text_encoding;
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let info = Info::new(vec![("version", "1.0")]);
+                registry
+                    .register("release_version", "My release version", info.clone())
+                    .unwrap();
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE release_version info
+                    # HELP release_version My release version
+                    release_version_info{version="1.0"} 1
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+    }
+}

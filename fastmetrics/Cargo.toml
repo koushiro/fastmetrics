@@ -1,7 +1,7 @@
 [package]
 name = "fastmetrics"
 version = "0.1.0"
-description = "Another Open Metrics client library in Rust."
+description = "OpenMetrics client library in Rust."
 keywords = ["openmetrics", "metrics", "prometheus"]
 documentation = "https://docs.rs/fastmetrics"
 readme = "../README.md"
@@ -30,3 +30,6 @@ fastmetrics-derive = { path = "derive", version = "0.1", optional = true }
 foldhash = { version = "0.1", optional = true }
 prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
+
+[dev-dependencies]
+indoc = "2.0"

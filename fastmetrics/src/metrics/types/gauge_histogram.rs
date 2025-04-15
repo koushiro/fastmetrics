@@ -21,7 +21,7 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use fastmetrics::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
+/// # use fastmetrics::metrics::gauge_histogram::{linear_buckets, GaugeHistogram};
 /// // Create a gauge histogram with custom bucket boundaries
 /// let hist = GaugeHistogram::new([-273.15, -200.0, -100.0, 0.0, 100.0, 200.0]);
 ///
@@ -194,6 +194,7 @@ impl EncodeMetric for GaugeHistogram {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metrics::check_text_encoding;
 
     #[test]
     fn test_gauge_histogram_initialization() {
@@ -277,5 +278,36 @@ mod tests {
             assert_eq!(s.gcount(), 400);
             assert_eq!(s.gsum(), 0.0);
         });
+    }
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let hist = GaugeHistogram::new(exponential_buckets(1.0, 2.0, 5));
+                registry
+                    .register("my_histogram", "My gauge histogram help", hist.clone())
+                    .unwrap();
+                for i in 1..=100 {
+                    hist.observe(i as f64);
+                }
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_histogram gaugehistogram
+                    # HELP my_histogram My gauge histogram help
+                    my_histogram_bucket{le="1.0"} 1
+                    my_histogram_bucket{le="2.0"} 2
+                    my_histogram_bucket{le="4.0"} 4
+                    my_histogram_bucket{le="8.0"} 8
+                    my_histogram_bucket{le="16.0"} 16
+                    my_histogram_bucket{le="+Inf"} 100
+                    my_histogram_gcount 100
+                    my_histogram_gsum 5050.0
+                    # EOF
+                "#};
+                assert_eq!(output, expected);
+            },
+        );
     }
 }

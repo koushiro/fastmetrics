@@ -5,7 +5,7 @@
 use std::{
     fmt::{self, Debug},
     sync::Arc,
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use parking_lot::RwLock;
@@ -22,7 +22,8 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use fastmetrics::metrics::histogram::{linear_buckets, Histogram};
+/// # use std::time::SystemTime;
+/// # use fastmetrics::metrics::histogram::{linear_buckets, Histogram};
 /// // Create a histogram with custom bucket boundaries
 /// let hist = Histogram::new(linear_buckets(1.0, 1.0, 10));
 ///
@@ -50,7 +51,10 @@ use crate::{
 /// });
 ///
 /// // Create a histogram with created timestamp
-/// let hist = Histogram::with_created(linear_buckets(1.0, 1.0, 10));
+/// let created = SystemTime::UNIX_EPOCH
+///     .elapsed()
+///     .expect("UNIX timestamp when the histogram was created");
+/// let hist = Histogram::with_created(linear_buckets(1.0, 1.0, 10), created);
 /// assert!(hist.created().is_some());
 /// ```
 #[derive(Clone)]
@@ -135,13 +139,9 @@ impl Histogram {
     }
 
     /// Creates a [`Histogram`] with a `created` timestamp.
-    pub fn with_created(buckets: impl IntoIterator<Item = f64>) -> Self {
+    pub fn with_created(buckets: impl IntoIterator<Item = f64>, created: Duration) -> Self {
         let mut this = Self::new(buckets);
-        this.created = Some(
-            SystemTime::UNIX_EPOCH
-                .elapsed()
-                .expect("UNIX timestamp when the histogram was created"),
-        );
+        this.created = Some(created);
         this
     }
 
@@ -221,6 +221,8 @@ impl EncodeMetric for Histogram {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metrics::check_text_encoding;
+    use std::time::SystemTime;
 
     #[test]
     fn test_histogram_initialization() {
@@ -245,7 +247,10 @@ mod tests {
             assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
         });
 
-        let hist = Histogram::with_created(vec![1.0, 2.0]);
+        let created = SystemTime::UNIX_EPOCH
+            .elapsed()
+            .expect("UNIX timestamp when the histogram was created");
+        let hist = Histogram::with_created(vec![1.0, 2.0], created);
         assert!(hist.created().is_some());
     }
 
@@ -303,5 +308,34 @@ mod tests {
             assert_eq!(s.count(), 200);
             assert_eq!(s.sum(), 10100.0);
         });
+    }
+
+    #[test]
+    fn test_text_encoding() {
+        check_text_encoding(
+            |registry| {
+                let hist = Histogram::new(exponential_buckets(1.0, 2.0, 5));
+                registry.register("my_histogram", "My histogram help", hist.clone()).unwrap();
+                for i in 1..=100 {
+                    hist.observe(i as f64);
+                }
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE my_histogram histogram
+                    # HELP my_histogram My histogram help
+                    my_histogram_bucket{le="1.0"} 1
+                    my_histogram_bucket{le="2.0"} 2
+                    my_histogram_bucket{le="4.0"} 4
+                    my_histogram_bucket{le="8.0"} 8
+                    my_histogram_bucket{le="16.0"} 16
+                    my_histogram_bucket{le="+Inf"} 100
+                    my_histogram_count 100
+                    my_histogram_sum 5050.0
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
     }
 }
