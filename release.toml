@@ -1,0 +1,5 @@
+allow-branch = ["main"]
+consolidate-commits = false
+pre-release-commit-message = "chore: release {{crate_name}}-v{{version}}"
+tag-message = "chore: release {{crate_name}}-v{{version}}"
+tag-name = "{{prefix}}v{{version}}"
