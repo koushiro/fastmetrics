@@ -15,7 +15,7 @@ use crate::{
 ///
 /// [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 #[allow(missing_docs)]
-pub mod openmetrics_data_model {
+mod openmetrics_data_model {
     include!(concat!(env!("OUT_DIR"), "/openmetrics.rs"));
 }
 
