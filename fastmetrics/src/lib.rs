@@ -17,12 +17,12 @@
 //! # Example
 //!
 //! ```rust
-//! # use fastmetrics::{
-//! #     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
-//! #     format::text,
-//! #     metrics::{counter::Counter, family::Family},
-//! #     registry::Registry,
-//! # };
+//! use fastmetrics::{
+//!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
+//!     format::text,
+//!     metrics::{counter::Counter, family::Family},
+//!     registry::Registry,
+//! };
 //!
 //! #[derive(Clone, Eq, PartialEq, Hash)]
 //! struct Labels {

@@ -222,7 +222,6 @@ impl EncodeMetric for Histogram {
 mod tests {
     use super::*;
     use crate::metrics::check_text_encoding;
-    use std::time::SystemTime;
 
     #[test]
     fn test_histogram_initialization() {
@@ -247,7 +246,7 @@ mod tests {
             assert_eq!(buckets[3].upper_bound(), f64::INFINITY);
         });
 
-        let created = SystemTime::UNIX_EPOCH
+        let created = std::time::SystemTime::UNIX_EPOCH
             .elapsed()
             .expect("UNIX timestamp when the histogram was created");
         let hist = Histogram::with_created(vec![1.0, 2.0], created);

@@ -26,7 +26,7 @@ pub trait Atomic<N: Number>: Default + Send + Sync {
     fn dec_by(&self, v: N) -> N;
 
     /// Set the value.
-    fn set(&self, v: N) -> N;
+    fn set(&self, v: N);
 
     /// Get the value.
     fn get(&self) -> N;
@@ -47,8 +47,8 @@ macro_rules! impl_atomic_for_integer {
             }
 
             #[inline]
-            fn set(&self, v: $ty) -> $ty {
-                self.swap(v, Ordering::Relaxed)
+            fn set(&self, v: $ty) {
+                self.store(v, Ordering::Relaxed)
             }
 
             #[inline]
@@ -105,9 +105,8 @@ macro_rules! impl_atomic_for_float  {
             }
 
             #[inline]
-            fn set(&self, v: $ty) -> $ty {
-                let old_u = self.swap($ty::to_bits(v), Ordering::Relaxed);
-                $ty::from_bits(old_u)
+            fn set(&self, v: $ty) {
+                self.store($ty::to_bits(v), Ordering::Relaxed);
             }
 
             #[inline]
