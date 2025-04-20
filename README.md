@@ -1,8 +1,10 @@
 # fastmetrics
 
-[![Crates.io](https://img.shields.io/crates/v/fastmetrics.svg)](https://crates.io/crates/fastmetrics)
-[![Documentation](https://docs.rs/fastmetrics/badge.svg)](https://docs.rs/fastmetrics)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![CI Status](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
+[![Crates.io](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
+[![Documentation](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
+[![MSRV 1.75.0](https://img.shields.io/badge/MSRV-1.75.0-green?logo=rust)](https://www.whatrustisit.com)
+[![License](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
 
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
 and it's compatible with Prometheus.
