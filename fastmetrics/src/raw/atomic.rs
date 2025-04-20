@@ -26,7 +26,7 @@ pub trait Atomic<N: Number>: Default + Send + Sync {
     fn dec_by(&self, v: N) -> N;
 
     /// Set the value.
-    fn set(&self, v: N) -> N;
+    fn set(&self, v: N);
 
     /// Get the value.
     fn get(&self) -> N;
@@ -47,8 +47,8 @@ macro_rules! impl_atomic_for_integer {
             }
 
             #[inline]
-            fn set(&self, v: $ty) -> $ty {
-                self.swap(v, Ordering::Relaxed)
+            fn set(&self, v: $ty) {
+                self.store(v, Ordering::Relaxed)
             }
 
             #[inline]
@@ -90,24 +90,12 @@ macro_rules! impl_atomic_for_float  {
 
             #[inline]
             fn dec_by(&self, v: $ty) -> $ty {
-                let mut old_u = self.load(Ordering::Relaxed);
-
-                let mut old_f;
-                loop {
-                    old_f = $ty::from_bits(old_u);
-                    let new = $ty::to_bits(old_f - v);
-                    match self.compare_exchange_weak(old_u, new, Ordering::Relaxed, Ordering::Relaxed) {
-                        Ok(_) => break,
-                        Err(x) => old_u = x,
-                    }
-                }
-                old_f
+                self.inc_by(-v)
             }
 
             #[inline]
-            fn set(&self, v: $ty) -> $ty {
-                let old_u = self.swap($ty::to_bits(v), Ordering::Relaxed);
-                $ty::from_bits(old_u)
+            fn set(&self, v: $ty) {
+                self.store($ty::to_bits(v), Ordering::Relaxed);
             }
 
             #[inline]
@@ -122,4 +110,47 @@ macro_rules! impl_atomic_for_float  {
 impl_atomic_for_float! {
     f32, AtomicU32, "32"
     f64, AtomicU64, "64"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_atomic_f32() {
+        let value = AtomicU32::new(0);
+
+        value.set(100f32);
+        let new: f32 = value.get();
+        assert_eq!(new, 100f32);
+
+        let old = value.inc_by(10f32);
+        let new: f32 = value.get();
+        assert_eq!(old, 100f32);
+        assert_eq!(new, 110f32);
+
+        let old = value.dec_by(10f32);
+        let new: f32 = value.get();
+        assert_eq!(old, 110f32);
+        assert_eq!(new, 100f32);
+    }
+
+    #[test]
+    fn test_atomic_f64() {
+        let value = AtomicU64::new(0);
+
+        value.set(100f64);
+        let new: f64 = value.get();
+        assert_eq!(new, 100f64);
+
+        let old = value.inc_by(10f64);
+        let new: f64 = value.get();
+        assert_eq!(old, 100f64);
+        assert_eq!(new, 110f64);
+
+        let old = value.dec_by(10f64);
+        let new: f64 = value.get();
+        assert_eq!(old, 110f64);
+        assert_eq!(new, 100f64);
+    }
 }

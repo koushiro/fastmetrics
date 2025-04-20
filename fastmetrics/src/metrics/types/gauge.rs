@@ -122,9 +122,9 @@ impl<N: GaugeValue> Gauge<N> {
         self.value.dec_by(v)
     }
 
-    /// Sets the [`Gauge`] to `v`, returning the previous value.
+    /// Sets the [`Gauge`] to `v`.
     #[inline]
-    pub fn set(&self, v: N) -> N {
+    pub fn set(&self, v: N) {
         self.value.set(v)
     }
 
@@ -239,11 +239,11 @@ mod tests {
         let gauge = <Gauge>::default();
         let clone = gauge.clone();
 
-        assert_eq!(gauge.set(42), 0);
+        gauge.set(42);
         assert_eq!(gauge.get(), 42);
         assert_eq!(clone.get(), 42);
 
-        assert_eq!(clone.set(-10), 42);
+        clone.set(-10);
         assert_eq!(clone.get(), -10);
         assert_eq!(gauge.get(), -10);
     }

@@ -53,7 +53,7 @@ fn bench_gauge(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.set(black_box(input))),
+            |input| gauge.set(black_box(input)),
             BatchSize::SmallInput,
         );
     });
