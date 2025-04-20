@@ -90,18 +90,7 @@ macro_rules! impl_atomic_for_float  {
 
             #[inline]
             fn dec_by(&self, v: $ty) -> $ty {
-                let mut old_u = self.load(Ordering::Relaxed);
-
-                let mut old_f;
-                loop {
-                    old_f = $ty::from_bits(old_u);
-                    let new = $ty::to_bits(old_f - v);
-                    match self.compare_exchange_weak(old_u, new, Ordering::Relaxed, Ordering::Relaxed) {
-                        Ok(_) => break,
-                        Err(x) => old_u = x,
-                    }
-                }
-                old_f
+                self.inc_by(-v)
             }
 
             #[inline]
