@@ -122,3 +122,46 @@ impl_atomic_for_float! {
     f32, AtomicU32, "32"
     f64, AtomicU64, "64"
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_atomic_f32() {
+        let value = AtomicU32::new(0);
+
+        value.set(100f32);
+        let new: f32 = value.get();
+        assert_eq!(new, 100f32);
+
+        let old = value.inc_by(10f32);
+        let new: f32 = value.get();
+        assert_eq!(old, 100f32);
+        assert_eq!(new, 110f32);
+
+        let old = value.dec_by(10f32);
+        let new: f32 = value.get();
+        assert_eq!(old, 110f32);
+        assert_eq!(new, 100f32);
+    }
+
+    #[test]
+    fn test_atomic_f64() {
+        let value = AtomicU64::new(0);
+
+        value.set(100f64);
+        let new: f64 = value.get();
+        assert_eq!(new, 100f64);
+
+        let old = value.inc_by(10f64);
+        let new: f64 = value.get();
+        assert_eq!(old, 100f64);
+        assert_eq!(new, 110f64);
+
+        let old = value.dec_by(10f64);
+        let new: f64 = value.get();
+        assert_eq!(old, 110f64);
+        assert_eq!(new, 100f64);
+    }
+}
