@@ -30,3 +30,4 @@ syn = "2"
 
 # dev dependencies
 indoc = "2.0"
+trybuild = "1"

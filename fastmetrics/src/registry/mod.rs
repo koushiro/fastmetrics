@@ -320,6 +320,12 @@ impl Registry {
     }
 }
 
+/// Something that can be registered
+pub trait Registrant {
+    /// Register into the given registry.
+    fn register(&mut self, registry: &mut Registry) -> Result<&mut Self, RegistryError>;
+}
+
 fn is_snake_case(name: &str) -> bool {
     if name.is_empty() {
         return false;
