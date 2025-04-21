@@ -20,5 +20,5 @@ quote = "1"
 syn = "2"
 
 [dev-dependencies]
-fastmetrics = { path = "../", version = "0.1" }
+fastmetrics = { path = "../fastmetrics", version = "0.1" }
 trybuild = "1"

@@ -4,7 +4,7 @@ members = [
     "benchmarks",
     "examples",
     "fastmetrics",
-    "fastmetrics/derive",
+    "fastmetrics-derive",
 ]
 
 [workspace.package]
