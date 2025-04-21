@@ -1,11 +1,13 @@
 //! This crate provides some derive macros for `fastmetrics`.
 
 #![deny(unsafe_code)]
-#![deny(unused_crate_dependencies)]
+// False positive: https://github.com/rust-lang/rust/issues/129637
+// #![deny(unused_crate_dependencies)]
 #![forbid(unsafe_code)]
 
 mod encode_label_set;
 mod encode_label_value;
+mod registrant;
 mod state_set_value;
 
 use proc_macro::TokenStream;
@@ -34,6 +36,15 @@ pub fn derive_encode_label_value(input: TokenStream) -> TokenStream {
 pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     state_set_value::expand_derive_state_set_value(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+// `fastmetrics::registry::Registrant`
+#[proc_macro_derive(Registrant, attributes(registrant))]
+pub fn registrant_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    registrant::expand_derive_registrant(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
