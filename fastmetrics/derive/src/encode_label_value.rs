@@ -55,11 +55,11 @@ pub fn expand_derive_encode_label_value(input: syn::DeriveInput) -> syn::Result<
     let expanded = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::encoder::EncodeLabelValue for #name #ty_generics #where_clause {
-            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelEncoder) -> ::std::fmt::Result {
+            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelEncoder) -> ::core::fmt::Result {
                 match self {
                     #(#variant_arms,)*
                 }
-                Ok(())
+                ::core::result::Result::Ok(())
             }
         }
     };

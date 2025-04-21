@@ -42,12 +42,12 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
     let expanded = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::encoder::EncodeLabelSet for #name #ty_generics #where_clause {
-            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelSetEncoder) -> ::std::fmt::Result {
+            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelSetEncoder) -> ::core::fmt::Result {
                 use ::fastmetrics::encoder::EncodeLabel;
 
                 #(#field_list;)*
 
-                Ok(())
+                ::core::result::Result::Ok(())
             }
 
             #[inline]
