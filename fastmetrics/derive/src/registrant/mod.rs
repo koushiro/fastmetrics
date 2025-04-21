@@ -1,12 +1,11 @@
 mod attribute;
 mod field;
 
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::DeriveInput;
+use syn::{DeriveInput, Error};
 
-use crate::{Error, Result, TokenStream2};
-
-pub fn expand_derive_registrant(input: DeriveInput) -> Result<TokenStream2> {
+pub fn expand_derive_registrant(input: DeriveInput) -> syn::Result<TokenStream2> {
     let name = input.ident;
     let fields = match input.data {
         syn::Data::Struct(body) => match body.fields {

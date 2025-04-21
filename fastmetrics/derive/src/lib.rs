@@ -11,8 +11,7 @@ mod registrant;
 mod state_set_value;
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
-use syn::{parse_macro_input, DeriveInput, Error, Result};
+use syn::{parse_macro_input, DeriveInput};
 
 // `fastmetrics::encoder::EncodeLabelSet`
 #[proc_macro_derive(EncodeLabelSet)]
