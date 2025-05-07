@@ -26,5 +26,9 @@ name = "family"
 path = "src/family.rs"
 
 [[example]]
+name = "derive_register"
+path = "src/derive/register.rs"
+
+[[example]]
 name = "axum-exporter"
 path = "src/exporter/axum.rs"

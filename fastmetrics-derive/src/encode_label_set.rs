@@ -1,34 +1,34 @@
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::{Data, DeriveInput, Error, Fields, FieldsNamed, Result};
 
-pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<TokenStream> {
+use crate::utils::wrap_in_const;
+
+pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    // Ensure we're deriving for a struct with named fields
+    // Only works for structs with named fields
     let fields = match &input.data {
-        syn::Data::Struct(data) => match &data.fields {
-            syn::Fields::Named(syn::FieldsNamed { named, .. }) => named,
+        Data::Struct(data) => match &data.fields {
+            Fields::Named(FieldsNamed { named, .. }) => named,
             _ => {
-                return Err(syn::Error::new_spanned(
-                    input,
-                    "`EncodeLabelSet` can only be derived for structs with named fields.",
-                ))
+                let error =
+                    "#[derive(EncodeLabelSet)] can only be used for structs with named fields.";
+                return Err(Error::new_spanned(name, error));
             },
         },
         _ => {
-            return Err(syn::Error::new_spanned(
-                &input,
-                "`EncodeLabelSet` can only be derived for structs.",
-            ))
+            let error = "#[derive(EncodeLabelSet)] can only be used for structs.";
+            return Err(Error::new_spanned(name, error));
         },
     };
 
     // Process all fields
     let field_list = fields
-        .iter()
+        .into_iter()
         .map(|f| {
-            let ident = f.ident.as_ref().unwrap();
+            let ident = f.ident.as_ref().expect("fields must be named");
             let ident_str = ident.to_string();
             quote! {
                 encoder.encode(&(#ident_str, &self.#ident))?
@@ -38,8 +38,8 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
 
     let is_empty = field_list.is_empty();
 
-    // Generate the trait implementation
-    let expanded = quote! {
+    // Generate the `EncodeLabelSet` trait implementation
+    let impl_block = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::encoder::EncodeLabelSet for #name #ty_generics #where_clause {
             fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelSetEncoder) -> ::core::fmt::Result {
@@ -57,5 +57,5 @@ pub fn expand_derive_encode_label_set(input: syn::DeriveInput) -> syn::Result<To
         }
     };
 
-    Ok(expanded)
+    Ok(wrap_in_const(input, impl_block))
 }

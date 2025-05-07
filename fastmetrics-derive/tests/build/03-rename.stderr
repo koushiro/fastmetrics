@@ -1,5 +1,0 @@
-error: expected string literal
- --> tests/build/03-rename.rs:9:27
-  |
-9 |     #[registrant(rename = http_requests)]
-  |                           ^^^^^^^^^^^^^

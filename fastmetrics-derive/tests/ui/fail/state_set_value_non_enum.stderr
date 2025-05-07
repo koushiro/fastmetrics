@@ -1,0 +1,5 @@
+error: #[derive(StateSetValue)] can only be used for enums
+ --> tests/ui/fail/state_set_value_non_enum.rs:5:8
+  |
+5 | struct NotAnEnum {
+  |        ^^^^^^^^^
