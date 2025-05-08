@@ -1,0 +1,5 @@
+error: `skip` attribute cannot coexist with other attributes
+  --> tests/ui/fail/register/cannot_coexist_with_skip.rs:10:5
+   |
+10 |     #[register(rename = "http_requests", skip)]
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

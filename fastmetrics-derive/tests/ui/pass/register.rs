@@ -1,18 +1,38 @@
 use fastmetrics::{
     format::text,
-    metrics::{counter::Counter, histogram::Histogram},
+    metrics::{counter::Counter, family::Family, gauge::Gauge, histogram::Histogram},
     registry::{Register, Registry},
 };
 use fastmetrics_derive::Register;
 
 #[derive(Default, Register)]
 struct Metrics {
-    /// Total HTTP requests
-    http_requests: Counter,
-    /// Duration of HTTP requests
-    #[register(rename = "http_request_duration", unit(Seconds))]
-    request_duration: Histogram,
+    /// My counter help
+    #[register(rename = "my_counter")]
+    counter_family: Family<(), Counter>,
 
+    /// My gauge help line 1
+    /// help line 2
+    /// help line 3
+    #[register(rename = "my_gauge")]
+    gauge: Gauge,
+
+    // No help
+    #[register(unit(Bytes))]
+    counter: Counter,
+
+    /**
+
+    My histogram help line 1
+
+    help line 2
+    help line 3
+
+    */
+    #[register(rename = "my_histogram", unit = "bytes")]
+    histogram: Histogram,
+
+    // skip the field
     #[register(skip)]
     _skip: (),
 }

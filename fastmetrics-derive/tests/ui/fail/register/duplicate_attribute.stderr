@@ -1,0 +1,5 @@
+error: duplicated `rename` attribute
+ --> tests/ui/fail/register/duplicate_attribute.rs:7:51
+  |
+7 |     #[register(rename = "http_requests_duration", rename = "http_request_duration")]
+  |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
