@@ -161,7 +161,7 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for Gauge<N> {
 /// let gauge = ConstGauge::new(42);
 /// assert_eq!(gauge.get(), 42);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ConstGauge<N = i64> {
     value: N,
 }
