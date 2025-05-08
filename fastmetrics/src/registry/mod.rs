@@ -238,7 +238,7 @@ impl Registry {
 
         match unit {
             Some(Unit::Other(unit)) if !is_lowercase(unit.as_ref()) => {
-                return Err(RegistryError::OtherUnitMustBeLowercase);
+                return Err(RegistryError::OtherUnitFormatMustBeLowercase);
             },
             _ => {},
         }
