@@ -182,6 +182,12 @@ impl<N: CounterValue> Debug for ConstCounter<N> {
     }
 }
 
+impl<N: CounterValue> Default for ConstCounter<N> {
+    fn default() -> Self {
+        Self { total: N::ZERO, created: None }
+    }
+}
+
 impl<N: CounterValue> ConstCounter<N> {
     /// Creates a new [`ConstCounter`] with a constant `total` value.
     pub const fn new(total: N) -> Self {
