@@ -113,6 +113,18 @@ impl<N: CounterValue> Counter<N> {
         self.total.inc_by(v)
     }
 
+    /// Sets the [`Counter`] to `v`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the new value `v` is less than the current counter value.
+    /// This is because counters must be monotonically increasing.
+    #[inline]
+    pub fn set(&self, v: N) {
+        assert!(v >= self.total.get(), "counter must be monotonically increasing");
+        self.total.set(v)
+    }
+
     /// Gets the current `total` value of the [`Counter`].
     #[inline]
     pub fn total(&self) -> N {
@@ -270,6 +282,33 @@ mod tests {
         assert_eq!(counter.total(), 5);
         assert_eq!(counter.inc_by(3), 5);
         assert_eq!(counter.total(), 8);
+    }
+
+    #[test]
+    fn test_counter_set() {
+        let counter = <Counter>::default();
+        let clone = counter.clone();
+
+        counter.set(42);
+        assert_eq!(counter.total(), 42);
+        assert_eq!(counter.total(), 42);
+
+        clone.set(100);
+        assert_eq!(clone.total(), 100);
+        assert_eq!(counter.total(), 100);
+    }
+
+    #[test]
+    #[should_panic(expected = "counter must be monotonically increasing")]
+    fn test_counter_set_panic() {
+        let counter = <Counter>::default();
+        let clone = counter.clone();
+
+        counter.set(42);
+        assert_eq!(counter.total(), 42);
+        assert_eq!(counter.total(), 42);
+
+        clone.set(10);
     }
 
     #[test]
