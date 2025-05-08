@@ -1,0 +1,5 @@
+error: expected identifier
+ --> tests/ui/fail/register/invalid_unit_variant.rs:7:56
+  |
+7 |     #[register(rename = "http_requests_duration", unit("Seconds"))]
+  |                                                        ^^^^^^^^^

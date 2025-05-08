@@ -1,0 +1,5 @@
+error: expected a literal string
+ --> tests/ui/fail/register/invalid_unit_str.rs:7:58
+  |
+7 |     #[register(rename = "http_requests_duration", unit = Seconds)]
+  |                                                          ^^^^^^^
