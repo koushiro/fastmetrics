@@ -236,6 +236,13 @@ impl Registry {
             return Err(RegistryError::InvalidNameFormat);
         }
 
+        match unit {
+            Some(Unit::Other(unit)) if !is_lowercase(unit.as_ref()) => {
+                return Err(RegistryError::OtherUnitFormatMustBeLowercase);
+            },
+            _ => {},
+        }
+
         let metadata = Metadata::new(name, help, metric.metric_type(), unit);
         match self.metrics.entry(metadata) {
             hash_map::Entry::Vacant(entry) => {
