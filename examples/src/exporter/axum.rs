@@ -21,16 +21,19 @@ use fastmetrics::{
     encoder::EncodeLabelSet,
     format::{protobuf, text},
     metrics::{counter::Counter, family::Family, histogram::Histogram},
-    registry::Registry,
+    registry::{Register, Registry},
 };
 use pin_project::pin_project;
 use tokio::net::TcpListener;
 use tower::{Layer, Service};
 use tower_http::normalize_path::NormalizePathLayer;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Register)]
 pub struct Metrics {
+    /// Total number of HTTP requests
     http_requests: Family<RequestsLabels, Counter>,
+    /// Duration of HTTP request
+    #[register(unit(Seconds))]
     http_request_duration: Family<RequestsLabels, Histogram>,
 }
 
@@ -160,15 +163,7 @@ async fn main() -> Result<()> {
     let mut registry = Registry::builder().with_namespace("axum").build();
 
     let metrics = Metrics::default();
-
-    // Register metrics
-    registry
-        .register("http_requests", "Total number of HTTP requests", metrics.http_requests.clone())?
-        .register(
-            "http_request_duration_seconds",
-            "Duration of HTTP request",
-            metrics.http_request_duration.clone(),
-        )?;
+    metrics.register(&mut registry)?;
 
     let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3000);
     let listener = TcpListener::bind(addr).await?;
