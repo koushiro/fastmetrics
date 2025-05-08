@@ -1,27 +1,25 @@
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::{Data, DeriveInput, Error, Fields, Result};
 
-pub fn expand_derive_state_set_value(input: syn::DeriveInput) -> syn::Result<TokenStream> {
+use crate::utils::wrap_in_const;
+
+pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    // Ensure we're deriving for an enum
+    // Only works for enums with at least one variant
     let data_enum = match &input.data {
-        syn::Data::Enum(data) => data,
+        Data::Enum(data) => data,
         _ => {
-            return Err(syn::Error::new_spanned(
-                &input,
-                "`StateSetValue` can only be derived for enums",
-            ))
+            let error = "#[derive(StateSetValue)] can only be used for enums";
+            return Err(Error::new_spanned(name, error));
         },
     };
-
     // Ensure the enum has at least one variant
     if data_enum.variants.is_empty() {
-        return Err(syn::Error::new_spanned(
-            &input,
-            "`StateSetValue` requires at least one variant in the enum",
-        ));
+        let error = "#[derive(StateSetValue)] requires at least one variant in the enum";
+        return Err(Error::new_spanned(name, error));
     }
 
     // Process all variants, ensuring they are unit variants
@@ -30,13 +28,12 @@ pub fn expand_derive_state_set_value(input: syn::DeriveInput) -> syn::Result<Tok
         .iter()
         .map(|variant| {
             // Check if this is a unit variant (no fields)
-            match &variant.fields {
-                syn::Fields::Unit => {},
+            match variant.fields {
+                Fields::Unit => {},
                 _ => {
-                    return Err(syn::Error::new_spanned(
-                        variant,
-                        "`StateSetValue` can only be derived for enums with unit variants",
-                    ))
+                    let error =
+                        "#[derive(StateSetValue)] can only be used for enums with unit variants";
+                    return Err(Error::new_spanned(variant, error));
                 },
             }
 
@@ -48,13 +45,13 @@ pub fn expand_derive_state_set_value(input: syn::DeriveInput) -> syn::Result<Tok
                 quote! { #name::#variant_name => #variant_str }, // For as_str() method
             ))
         })
-        .collect::<syn::Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>>>()?;
 
     // Unzip the variants into separate vectors
     let (variant_list, variant_arms): (Vec<_>, Vec<_>) = variants.into_iter().unzip();
 
-    // Generate the trait implementation
-    let expanded = quote! {
+    // Generate the `StateSetValue` trait implementation
+    let impl_block = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::metrics::state_set::StateSetValue for #name #ty_generics #where_clause {
             fn variants() -> &'static [Self] {
@@ -72,5 +69,5 @@ pub fn expand_derive_state_set_value(input: syn::DeriveInput) -> syn::Result<Tok
         }
     };
 
-    Ok(expanded)
+    Ok(wrap_in_const(input, impl_block))
 }

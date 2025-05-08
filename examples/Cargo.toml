@@ -22,8 +22,12 @@ name = "metrics"
 path = "src/metrics.rs"
 
 [[example]]
-name = "family"
-path = "src/family.rs"
+name = "derive_encode_label"
+path = "src/derive/encode_label.rs"
+
+[[example]]
+name = "derive_register"
+path = "src/derive/register.rs"
 
 [[example]]
 name = "axum-exporter"

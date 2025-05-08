@@ -1,0 +1,5 @@
+error: #[derive(EncodeLabelValue)] can only be used on enums
+ --> tests/ui/fail/encode_label_value_non_enum.rs:5:8
+  |
+5 | struct NotAnEnum {
+  |        ^^^^^^^^^

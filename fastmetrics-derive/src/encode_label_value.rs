@@ -1,27 +1,25 @@
 use proc_macro2::TokenStream;
 use quote::quote;
+use syn::{Data, DeriveInput, Error, Fields, Result};
 
-pub fn expand_derive_encode_label_value(input: syn::DeriveInput) -> syn::Result<TokenStream> {
+use crate::utils::wrap_in_const;
+
+pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    // Ensure we're deriving for an enum
+    // Only works for enums with at least one variant
     let data_enum = match &input.data {
-        syn::Data::Enum(data) => data,
+        Data::Enum(data) => data,
         _ => {
-            return Err(syn::Error::new_spanned(
-                &input,
-                "`EncodeLabelValue` can only be derived for enums",
-            ))
+            let error = "#[derive(EncodeLabelValue)] can only be used on enums";
+            return Err(Error::new_spanned(name, error));
         },
     };
-
     // Ensure the enum has at least one variant
     if data_enum.variants.is_empty() {
-        return Err(syn::Error::new_spanned(
-            &input,
-            "`EncodeLabelValue` requires at least one variant in the enum",
-        ));
+        let error = "#[derive(EncodeLabelValue)] requires at least one variant in the enum";
+        return Err(Error::new_spanned(name, error));
     }
 
     // Generate match arms for each variant
@@ -33,12 +31,11 @@ pub fn expand_derive_encode_label_value(input: syn::DeriveInput) -> syn::Result<
 
             // Check that this is a unit variant (no fields)
             match &variant.fields {
-                syn::Fields::Unit => {},
+                Fields::Unit => {},
                 _ => {
-                    return Err(syn::Error::new_spanned(
-                        variant,
-                        "`EncodeLabelValue` can only be derived for enums with unit variants",
-                    ))
+                    let error =
+                        "#[derive(EncodeLabelValue)] can only be used for enums with unit variants";
+                    return Err(Error::new_spanned(variant, error));
                 },
             }
 
@@ -49,20 +46,21 @@ pub fn expand_derive_encode_label_value(input: syn::DeriveInput) -> syn::Result<
                 #name::#variant_name => encoder.encode_str_value(&#variant_str)?
             })
         })
-        .collect::<syn::Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>>>()?;
 
-    // Generate the trait implementation
-    let expanded = quote! {
+    // Generate the `EncodeLabelValue` trait implementation
+    let impl_block = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::encoder::EncodeLabelValue for #name #ty_generics #where_clause {
             fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelEncoder) -> ::core::fmt::Result {
                 match self {
                     #(#variant_arms,)*
                 }
+
                 ::core::result::Result::Ok(())
             }
         }
     };
 
-    Ok(expanded)
+    Ok(wrap_in_const(input, impl_block))
 }
