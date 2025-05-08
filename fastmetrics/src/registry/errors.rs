@@ -9,7 +9,7 @@ pub enum RegistryError {
     /// MetricFamilies of type StateSet and Info must have an empty Unit string
     MustHaveAnEmptyUnitString,
     /// Metric unit must be lowercase.
-    CustomUnitMustBeLowercase,
+    OtherUnitMustBeLowercase,
     /// Metric name format is invalid
     InvalidNameFormat,
 }
@@ -23,7 +23,7 @@ impl fmt::Display for RegistryError {
             Self::MustHaveAnEmptyUnitString => {
                 f.write_str("The metric type must have an empty unit string")
             },
-            Self::CustomUnitMustBeLowercase => f.write_str("The metric unit must be lowercase"),
+            Self::OtherUnitMustBeLowercase => f.write_str("The metric unit must be lowercase"),
             Self::InvalidNameFormat => f.write_str("The name should be snake_case"),
         }
     }

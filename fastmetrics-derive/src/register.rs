@@ -62,7 +62,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                         registry.register_with_unit(
                             #name,
                             #help,
-                            ::fastmetrics::registry::Unit::Custom(#unit_str.into()),
+                            ::fastmetrics::registry::Unit::Other(#unit_str.into()),
                             self.#field_ident.clone(),
                         )?;
                     }

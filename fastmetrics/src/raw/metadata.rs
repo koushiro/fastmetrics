@@ -92,7 +92,7 @@ pub enum Unit {
     Volts,
     Amperes,
     Celsius,
-    Custom(Cow<'static, str>),
+    Other(Cow<'static, str>),
 }
 
 impl Unit {
@@ -108,7 +108,7 @@ impl Unit {
             Unit::Volts => "volts",
             Unit::Amperes => "amperes",
             Unit::Celsius => "celsius",
-            Unit::Custom(other) => other.as_ref(),
+            Unit::Other(other) => other.as_ref(),
         }
     }
 }
