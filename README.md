@@ -45,6 +45,7 @@ enum Method {
     Put,
 }
 
+// Need to enable `derive` feature to use `#[derive(Register)]`
 #[derive(Default, Register)]
 struct Metrics {
     /// Total requests processed
