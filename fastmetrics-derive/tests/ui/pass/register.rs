@@ -32,9 +32,18 @@ struct Metrics {
     #[register(rename = "my_histogram", unit = "bytes")]
     histogram: Histogram,
 
+    #[register(flatten)]
+    inner: InnerMetrics,
+
     // skip the field
     #[register(skip)]
     _skip: (),
+}
+
+#[derive(Default, Register)]
+struct InnerMetrics {
+    /// Inner counter help
+    inner_counter: Counter,
 }
 
 fn main() {
