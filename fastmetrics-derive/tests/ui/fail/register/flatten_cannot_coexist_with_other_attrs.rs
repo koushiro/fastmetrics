@@ -6,7 +6,7 @@ struct Metrics {
     #[register(flatten)]
     inner1: InnerMetrics1,
 
-    #[register(flatten, skip)]
+    #[register(flatten, rename = "inner")]
     inner2: InnerMetrics2,
 }
 

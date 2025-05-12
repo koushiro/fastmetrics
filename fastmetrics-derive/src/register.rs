@@ -34,26 +34,26 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
             let field_attrs = FieldAttributes::parse(field)?;
 
             // Skip field if marked with #[register(skip)]
-            if field_attrs.skip {
+            if field_attrs.register.skip {
                 return Ok(quote! {});
             }
 
             // Flatten field if marked with #[register(flatten)]
-            if field_attrs.flatten {
+            if field_attrs.register.flatten {
                 return Ok(quote! {
                     self.#field_ident.register(registry)?;
                 });
             }
 
             // Get the metric name from rename attribute or field ident
-            let name = field_attrs.rename.unwrap_or(field_ident.to_string());
+            let name = field_attrs.register.rename.unwrap_or(field_ident.to_string());
 
             // Get help from doc comments
             let docs = field_attrs.docs;
             let help = if docs.is_empty() { String::new() } else { docs.join(" ") };
 
             // Generate `register` code based on unit attribute
-            let body = match &field_attrs.unit {
+            let body = match &field_attrs.register.unit {
                 Some(UnitValue::Path(unit_variant)) => {
                     quote! {
                         registry.register_with_unit(
@@ -105,15 +105,9 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
 
 #[derive(Default)]
 struct FieldAttributes {
-    // #[register(rename = "...")]
-    rename: Option<String>,
-    // #[register(unit(...)] or #[register(unit = "...")]
-    unit: Option<UnitValue>,
-    // #[register(flatten)]
-    flatten: bool,
-    // #[register(skip)]
-    skip: bool,
-    // #[doc = "..."]
+    // #[register(...)]
+    register: RegisterAttribute,
+    // multiple #[doc = "..."]
     docs: Vec<String>,
 }
 
@@ -129,49 +123,49 @@ impl FieldAttributes {
                 let register_attr = parse_register_attr(attr)?;
 
                 if let Some(rename) = register_attr.rename {
-                    if field_attrs.rename.is_some() {
+                    if field_attrs.register.rename.is_some() {
                         return Err(Error::new_spanned(attr, "duplicated `rename` attribute"));
                     }
-                    field_attrs.rename = Some(rename);
+                    field_attrs.register.rename = Some(rename);
                 }
 
                 if let Some(unit) = register_attr.unit {
-                    if field_attrs.unit.is_some() {
+                    if field_attrs.register.unit.is_some() {
                         return Err(Error::new_spanned(attr, "duplicated `unit` attribute"));
                     }
-                    field_attrs.unit = Some(unit);
+                    field_attrs.register.unit = Some(unit);
                 }
 
                 if register_attr.flatten {
-                    if field_attrs.flatten {
+                    if field_attrs.register.flatten {
                         return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
                     }
-                    if field_attrs.rename.is_some()
-                        || field_attrs.unit.is_some()
-                        || field_attrs.skip
+                    if field_attrs.register.rename.is_some()
+                        || field_attrs.register.unit.is_some()
+                        || field_attrs.register.skip
                     {
                         return Err(Error::new_spanned(
                             attr,
                             "`flatten` attribute cannot coexist with other attributes",
                         ));
                     }
-                    field_attrs.flatten = true;
+                    field_attrs.register.flatten = true;
                 }
 
                 if register_attr.skip {
-                    if field_attrs.skip {
+                    if field_attrs.register.skip {
                         return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
                     }
-                    if field_attrs.rename.is_some()
-                        || field_attrs.unit.is_some()
-                        || field_attrs.flatten
+                    if field_attrs.register.rename.is_some()
+                        || field_attrs.register.unit.is_some()
+                        || field_attrs.register.flatten
                     {
                         return Err(Error::new_spanned(
                             attr,
                             "`skip` attribute cannot coexist with other attributes",
                         ));
                     }
-                    field_attrs.skip = true;
+                    field_attrs.register.skip = true;
                 }
             }
         }
@@ -180,15 +174,22 @@ impl FieldAttributes {
     }
 }
 
-/// Represents a possible register attribute
+/// Represents a parsed `#[register(...)]` attribute that controls how a field is registered with
+/// the metrics registry.
+/// This struct contains all possible configuration options that can be specified in the attribute.
 #[derive(Default)]
 struct RegisterAttribute {
+    // #[register(flatten)]
+    /// Whether to call the field's own `register` method instead of registering it directly.
+    /// Used when a field contains nested metrics that should be registered individually.
+    flatten: bool,
+    // #[register(skip)]
     /// Whether to skip registering this field
     skip: bool,
-    /// TODO: docs
-    flatten: bool,
+    // #[register(rename = "...")]
     /// Custom name for the metric instead of field name
     rename: Option<String>,
+    // #[register(unit(...)] or #[register(unit = "...")]
     /// Unit for the metric
     unit: Option<UnitValue>,
 }
@@ -208,20 +209,20 @@ fn parse_register_attr(attr: &Attribute) -> Result<RegisterAttribute> {
     let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
     for meta in nested {
         match meta {
-            // #[register(skip)]
-            Meta::Path(path) if path.is_ident("skip") => {
-                if register_attr.skip {
-                    return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
-                }
-                register_attr.skip = true;
-            },
-
             // #[register(flatten)]
             Meta::Path(path) if path.is_ident("flatten") => {
                 if register_attr.flatten {
                     return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
                 }
                 register_attr.flatten = true;
+            },
+
+            // #[register(skip)]
+            Meta::Path(path) if path.is_ident("skip") => {
+                if register_attr.skip {
+                    return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
+                }
+                register_attr.skip = true;
             },
 
             // #[register(rename = "...")]

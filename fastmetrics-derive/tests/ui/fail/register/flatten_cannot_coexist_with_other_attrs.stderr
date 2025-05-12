@@ -1,5 +1,5 @@
 error: `flatten` attribute cannot coexist with other attributes
  --> tests/ui/fail/register/flatten_cannot_coexist_with_other_attrs.rs:9:5
   |
-9 |     #[register(flatten, skip)]
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 |     #[register(flatten, rename = "inner")]
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
