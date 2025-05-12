@@ -136,29 +136,11 @@ impl FieldAttributes {
                     field_attrs.register.unit = Some(unit);
                 }
 
-                if register_attr.flatten {
-                    if field_attrs.register.flatten {
-                        return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
-                    }
-                    if field_attrs.register.rename.is_some()
-                        || field_attrs.register.unit.is_some()
-                        || field_attrs.register.skip
-                    {
-                        return Err(Error::new_spanned(
-                            attr,
-                            "`flatten` attribute cannot coexist with other attributes",
-                        ));
-                    }
-                    field_attrs.register.flatten = true;
-                }
-
                 if register_attr.skip {
                     if field_attrs.register.skip {
                         return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
                     }
-                    if field_attrs.register.rename.is_some()
-                        || field_attrs.register.unit.is_some()
-                        || field_attrs.register.flatten
+                    if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
                     {
                         return Err(Error::new_spanned(
                             attr,
@@ -166,6 +148,20 @@ impl FieldAttributes {
                         ));
                     }
                     field_attrs.register.skip = true;
+                }
+
+                if register_attr.flatten {
+                    if field_attrs.register.flatten {
+                        return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
+                    }
+                    if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
+                    {
+                        return Err(Error::new_spanned(
+                            attr,
+                            "`flatten` attribute cannot coexist with other attributes",
+                        ));
+                    }
+                    field_attrs.register.flatten = true;
                 }
             }
         }
@@ -179,13 +175,13 @@ impl FieldAttributes {
 /// This struct contains all possible configuration options that can be specified in the attribute.
 #[derive(Default)]
 struct RegisterAttribute {
+    // #[register(skip)]
+    /// Whether to skip registering this field
+    skip: bool,
     // #[register(flatten)]
     /// Whether to call the field's own `register` method instead of registering it directly.
     /// Used when a field contains nested metrics that should be registered individually.
     flatten: bool,
-    // #[register(skip)]
-    /// Whether to skip registering this field
-    skip: bool,
     // #[register(rename = "...")]
     /// Custom name for the metric instead of field name
     rename: Option<String>,
@@ -209,20 +205,20 @@ fn parse_register_attr(attr: &Attribute) -> Result<RegisterAttribute> {
     let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
     for meta in nested {
         match meta {
-            // #[register(flatten)]
-            Meta::Path(path) if path.is_ident("flatten") => {
-                if register_attr.flatten {
-                    return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
-                }
-                register_attr.flatten = true;
-            },
-
             // #[register(skip)]
             Meta::Path(path) if path.is_ident("skip") => {
                 if register_attr.skip {
                     return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
                 }
                 register_attr.skip = true;
+            },
+
+            // #[register(flatten)]
+            Meta::Path(path) if path.is_ident("flatten") => {
+                if register_attr.flatten {
+                    return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
+                }
+                register_attr.flatten = true;
             },
 
             // #[register(rename = "...")]
