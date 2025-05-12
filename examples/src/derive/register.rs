@@ -60,9 +60,18 @@ struct Metrics {
     #[register(rename = "my_histogram", unit = "bytes")]
     histogram: Histogram,
 
+    #[register(flatten)]
+    inner: InnerMetrics,
+
     // skip the field
     #[register(skip)]
     _skip: (),
+}
+
+#[derive(Default, Register)]
+struct InnerMetrics {
+    /// Inner counter help
+    inner_counter: Counter,
 }
 
 impl Metrics {
@@ -72,6 +81,7 @@ impl Metrics {
             counter_family: Default::default(),
             gauge: Default::default(),
             histogram: Histogram::new(exponential_buckets(1.0, 2.0, 10)),
+            inner: Default::default(),
             _skip: (),
         }
     }

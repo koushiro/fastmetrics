@@ -38,6 +38,13 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                 return Ok(quote! {});
             }
 
+            // Flatten field if marked with #[register(flatten)]
+            if field_attrs.flatten {
+                return Ok(quote! {
+                    self.#field_ident.register(registry)?;
+                });
+            }
+
             // Get the metric name from rename attribute or field ident
             let name = field_attrs.rename.unwrap_or(field_ident.to_string());
 
@@ -102,6 +109,8 @@ struct FieldAttributes {
     rename: Option<String>,
     // #[register(unit(...)] or #[register(unit = "...")]
     unit: Option<UnitValue>,
+    // #[register(flatten)]
+    flatten: bool,
     // #[register(skip)]
     skip: bool,
     // #[doc = "..."]
@@ -133,11 +142,30 @@ impl FieldAttributes {
                     field_attrs.unit = Some(unit);
                 }
 
+                if register_attr.flatten {
+                    if field_attrs.flatten {
+                        return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
+                    }
+                    if field_attrs.rename.is_some()
+                        || field_attrs.unit.is_some()
+                        || field_attrs.skip
+                    {
+                        return Err(Error::new_spanned(
+                            attr,
+                            "`flatten` attribute cannot coexist with other attributes",
+                        ));
+                    }
+                    field_attrs.flatten = true;
+                }
+
                 if register_attr.skip {
                     if field_attrs.skip {
                         return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
                     }
-                    if field_attrs.rename.is_some() || field_attrs.unit.is_some() {
+                    if field_attrs.rename.is_some()
+                        || field_attrs.unit.is_some()
+                        || field_attrs.flatten
+                    {
                         return Err(Error::new_spanned(
                             attr,
                             "`skip` attribute cannot coexist with other attributes",
@@ -157,6 +185,8 @@ impl FieldAttributes {
 struct RegisterAttribute {
     /// Whether to skip registering this field
     skip: bool,
+    /// TODO: docs
+    flatten: bool,
     /// Custom name for the metric instead of field name
     rename: Option<String>,
     /// Unit for the metric
@@ -184,6 +214,14 @@ fn parse_register_attr(attr: &Attribute) -> Result<RegisterAttribute> {
                     return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
                 }
                 register_attr.skip = true;
+            },
+
+            // #[register(flatten)]
+            Meta::Path(path) if path.is_ident("flatten") => {
+                if register_attr.flatten {
+                    return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
+                }
+                register_attr.flatten = true;
             },
 
             // #[register(rename = "...")]
