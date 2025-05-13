@@ -97,7 +97,7 @@ where
     }
 }
 
-impl<LS, M> Debug for Family<LS, M>
+impl<LS, M, MF, S> Debug for Family<LS, M, MF, S>
 where
     LS: Debug,
     M: Debug,
