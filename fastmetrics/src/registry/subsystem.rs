@@ -166,9 +166,10 @@ impl RegistrySystem {
         unit: Unit,
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
+        let name = name.into();
         match metric.metric_type() {
             MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
-                return Err(RegistryError::MustHaveAnEmptyUnitString)
+                return Err(RegistryError::MustHaveAnEmptyUnitString { name: name.clone() })
             },
             _ => {},
         }
@@ -184,16 +185,16 @@ impl RegistrySystem {
     ) -> Result<&mut Self, RegistryError> {
         let name = name.into();
         if !is_snake_case(&name) {
-            return Err(RegistryError::InvalidNameFormat);
+            return Err(RegistryError::InvalidNameFormat { name: name.clone() });
         }
 
-        let metadata = Metadata::new(name, help, metric.metric_type(), unit);
+        let metadata = Metadata::new(name.clone(), help, metric.metric_type(), unit);
         match self.metrics.entry(metadata) {
             hash_map::Entry::Vacant(entry) => {
                 entry.insert(Box::new(metric));
                 Ok(self)
             },
-            hash_map::Entry::Occupied(_) => Err(RegistryError::AlreadyExists),
+            hash_map::Entry::Occupied(_) => Err(RegistryError::AlreadyExists { name }),
         }
     }
 }
