@@ -30,16 +30,16 @@ impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AlreadyExists { name } => {
-                write!(f, "The metric {name} to be registered already exists in the registry")
+                write!(f, "The metric '{name}' to be registered already exists in the registry")
             },
             Self::MustHaveAnEmptyUnitString { name } => {
-                write!(f, "The type of metric {name} must have an empty unit string")
+                write!(f, "The type of metric '{name}' must have an empty unit string")
             },
             Self::OtherUnitFormatMustBeLowercase { unit } => {
-                write!(f, "The format of unit {unit} must be lowercase")
+                write!(f, "The format of unit '{unit}' must be lowercase")
             },
             Self::InvalidNameFormat { name } => {
-                write!(f, "The name of metric `{name}` should be snake_case")
+                write!(f, "The name of metric '{name}' should be snake_case")
             },
         }
     }
