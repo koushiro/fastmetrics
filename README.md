@@ -3,6 +3,7 @@
 [![CI Status](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
 [![Crates.io](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
 [![Documentation](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
 [![MSRV 1.75.0](https://img.shields.io/badge/MSRV-1.75.0-green?logo=rust)](https://www.whatrustisit.com)
 [![License](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
 
