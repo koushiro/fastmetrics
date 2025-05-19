@@ -1,5 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use pprof::criterion::{Output, PProfProfiler};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+// use pprof::criterion::{Output, PProfProfiler};
 use rand::{
     distr::{Distribution, StandardUniform},
     Rng,
@@ -319,7 +321,7 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
 
 criterion_group!(
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()/*.with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))*/;
     targets = bench_family_without_labels, bench_family_with_string_labels, bench_family_with_custom_labels
 );
 criterion_main!(benches);
