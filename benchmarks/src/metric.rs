@@ -1,5 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use pprof::criterion::{Output, PProfProfiler};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+// use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 
 fn bench_counter(c: &mut Criterion) {
@@ -222,7 +224,7 @@ fn bench_stateset(c: &mut Criterion) {
 
 criterion_group!(
     name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
+    config = Criterion::default()/*.with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))*/;
     targets = bench_counter, bench_gauge, bench_histogram
 );
 criterion_main!(benches);
