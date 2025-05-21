@@ -17,6 +17,7 @@ use rand::{
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
 struct Labels {
     operation: Operation,
+    error: Option<String>,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
@@ -35,7 +36,7 @@ impl Distribution<Labels> for StandardUniform {
             2 => Operation::List,
             _ => Operation::Delete,
         };
-        Labels { operation }
+        Labels { operation, error: None }
     }
 }
 

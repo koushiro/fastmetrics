@@ -314,6 +314,7 @@ mod tests {
     struct Labels {
         method: Method,
         status: u16,
+        error: Option<String>,
     }
 
     #[derive(Clone, PartialEq, Eq, Hash)]
@@ -326,6 +327,7 @@ mod tests {
         fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
             encoder.encode(&("method", &self.method))?;
             encoder.encode(&("status", self.status))?;
+            encoder.encode(&("error", &self.error))?;
             Ok(())
         }
     }
@@ -349,15 +351,19 @@ mod tests {
                     .unwrap();
 
                 // Create metrics with different labels
-                let labels = Labels { method: Method::Get, status: 200 };
+                let labels = Labels { method: Method::Get, status: 200, error: None };
                 http_requests.with_or_new(&labels, |metric| metric.inc());
-                let labels = Labels { method: Method::Put, status: 200 };
+                let labels = Labels { method: Method::Put, status: 200, error: None };
                 http_requests.with_or_new(&labels, |metric| metric.inc());
             },
             |output| {
                 // println!("{}", output);
-                assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
-                assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
+                assert!(
+                    output.contains(r#"http_requests_total{method="GET",status="200",error=""} 1"#)
+                );
+                assert!(
+                    output.contains(r#"http_requests_total{method="PUT",status="200",error=""} 1"#)
+                );
             },
         );
 
@@ -376,24 +382,24 @@ mod tests {
                     .unwrap();
 
                 // Create metrics with different labels
-                let labels = Labels { method: Method::Get, status: 200 };
+                let labels = Labels { method: Method::Get, status: 200, error: None };
                 http_requests_duration_seconds.with_or_new(&labels, |hist| hist.observe(0.1));
-                let labels = Labels { method: Method::Put, status: 200 };
+                let labels = Labels { method: Method::Put, status: 200, error: None };
                 http_requests_duration_seconds.with_or_new(&labels, |hist| hist.observe(2.0));
             },
             |output| {
                 // println!("{}", output);
                 assert!(output.contains(
-                    r#"http_requests_duration_seconds_count{method="GET",status="200"} 1"#
+                    r#"http_requests_duration_seconds_count{method="GET",status="200",error=""} 1"#
                 ));
                 assert!(output.contains(
-                    r#"http_requests_duration_seconds_sum{method="GET",status="200"} 0.1"#
+                    r#"http_requests_duration_seconds_sum{method="GET",status="200",error=""} 0.1"#
                 ));
                 assert!(output.contains(
-                    r#"http_requests_duration_seconds_count{method="PUT",status="200"} 1"#
+                    r#"http_requests_duration_seconds_count{method="PUT",status="200",error=""} 1"#
                 ));
                 assert!(output.contains(
-                    r#"http_requests_duration_seconds_sum{method="PUT",status="200"} 2.0"#
+                    r#"http_requests_duration_seconds_sum{method="PUT",status="200",error=""} 2.0"#
                 ));
             },
         );
