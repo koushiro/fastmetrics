@@ -631,7 +631,7 @@ where
 
     #[inline]
     fn encode_none_value(&mut self) -> fmt::Result {
-        self.writer.write_str("\"\"")
+        self.writer.write_str("=\"\"")
     }
 }
 
