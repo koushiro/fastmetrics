@@ -523,7 +523,7 @@ impl encoder::GaugeValueEncoder for GaugeValueEncoder<'_> {
         // value > i64::MAX
         else {
             // For gauge metrics that support the u64 type, the openmetrics protobuf format does not
-            // support encoding values exceeding i64::MAX. 
+            // support encoding values exceeding i64::MAX.
             // However, since the protobuf format is rarely used, we directly return an error here.
             Err(fmt::Error)
         }
