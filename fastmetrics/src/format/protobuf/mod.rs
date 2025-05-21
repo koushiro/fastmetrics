@@ -515,6 +515,24 @@ impl encoder::GaugeValueEncoder for GaugeValueEncoder<'_> {
         self.encode_i64(value as i64)
     }
 
+    fn encode_u64(&mut self, value: u64) -> fmt::Result {
+        if value <= i64::MAX as u64 {
+            *self.value = openmetrics_data_model::gauge_value::Value::IntValue(value as i64);
+            Ok(())
+        }
+        // value > i64::MAX
+        else {
+            // For gauge metrics that support the u64 type, the openmetrics protobuf format does not
+            // support encoding values exceeding i64::MAX.
+            // panic!("Can't encode gauge value in protobuf format: value {value} > i64::MAX");
+
+            // For large u64 values that exceed i64::MAX, encode as a double to avoid errors
+            // Note: This may result in precision loss when converting to f64.
+            *self.value = openmetrics_data_model::gauge_value::Value::DoubleValue(value as f64);
+            Ok(())
+        }
+    }
+
     fn encode_f32(&mut self, value: f32) -> fmt::Result {
         self.encode_f64(value as f64)
     }

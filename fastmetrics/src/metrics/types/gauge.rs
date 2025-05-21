@@ -32,6 +32,7 @@ impl_gauge_value_for! {
     i64 => AtomicI64,
     isize => AtomicIsize,
     u32 => AtomicU32,
+    u64 => AtomicU64,
     f32 => AtomicU32,
     f64 => AtomicU64
 }
