@@ -65,7 +65,7 @@ mod openmetrics_data_model {
 pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> io::Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     let mut encoder = Encoder::new(&mut metric_set, registry);
-    encoder.encode().map_err(|_| io::ErrorKind::InvalidData)?;
+    encoder.encode().expect("fmt::Error should not be encountered");
     prost::Message::encode(&metric_set, buffer)?;
     Ok(())
 }
@@ -524,8 +524,12 @@ impl encoder::GaugeValueEncoder for GaugeValueEncoder<'_> {
         else {
             // For gauge metrics that support the u64 type, the openmetrics protobuf format does not
             // support encoding values exceeding i64::MAX.
-            // However, since the protobuf format is rarely used, we directly return an error here.
-            Err(fmt::Error)
+            // panic!("Can't encode gauge value in protobuf format: value {value} > i64::MAX");
+
+            // For large u64 values that exceed i64::MAX, encode as a double to avoid errors
+            // Note: This may result in precision loss when converting to f64.
+            *self.value = openmetrics_data_model::gauge_value::Value::DoubleValue(value as f64);
+            Ok(())
         }
     }
 
