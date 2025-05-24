@@ -213,10 +213,10 @@ mod tests {
     fn test_gauge_inc_dec() {
         let gauge = <Gauge>::default();
 
-        assert_eq!(gauge.inc(), 0);
+        assert_eq!(gauge.get(), 0);
+        gauge.inc();
         assert_eq!(gauge.get(), 1);
-
-        assert_eq!(gauge.dec(), 1);
+        gauge.dec();
         assert_eq!(gauge.get(), 0);
     }
 
@@ -224,14 +224,15 @@ mod tests {
     fn test_gauge_inc_dec_by() {
         let gauge = <Gauge>::default();
 
-        assert_eq!(gauge.inc_by(5), 0);
+        assert_eq!(gauge.get(), 0);
+        gauge.inc_by(5);
         assert_eq!(gauge.get(), 5);
-        assert_eq!(gauge.inc_by(-1), 5);
+        gauge.inc_by(-1);
         assert_eq!(gauge.get(), 4);
 
-        assert_eq!(gauge.dec_by(3), 4);
+        gauge.dec_by(3);
         assert_eq!(gauge.get(), 1);
-        assert_eq!(gauge.dec_by(-1), 1);
+        gauge.dec_by(-1);
         assert_eq!(gauge.get(), 2);
     }
 
