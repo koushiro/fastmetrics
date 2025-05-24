@@ -124,14 +124,12 @@ mod tests {
         let new: f32 = value.get();
         assert_eq!(new, 100f32);
 
-        let old = value.inc_by(10f32);
+        value.inc_by(10f32);
         let new: f32 = value.get();
-        assert_eq!(old, 100f32);
         assert_eq!(new, 110f32);
 
-        let old = value.dec_by(10f32);
+        value.dec_by(10f32);
         let new: f32 = value.get();
-        assert_eq!(old, 110f32);
         assert_eq!(new, 100f32);
     }
 
@@ -143,14 +141,12 @@ mod tests {
         let new: f64 = value.get();
         assert_eq!(new, 100f64);
 
-        let old = value.inc_by(10f64);
+        value.inc_by(10f64);
         let new: f64 = value.get();
-        assert_eq!(old, 100f64);
         assert_eq!(new, 110f64);
 
-        let old = value.dec_by(10f64);
+        value.dec_by(10f64);
         let new: f64 = value.get();
-        assert_eq!(old, 110f64);
         assert_eq!(new, 100f64);
     }
 }

@@ -265,22 +265,25 @@ mod tests {
         let counter = <Counter>::default();
         let clone = counter.clone();
 
-        assert_eq!(counter.inc(), 0);
+        assert_eq!(counter.total(), 0);
+        counter.inc();
         assert_eq!(counter.total(), 1);
-        assert_eq!(counter.inc(), 1);
+        counter.inc();
         assert_eq!(counter.total(), 2);
-        assert_eq!(clone.total(), 2);
 
-        assert_eq!(clone.inc(), 2);
+        assert_eq!(clone.total(), 2);
+        clone.inc();
         assert_eq!(counter.total(), 3);
     }
 
     #[test]
     fn test_counter_inc_by() {
         let counter = <Counter>::default();
-        assert_eq!(counter.inc_by(5), 0);
+
+        assert_eq!(counter.total(), 0);
+        counter.inc_by(5);
         assert_eq!(counter.total(), 5);
-        assert_eq!(counter.inc_by(3), 5);
+        counter.inc_by(3);
         assert_eq!(counter.total(), 8);
     }
 
