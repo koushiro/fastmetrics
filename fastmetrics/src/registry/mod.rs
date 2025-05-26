@@ -7,6 +7,7 @@
 //! See [`Registry`] for more details.
 
 mod errors;
+mod global;
 mod subsystem;
 
 use std::{
@@ -14,7 +15,7 @@ use std::{
     collections::hash_map::{self, HashMap},
 };
 
-pub use self::{errors::*, subsystem::*};
+pub use self::{errors::*, global::*, subsystem::*};
 pub use crate::raw::Unit;
 use crate::{
     encoder::EncodeMetric,
@@ -361,8 +362,13 @@ pub use fastmetrics_derive::Register;
 /// }
 /// ```
 pub trait Register {
-    /// Registers the implementing type with the provided [`Registry`].
+    /// Registers the implementing type into the provided [`Registry`].
     fn register(&self, registry: &mut Registry) -> Result<(), RegistryError>;
+
+    /// Registers the implementing type into the global [`Registry`].
+    fn register_global(&self) -> Result<(), RegistryError> {
+        with_global_registry_mut(|registry| self.register(registry))
+    }
 }
 
 fn is_snake_case(name: &str) -> bool {
