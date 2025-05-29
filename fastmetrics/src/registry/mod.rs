@@ -101,8 +101,16 @@ pub struct RegistryBuilder {
 
 impl RegistryBuilder {
     /// Sets a `namespace` prefix for all metrics.
+    ///
+    /// # Note
+    ///
+    /// The namespace cannot be empty and must be in `snake_case` format,
+    /// otherwise it will throw a panic.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
-        self.namespace = Some(namespace.into());
+        let namespace = namespace.into();
+        assert!(!namespace.is_empty(), "Namespace cannot be empty");
+        assert!(is_snake_case(&namespace), "Namespace must be in snake_case format");
+        self.namespace = Some(namespace);
         self
     }
 
@@ -263,7 +271,7 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The name of subsystem should be `snake_case`, otherwise it will throw a panic.
+    /// The name of subsystem should be in `snake_case` format, otherwise it will throw a panic.
     ///
     /// # Example
     ///
