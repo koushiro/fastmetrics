@@ -8,6 +8,7 @@
 
 mod errors;
 mod global;
+mod register;
 mod subsystem;
 
 use std::{
@@ -15,7 +16,7 @@ use std::{
     collections::hash_map::{self, HashMap},
 };
 
-pub use self::{errors::*, global::*, subsystem::*};
+pub use self::{errors::*, global::*, register::*, subsystem::*};
 pub use crate::raw::Unit;
 use crate::{
     encoder::EncodeMetric,
@@ -100,7 +101,7 @@ pub struct RegistryBuilder {
 }
 
 impl RegistryBuilder {
-    /// Sets a `namespace` prefix for all metrics.
+    /// Sets a `namespace` prefix for all metrics in the [`Registry`].
     ///
     /// # Note
     ///
@@ -108,13 +109,13 @@ impl RegistryBuilder {
     /// otherwise it will throw a panic.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         let namespace = namespace.into();
-        assert!(!namespace.is_empty(), "Namespace cannot be empty");
+        assert!(!namespace.is_empty(), "Namespace cannot be empty string");
         assert!(is_snake_case(&namespace), "Namespace must be in snake_case format");
         self.namespace = Some(namespace);
         self
     }
 
-    /// Sets the `constant labels` that apply to all metrics in the registry.
+    /// Sets the `constant labels` that apply to all metrics in the [`Registry`].
     ///
     /// **NOTE**: constant labels are rarely used.
     pub fn with_const_labels<N, V>(mut self, labels: impl IntoIterator<Item = (N, V)>) -> Self
@@ -189,7 +190,7 @@ impl Registry {
         help: impl Into<Cow<'static, str>>,
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
-        self.do_register(name, help, None, metric)
+        self.register_metric(name, help, None, metric)
     }
 
     /// Registers a metric with the specified unit into [`Registry`].
@@ -231,10 +232,10 @@ impl Registry {
             },
             _ => {},
         }
-        self.do_register(name, help, Some(unit), metric)
+        self.register_metric(name, help, Some(unit), metric)
     }
 
-    fn do_register(
+    fn register_metric(
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
@@ -334,48 +335,6 @@ impl Registry {
                 .with_inherited_const_labels(self.const_labels.clone())
                 .build()
         })
-    }
-}
-
-#[cfg(feature = "derive")]
-pub use fastmetrics_derive::Register;
-
-/// A trait for types that can be registered into a [`Registry`].
-///
-/// # Example
-///
-/// ```rust
-/// # use fastmetrics::{
-/// #     metrics::counter::Counter,
-/// #     registry::{Register, Registry, RegistryError},
-/// # };
-/// #[derive(Clone, Default)]
-/// struct Metrics {
-///     counter: Counter,
-/// }
-///
-/// impl Register for Metrics {
-///     fn register(&self, registry: &mut Registry) -> Result<(), RegistryError> {
-///         registry.register("my_counter", "My counter help", self.counter.clone())?;
-///         Ok(())
-///     }
-/// }
-///
-/// fn main() -> Result<(), RegistryError> {
-///     let mut registry = Registry::default();
-///     let metrics = Metrics::default();
-///     metrics.register(&mut registry)?;
-///     // ...
-///     Ok(())
-/// }
-/// ```
-pub trait Register {
-    /// Registers the implementing type into the provided [`Registry`].
-    fn register(&self, registry: &mut Registry) -> Result<(), RegistryError>;
-
-    /// Registers the implementing type into the global [`Registry`].
-    fn register_global(&self) -> Result<(), RegistryError> {
-        with_global_registry_mut(|registry| self.register(registry))
     }
 }
 
