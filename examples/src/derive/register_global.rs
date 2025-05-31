@@ -88,7 +88,7 @@ struct InnermostMetrics {
 
 #[derive(Default, Register)]
 struct FlattenMetrics {
-    /// flatten gauge help
+    /// Flatten gauge help
     gauge: Gauge,
 }
 
