@@ -99,7 +99,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// # use std::marker::PhantomData;
 /// # use fastmetrics::{
 /// #    format::text,
-/// #     metrics::{counter::Counter, histogram::Histogram},
+/// #     metrics::{counter::Counter, gauge::Gauge, histogram::Histogram},
 /// #     registry::{Register, Registry},
 /// # };
 /// #[derive(Default, fastmetrics_derive::Register)]
@@ -129,8 +129,8 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///
 /// #[derive(Default, fastmetrics_derive::Register)]
 /// struct FlattenMetrics {
-///     /// Flatten counter help
-///     flatten_counter: Counter,
+///     /// Flatten gauge help
+///     gauge: Gauge,
 /// }
 ///
 /// let mut registry = Registry::default();

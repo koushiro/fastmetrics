@@ -177,10 +177,10 @@ impl FieldAttributes {
                     }
                     if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
                     {
-                        // can coexist with `subsystem` attribute
+                        // `flatten` cannot coexist with `rename` or `unit` but can coexist with `subsystem`
                         return Err(Error::new_spanned(
                             attr,
-                            "`flatten` attribute cannot coexist with other attributes",
+                            "`flatten` attribute cannot coexist with `rename` or `unit` attributes",
                         ));
                     }
                     field_attrs.register.flatten = true;
