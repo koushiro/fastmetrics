@@ -9,14 +9,13 @@
 mod errors;
 mod global;
 mod register;
-mod subsystem;
 
 use std::{
     borrow::Cow,
     collections::hash_map::{self, HashMap},
 };
 
-pub use self::{errors::*, global::*, register::*, subsystem::*};
+pub use self::{errors::*, global::*, register::*};
 pub use crate::raw::Unit;
 use crate::{
     encoder::EncodeMetric,
@@ -44,7 +43,7 @@ use crate::{
 /// ```rust
 /// # use fastmetrics::{
 /// #    metrics::{counter::Counter, gauge::Gauge},
-/// #    registry::{Registry, RegistryError, RegistrySystem},
+/// #    registry::{Registry, RegistryError},
 /// # };
 /// #
 /// # fn main() -> Result<(), RegistryError> {
@@ -62,7 +61,7 @@ use crate::{
 ///
 /// // Create a subsystem for database metrics
 /// let db = registry.subsystem("database");
-/// assert_eq!(db.namespace(), "myapp_database");
+/// assert_eq!(db.namespace(), Some("myapp_database"));
 /// assert_eq!(db.constant_labels(), [("env".into(), "prod".into())]);
 ///
 /// // Register metrics into the database subsystem
@@ -70,10 +69,8 @@ use crate::{
 /// db.register("connections", "Active database connections", db_connections.clone())?;
 ///
 /// // Create a nested subsystem with additional constant labels
-/// let mysql = db.attach_subsystem(
-///     RegistrySystem::builder("mysql").with_const_labels([("engine", "innodb")])
-/// );
-/// assert_eq!(mysql.namespace(), "myapp_database_mysql");
+/// let mysql = db.subsystem_builder("mysql").with_const_labels([("engine", "innodb")]).build();
+/// assert_eq!(mysql.namespace(), Some("myapp_database_mysql"));
 /// assert_eq!(
 ///     mysql.constant_labels(),
 ///     [("env".into(), "prod".into()), ("engine".into(), "innodb".into())],
@@ -90,7 +87,7 @@ pub struct Registry {
     namespace: Option<Cow<'static, str>>,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
-    pub(crate) subsystems: HashMap<Cow<'static, str>, RegistrySystem>,
+    pub(crate) subsystems: HashMap<Cow<'static, str>, Registry>,
 }
 
 /// A builder for constructing [`Registry`] instances with custom configuration.
@@ -286,53 +283,138 @@ impl Registry {
     /// assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
     ///
     /// let subsystem1 = registry.subsystem("subsystem1");
-    /// assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+    /// assert_eq!(subsystem1.namespace(), Some("myapp_subsystem1"));
     /// assert_eq!(subsystem1.constant_labels(), [("env".into(), "prod".into())]);
     ///
     /// let subsystem2 = registry.subsystem("subsystem2");
-    /// assert_eq!(subsystem2.namespace(), "myapp_subsystem2");
+    /// assert_eq!(subsystem2.namespace(), Some("myapp_subsystem2"));
     /// assert_eq!(subsystem2.constant_labels(), [("env".into(), "prod".into())]);
     ///
     /// let nested_subsystem = registry.subsystem("subsystem1").subsystem("subsystem2");
-    /// assert_eq!(nested_subsystem.namespace(), "myapp_subsystem1_subsystem2");
+    /// assert_eq!(nested_subsystem.namespace(), Some("myapp_subsystem1_subsystem2"));
     /// assert_eq!(nested_subsystem.constant_labels(), [("env".into(), "prod".into())]);
     /// ```
-    pub fn subsystem(&mut self, name: impl Into<Cow<'static, str>>) -> &mut RegistrySystem {
-        let name = name.into();
-        self.subsystems.entry(name).or_insert_with_key(|name| {
-            RegistrySystem::builder(name.clone())
-                // inherit prefix from the registry
-                .with_prefix(self.namespace.clone())
-                // inherit constant labels from the registry
-                .with_inherited_const_labels(self.const_labels.clone())
-                .build()
-        })
+    pub fn subsystem(&mut self, name: impl Into<Cow<'static, str>>) -> &mut Registry {
+        self.subsystem_builder(name).build()
     }
 
-    /// Attach a configurable subsystem.
-    /// If the subsystem `name` already exists, the previous created subsystem will be returned.
+    /// Creates a builder for constructing a subsystem with custom configuration.
+    ///
+    /// This method provides more flexibility than [`subsystem`](Registry::subsystem) by allowing
+    /// you to configure additional properties like constant labels specific to the subsystem.
+    ///
+    /// # Note
+    ///
+    /// The name of subsystem should be in `snake_case` format, otherwise it will throw a panic.
     ///
     /// # Example
     ///
     /// ```rust
-    /// # use fastmetrics::registry::{Registry, RegistrySystem};
-    /// let mut registry = Registry::builder().with_namespace("myapp").build();
-    /// assert_eq!(registry.namespace(), Some("myapp"));
+    /// # use fastmetrics::registry::Registry;
+    /// let mut registry = Registry::builder()
+    ///     .with_namespace("myapp")
+    ///     .with_const_labels([("env", "prod")])
+    ///     .build();
     ///
-    /// let subsystem1 = registry.attach_subsystem(
-    ///     RegistrySystem::builder("subsystem1").with_const_labels([("name", "value")])
+    /// let db = registry.subsystem("database");
+    ///
+    /// let mysql = db
+    ///     .subsystem_builder("mysql")
+    ///     .with_const_labels([("engine", "innodb")])
+    ///     .build();
+    ///
+    /// assert_eq!(mysql.namespace(), Some("myapp_database_mysql"));
+    /// assert_eq!(
+    ///     mysql.constant_labels(),
+    ///     [("env".into(), "prod".into()), ("engine".into(), "innodb".into())]
     /// );
-    /// assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
-    /// assert_eq!(subsystem1.constant_labels(), [("name".into(), "value".into())]);
     /// ```
-    pub fn attach_subsystem(&mut self, builder: RegistrySystemBuilder) -> &mut RegistrySystem {
-        let name = builder.system_name.clone();
-        self.subsystems.entry(name).or_insert_with(|| {
-            builder
-                // inherit prefix from the registry
-                .with_prefix(self.namespace.clone())
-                // inherit constant labels from the registry
-                .with_inherited_const_labels(self.const_labels.clone())
+    pub fn subsystem_builder(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+    ) -> RegistrySubsystemBuilder<'_> {
+        let name = name.into();
+        assert!(is_snake_case(&name), "subsystem name must be in snake_case format");
+        RegistrySubsystemBuilder::new(self, name)
+    }
+}
+
+/// A builder for constructing subsystems with custom configuration.
+///
+/// This builder allows you to create subsystems with additional constant labels
+/// beyond those inherited from the parent registry. The subsystem will inherit
+/// the parent's namespace and constant labels, with any additional labels specified
+/// through this builder being merged in.
+pub struct RegistrySubsystemBuilder<'a> {
+    parent: &'a mut Registry,
+    name: Cow<'static, str>,
+    const_labels: Option<Vec<(Cow<'static, str>, Cow<'static, str>)>>,
+}
+
+impl<'a> RegistrySubsystemBuilder<'a> {
+    fn new(parent: &'a mut Registry, name: Cow<'static, str>) -> RegistrySubsystemBuilder<'a> {
+        Self { parent, name, const_labels: None }
+    }
+
+    /// Sets additional constant labels for the subsystem.
+    ///
+    /// These labels will be merged with the parent registry's constant labels.
+    /// If there are any label key conflicts, the subsystem's labels will take precedence.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use fastmetrics::registry::Registry;
+    /// let mut registry = Registry::builder()
+    ///     .with_namespace("myapp")
+    ///     .with_const_labels([("env", "prod")])
+    ///     .build();
+    ///
+    /// let subsystem = registry
+    ///     .subsystem_builder("cache")
+    ///     .with_const_labels([("cache_type", "redis"), ("instance", "primary")])
+    ///     .build();
+    /// ```
+    pub fn with_const_labels<N, V>(mut self, labels: impl IntoIterator<Item = (N, V)>) -> Self
+    where
+        N: Into<Cow<'static, str>>,
+        V: Into<Cow<'static, str>>,
+    {
+        let labels = labels
+            .into_iter()
+            .map(|(name, value)| (name.into(), value.into()))
+            .collect::<Vec<_>>();
+        self.const_labels = Some(labels);
+        self
+    }
+
+    /// Builds and returns a mutable reference to the subsystem.
+    ///
+    /// If a subsystem with the same name already exists, this will return a reference
+    /// to the existing subsystem. Otherwise, it creates a new subsystem with the
+    /// configured properties.
+    ///
+    /// The resulting subsystem will have:
+    /// - A namespace combining the parent's namespace with the subsystem name
+    /// - Constant labels merged from parent and subsystem-specific labels
+    pub fn build(self) -> &'a mut Registry {
+        let const_labels = match self.const_labels {
+            Some(subsystem_const_labels) => {
+                let mut merged = self.parent.const_labels.clone();
+                merged.extend(subsystem_const_labels);
+                merged
+            },
+            None => self.parent.const_labels.clone(),
+        };
+
+        self.parent.subsystems.entry(self.name.clone()).or_insert_with(|| {
+            let namespace = match &self.parent.namespace {
+                Some(namespace) => Cow::Owned(format!("{}_{}", namespace, self.name)),
+                None => self.name,
+            };
+            Registry::builder()
+                .with_namespace(namespace)
+                .with_const_labels(const_labels)
                 .build()
         })
     }
@@ -381,20 +463,20 @@ mod tests {
         assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
 
         let subsystem1 = registry.subsystem("subsystem1");
-        assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+        assert_eq!(subsystem1.namespace(), Some("myapp_subsystem1"));
         assert_eq!(subsystem1.constant_labels(), [("env".into(), "prod".into())]);
 
         let subsystem2 = registry.subsystem("subsystem2");
-        assert_eq!(subsystem2.namespace(), "myapp_subsystem2");
+        assert_eq!(subsystem2.namespace(), Some("myapp_subsystem2"));
         assert_eq!(subsystem2.constant_labels(), [("env".into(), "prod".into())]);
 
         let nested_subsystem = registry.subsystem("subsystem1").subsystem("subsystem2");
-        assert_eq!(nested_subsystem.namespace(), "myapp_subsystem1_subsystem2");
+        assert_eq!(nested_subsystem.namespace(), Some("myapp_subsystem1_subsystem2"));
         assert_eq!(nested_subsystem.constant_labels(), [("env".into(), "prod".into())]);
     }
 
     #[test]
-    fn test_registry_attach_subsystem() {
+    fn test_registry_subsystem_with_const_labels() {
         let mut registry = Registry::builder()
             .with_namespace("myapp")
             .with_const_labels([("env", "prod")])
@@ -402,10 +484,11 @@ mod tests {
         assert_eq!(registry.namespace(), Some("myapp"));
         assert_eq!(registry.constant_labels(), [("env".into(), "prod".into())]);
 
-        let subsystem1 = registry.attach_subsystem(
-            RegistrySystem::builder("subsystem1").with_const_labels([("name", "value")]),
-        );
-        assert_eq!(subsystem1.namespace(), "myapp_subsystem1");
+        let subsystem1 = registry
+            .subsystem_builder("subsystem1")
+            .with_const_labels([("name", "value")])
+            .build();
+        assert_eq!(subsystem1.namespace(), Some("myapp_subsystem1"));
         assert_eq!(
             subsystem1.constant_labels(),
             [("env".into(), "prod".into()), ("name".into(), "value".into())]

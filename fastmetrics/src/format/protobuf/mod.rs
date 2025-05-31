@@ -8,7 +8,7 @@ use crate::{
         EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     raw::{bucket::Bucket, quantile::Quantile, Metadata, MetricType},
-    registry::{Registry, RegistrySystem},
+    registry::Registry,
 };
 
 /// Data models that are automatically generated from [OpenMetrics protobuf schema].
@@ -84,33 +84,21 @@ impl<'a> Encoder<'a> {
     }
 
     fn encode(&mut self) -> fmt::Result {
-        for (metadata, metric) in &self.registry.metrics {
-            let metric_families = &mut self.metric_set.metric_families;
-            MetricFamilyEncoder {
-                metric_families,
-                namespace: self.registry.namespace(),
-                const_labels: self.registry.constant_labels(),
-            }
-            .encode(metadata, metric)?;
-        }
-        for system in self.registry.subsystems.values() {
-            self.encode_registry_system(system)?;
-        }
-        Ok(())
+        self.encode_registry(self.registry)
     }
 
-    fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
-        for (metadata, metric) in &system.metrics {
+    fn encode_registry(&mut self, registry: &Registry) -> fmt::Result {
+        for (metadata, metric) in &registry.metrics {
             let metric_families = &mut self.metric_set.metric_families;
             MetricFamilyEncoder {
                 metric_families,
-                namespace: Some(system.namespace()),
-                const_labels: system.constant_labels(),
+                namespace: registry.namespace(),
+                const_labels: registry.constant_labels(),
             }
             .encode(metadata, metric)?;
         }
-        for system in system.subsystems.values() {
-            self.encode_registry_system(system)?;
+        for subsystem in registry.subsystems.values() {
+            self.encode_registry(subsystem)?;
         }
         Ok(())
     }
