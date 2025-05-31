@@ -12,7 +12,7 @@ use crate::{
         quantile::{Quantile, QUANTILE_LABEL},
         Metadata, MetricType, Unit,
     },
-    registry::{Registry, RegistrySystem},
+    registry::Registry,
 };
 
 /// Encodes metrics from a registry into the [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
@@ -83,36 +83,21 @@ where
     }
 
     fn encode(&mut self) -> fmt::Result {
-        self.encode_registry()?;
+        self.encode_registry(self.registry)?;
         self.encode_eof()
     }
 
-    fn encode_registry(&mut self) -> fmt::Result {
-        for (metadata, metric) in &self.registry.metrics {
+    fn encode_registry(&mut self, registry: &Registry) -> fmt::Result {
+        for (metadata, metric) in &registry.metrics {
             MetricFamilyEncoder {
                 writer: self.writer,
-                namespace: self.registry.namespace(),
-                const_labels: self.registry.constant_labels(),
+                namespace: registry.namespace(),
+                const_labels: registry.constant_labels(),
             }
             .encode(metadata, metric)?;
         }
-        for system in self.registry.subsystems.values() {
-            self.encode_registry_system(system)?;
-        }
-        Ok(())
-    }
-
-    fn encode_registry_system(&mut self, system: &RegistrySystem) -> fmt::Result {
-        for (metadata, metric) in &system.metrics {
-            MetricFamilyEncoder {
-                writer: self.writer,
-                namespace: Some(system.namespace()),
-                const_labels: system.constant_labels(),
-            }
-            .encode(metadata, metric)?;
-        }
-        for system in system.subsystems.values() {
-            self.encode_registry_system(system)?
+        for subsystem in registry.subsystems.values() {
+            self.encode_registry(subsystem)?;
         }
         Ok(())
     }
