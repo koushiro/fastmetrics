@@ -106,8 +106,8 @@ impl RegistryBuilder {
     /// otherwise it will throw a panic.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         let namespace = namespace.into();
-        assert!(!namespace.is_empty(), "Namespace cannot be empty string");
-        assert!(is_snake_case(&namespace), "Namespace must be in snake_case format");
+        assert!(!namespace.is_empty(), "namespace cannot be empty string");
+        assert!(is_snake_case(&namespace), "namespace must be in snake_case format");
         self.namespace = Some(namespace);
         self
     }
@@ -264,12 +264,13 @@ impl Registry {
 
 // subsystem
 impl Registry {
-    /// Creates a subsystem to register metrics with a subsystem `name`(as a part of prefix).
+    /// Creates a subsystem to register metrics with a subsystem `name` (as a part of prefix).
     /// If the subsystem `name` already exists, the previous created subsystem will be returned.
     ///
     /// # Note
     ///
-    /// The name of subsystem should be in `snake_case` format, otherwise it will throw a panic.
+    /// The name of subsystem cannot be empty and must be in `snake_case` format, otherwise it will
+    /// throw a panic.
     ///
     /// # Example
     ///
@@ -305,7 +306,8 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The name of subsystem should be in `snake_case` format, otherwise it will throw a panic.
+    /// The name of subsystem cannot be empty and must be in `snake_case` format, otherwise it will
+    /// throw a panic.
     ///
     /// # Example
     ///
@@ -334,6 +336,7 @@ impl Registry {
         name: impl Into<Cow<'static, str>>,
     ) -> RegistrySubsystemBuilder<'_> {
         let name = name.into();
+        assert!(!name.is_empty(), "subsystem name cannot be empty");
         assert!(is_snake_case(&name), "subsystem name must be in snake_case format");
         RegistrySubsystemBuilder::new(self, name)
     }
