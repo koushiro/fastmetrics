@@ -34,7 +34,7 @@ enum Number {
 }
 
 #[derive(Default, Register)]
-struct Metrics {
+struct DemoMetrics {
     /// My counter help
     #[register(rename = "my_counter")]
     counter_family: Family<Labels, Counter>,
@@ -60,8 +60,11 @@ struct Metrics {
     #[register(rename = "my_histogram", unit = "bytes")]
     histogram: Histogram,
 
-    #[register(flatten)]
+    #[register(subsystem = "inner")]
     inner: InnerMetrics,
+
+    #[register(flatten)]
+    flatten: FlattenMetrics,
 
     // skip the field
     #[register(skip)]
@@ -71,10 +74,25 @@ struct Metrics {
 #[derive(Default, Register)]
 struct InnerMetrics {
     /// Inner counter help
-    inner_counter: Counter,
+    counter: Counter,
+
+    #[register(subsystem = "innermost")]
+    innermost: InnermostMetrics,
 }
 
-impl Metrics {
+#[derive(Default, Register)]
+struct InnermostMetrics {
+    /// Innermost counter help
+    counter: Counter,
+}
+
+#[derive(Default, Register)]
+struct FlattenMetrics {
+    /// Flatten gauge help
+    gauge: Gauge,
+}
+
+impl DemoMetrics {
     fn new() -> Self {
         Self {
             counter: Default::default(),
@@ -82,6 +100,7 @@ impl Metrics {
             gauge: Default::default(),
             histogram: Histogram::new(exponential_buckets(1.0, 2.0, 10)),
             inner: Default::default(),
+            flatten: Default::default(),
             _skip: (),
         }
     }
@@ -90,7 +109,7 @@ impl Metrics {
 fn main() -> Result<()> {
     let mut registry = Registry::builder().with_namespace("demo").build();
 
-    let metrics = Metrics::new();
+    let metrics = DemoMetrics::new();
     metrics.register(&mut registry)?;
 
     let mut rng = rand::rng();

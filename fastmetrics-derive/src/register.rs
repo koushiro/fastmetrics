@@ -38,10 +38,22 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                 return Ok(quote! {});
             }
 
-            // Flatten field if marked with #[register(flatten)]
-            if field_attrs.register.flatten {
-                return Ok(quote! {
-                    self.#field_ident.register(registry)?;
+            // Handle #[register(flatten)] or #[register(subsystem)] fields (both need to call register on the field)
+            let is_flatten =
+                field_attrs.register.flatten || field_attrs.register.subsystem.is_some();
+            if is_flatten {
+                return Ok(match &field_attrs.register.subsystem {
+                    Some(subsystem_name) => {
+                        quote! {
+                            let subsystem = registry.subsystem(#subsystem_name);
+                            self.#field_ident.register(subsystem)?;
+                        }
+                    },
+                    None => {
+                        quote! {
+                            self.#field_ident.register(registry)?;
+                        }
+                    },
                 });
             }
 
@@ -106,7 +118,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
 #[derive(Default)]
 struct FieldAttributes {
     // #[register(...)]
-    register: RegisterAttribute,
+    register: FieldRegisterAttribute,
     // multiple #[doc = "..."]
     docs: Vec<String>,
 }
@@ -120,7 +132,7 @@ impl FieldAttributes {
 
         for attr in &field.attrs {
             if attr.path().is_ident("register") {
-                let register_attr = parse_register_attr(attr)?;
+                let register_attr = FieldRegisterAttribute::parse(attr)?;
 
                 if let Some(rename) = register_attr.rename {
                     if field_attrs.register.rename.is_some() {
@@ -136,11 +148,20 @@ impl FieldAttributes {
                     field_attrs.register.unit = Some(unit);
                 }
 
+                if let Some(subsystem) = register_attr.subsystem {
+                    if field_attrs.register.subsystem.is_some() {
+                        return Err(Error::new_spanned(attr, "duplicated `subsystem` attribute"));
+                    }
+                    field_attrs.register.subsystem = Some(subsystem);
+                }
+
                 if register_attr.skip {
                     if field_attrs.register.skip {
                         return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
                     }
-                    if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
+                    if field_attrs.register.rename.is_some()
+                        || field_attrs.register.unit.is_some()
+                        || field_attrs.register.subsystem.is_some()
                     {
                         return Err(Error::new_spanned(
                             attr,
@@ -156,9 +177,10 @@ impl FieldAttributes {
                     }
                     if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
                     {
+                        // `flatten` cannot coexist with `rename` or `unit` but can coexist with `subsystem`
                         return Err(Error::new_spanned(
                             attr,
-                            "`flatten` attribute cannot coexist with other attributes",
+                            "`flatten` attribute cannot coexist with `rename` or `unit` attributes",
                         ));
                     }
                     field_attrs.register.flatten = true;
@@ -174,7 +196,7 @@ impl FieldAttributes {
 /// the metrics registry.
 /// This struct contains all possible configuration options that can be specified in the attribute.
 #[derive(Default)]
-struct RegisterAttribute {
+struct FieldRegisterAttribute {
     // #[register(skip)]
     /// Whether to skip registering this field
     skip: bool,
@@ -188,78 +210,95 @@ struct RegisterAttribute {
     // #[register(unit(...)] or #[register(unit = "...")]
     /// Unit for the metric
     unit: Option<UnitValue>,
+    // #[register(subsystem = "...")]
+    /// Subsystem to register this nested struct into
+    subsystem: Option<String>,
 }
 
-/// Represents a unit value which can be a path (e.g. Bytes) or a string literal (e.g. "bytes")
+/// Represents a unit value which can be a path (e.g., Bytes) or a string literal (e.g., "bytes")
 enum UnitValue {
-    /// Unit variant from the Unit enum (e.g. Bytes)
+    /// Unit variant from the Unit enum (e.g., Bytes)
     Path(Path),
     /// Custom unit string (e.g. "bytes")
     LitStr(LitStr),
 }
 
-/// Parse a register attribute.
-fn parse_register_attr(attr: &Attribute) -> Result<RegisterAttribute> {
-    let mut register_attr = RegisterAttribute::default();
+impl FieldRegisterAttribute {
+    /// Parse a register attribute.
+    fn parse(attr: &Attribute) -> Result<Self> {
+        let mut register_attr = Self::default();
 
-    let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
-    for meta in nested {
-        match meta {
-            // #[register(skip)]
-            Meta::Path(path) if path.is_ident("skip") => {
-                if register_attr.skip {
-                    return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
-                }
-                register_attr.skip = true;
-            },
-
-            // #[register(flatten)]
-            Meta::Path(path) if path.is_ident("flatten") => {
-                if register_attr.flatten {
-                    return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
-                }
-                register_attr.flatten = true;
-            },
-
-            // #[register(rename = "...")]
-            Meta::NameValue(nv) if nv.path.is_ident("rename") => {
-                if let Expr::Lit(ExprLit { lit: Lit::Str(ref s), .. }) = nv.value {
-                    if register_attr.rename.is_some() {
-                        return Err(Error::new_spanned(nv, "duplicated `rename` attribute"));
+        let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+        for meta in nested {
+            match meta {
+                // #[register(skip)]
+                Meta::Path(path) if path.is_ident("skip") => {
+                    if register_attr.skip {
+                        return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
                     }
-                    register_attr.rename = Some(s.value())
-                } else {
-                    return Err(Error::new_spanned(nv.value, "expected a literal string"));
-                }
-            },
+                    register_attr.skip = true;
+                },
 
-            // #[register(unit = "...")
-            Meta::NameValue(nv) if nv.path.is_ident("unit") => {
-                if let Expr::Lit(ExprLit { lit: Lit::Str(ref s), .. }) = nv.value {
+                // #[register(flatten)]
+                Meta::Path(path) if path.is_ident("flatten") => {
+                    if register_attr.flatten {
+                        return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
+                    }
+                    register_attr.flatten = true;
+                },
+
+                // #[register(rename = "...")]
+                Meta::NameValue(nv) if nv.path.is_ident("rename") => {
+                    if let Expr::Lit(ExprLit { lit: Lit::Str(ref s), .. }) = nv.value {
+                        if register_attr.rename.is_some() {
+                            return Err(Error::new_spanned(nv, "duplicated `rename` attribute"));
+                        }
+                        register_attr.rename = Some(s.value())
+                    } else {
+                        return Err(Error::new_spanned(nv.value, "expected a literal string"));
+                    }
+                },
+
+                // #[register(unit = "...")
+                Meta::NameValue(nv) if nv.path.is_ident("unit") => {
+                    if let Expr::Lit(ExprLit { lit: Lit::Str(ref s), .. }) = nv.value {
+                        if register_attr.unit.is_some() {
+                            return Err(Error::new_spanned(nv, "duplicated `unit` attribute"));
+                        }
+                        register_attr.unit = Some(UnitValue::LitStr(s.clone()))
+                    } else {
+                        return Err(Error::new_spanned(nv.value, "expected a literal string"));
+                    }
+                },
+                // #[register(unit(...)]
+                Meta::List(list) if list.path.is_ident("unit") => {
+                    let path = list.parse_args::<Path>()?;
                     if register_attr.unit.is_some() {
-                        return Err(Error::new_spanned(nv, "duplicated `unit` attribute"));
+                        return Err(Error::new_spanned(list, "duplicated `unit` attribute"));
                     }
-                    register_attr.unit = Some(UnitValue::LitStr(s.clone()))
-                } else {
-                    return Err(Error::new_spanned(nv.value, "expected a literal string"));
-                }
-            },
-            // #[register(unit(...)]
-            Meta::List(list) if list.path.is_ident("unit") => {
-                let path = list.parse_args::<Path>()?;
-                if register_attr.unit.is_some() {
-                    return Err(Error::new_spanned(list, "duplicated `unit` attribute"));
-                }
-                register_attr.unit = Some(UnitValue::Path(path));
-            },
+                    register_attr.unit = Some(UnitValue::Path(path));
+                },
 
-            _ => {
-                return Err(Error::new_spanned(meta, "unrecognized register attribute"));
-            },
+                // #[register(subsystem = "...")]
+                Meta::NameValue(nv) if nv.path.is_ident("subsystem") => {
+                    if let Expr::Lit(ExprLit { lit: Lit::Str(ref s), .. }) = nv.value {
+                        if register_attr.subsystem.is_some() {
+                            return Err(Error::new_spanned(nv, "duplicated `subsystem` attribute"));
+                        }
+                        register_attr.subsystem = Some(s.value())
+                    } else {
+                        return Err(Error::new_spanned(nv.value, "expected a literal string"));
+                    }
+                },
+
+                _ => {
+                    return Err(Error::new_spanned(meta, "unrecognized register attribute"));
+                },
+            }
         }
-    }
 
-    Ok(register_attr)
+        Ok(register_attr)
+    }
 }
 
 /// Extract doc comments from field
@@ -267,7 +306,7 @@ fn extract_doc_comments(field: &Field) -> Vec<String> {
     let is_blank = |s: &str| -> bool { s.trim().is_empty() };
 
     // multiline comments (`/** ... */`) may have LFs (`\n`) in them,
-    // we need to split so we could handle the lines correctly
+    // we need to split, so we could handle the lines correctly
     //
     // we also need to remove leading and trailing blank lines
     let mut lines = field
