@@ -97,7 +97,7 @@ where
             .encode(metadata, metric)?;
         }
         for subsystem in registry.subsystems.values() {
-            self.encode_registry(subsystem)?
+            self.encode_registry(subsystem)?;
         }
         Ok(())
     }
