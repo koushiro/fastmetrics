@@ -111,8 +111,11 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///     #[register(rename = "http_request_duration", unit(Seconds))]
 ///     request_duration: Histogram,
 ///
-///     #[register(flatten)]
+///     #[register(subsystem = "inner")]
 ///     inner: InnerMetrics,
+///
+///     #[register(flatten)]
+///     flatten: FlattenMetrics,
 ///
 ///     #[register(skip)]
 ///     _skip: ()
@@ -121,7 +124,13 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// #[derive(Default, fastmetrics_derive::Register)]
 /// struct InnerMetrics {
 ///     /// Inner counter help
-///     inner_counter: Counter,
+///     counter: Counter,
+/// }
+///
+/// #[derive(Default, fastmetrics_derive::Register)]
+/// struct FlattenMetrics {
+///     /// Flatten counter help
+///     flatten_counter: Counter,
 /// }
 ///
 /// let mut registry = Registry::default();
