@@ -106,7 +106,7 @@ impl RegistryBuilder {
     /// otherwise it will throw a panic.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         let namespace = namespace.into();
-        assert!(!namespace.is_empty(), "namespace cannot be empty string");
+        assert!(!namespace.is_empty(), "namespace cannot be an empty string");
         assert!(is_snake_case(&namespace), "namespace must be in snake_case format");
         self.namespace = Some(namespace);
         self
@@ -336,7 +336,7 @@ impl Registry {
         name: impl Into<Cow<'static, str>>,
     ) -> RegistrySubsystemBuilder<'_> {
         let name = name.into();
-        assert!(!name.is_empty(), "subsystem name cannot be empty");
+        assert!(!name.is_empty(), "subsystem name cannot be an empty string");
         assert!(is_snake_case(&name), "subsystem name must be in snake_case format");
         RegistrySubsystemBuilder::new(self, name)
     }
