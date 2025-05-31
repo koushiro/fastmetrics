@@ -374,8 +374,8 @@ impl<'a> RegistrySubsystemBuilder<'a> {
     ///     .build();
     ///
     /// let subsystem = registry
-    ///     .subsystem_builder("cache")
-    ///     .with_const_labels([("cache_type", "redis"), ("instance", "primary")])
+    ///     .subsystem_builder("database")
+    ///     .with_const_labels([("engine", "innodb"), ("instance", "primary")])
     ///     .build();
     /// ```
     pub fn with_const_labels<N, V>(mut self, labels: impl IntoIterator<Item = (N, V)>) -> Self
@@ -404,7 +404,15 @@ impl<'a> RegistrySubsystemBuilder<'a> {
         let const_labels = match self.const_labels {
             Some(subsystem_const_labels) => {
                 let mut merged = self.parent.const_labels.clone();
-                merged.extend(subsystem_const_labels);
+
+                for (new_key, new_value) in subsystem_const_labels {
+                    if let Some(pos) = merged.iter().position(|(key, _)| key == &new_key) {
+                        merged[pos] = (new_key, new_value);
+                    } else {
+                        merged.push((new_key, new_value));
+                    }
+                }
+
                 merged
             },
             None => self.parent.const_labels.clone(),
@@ -496,6 +504,28 @@ mod tests {
             subsystem1.constant_labels(),
             [("env".into(), "prod".into()), ("name".into(), "value".into())]
         );
+    }
+
+    #[test]
+    fn test_subsystem_const_labels_override() {
+        let mut registry = Registry::builder()
+            .with_namespace("myapp")
+            .with_const_labels([("env", "dev"), ("region", "us-west")])
+            .build();
+
+        let subsystem = registry
+            .subsystem_builder("cache")
+            .with_const_labels([("env", "prod"), ("type", "redis")])
+            .build();
+
+        let labels = subsystem.constant_labels();
+
+        assert_eq!(labels.iter().filter(|(k, _)| k == "env").count(), 1);
+        assert_eq!(labels.len(), 3);
+
+        assert!(labels.iter().any(|(k, v)| k == "env" && v == "prod"));
+        assert!(labels.iter().any(|(k, v)| k == "region" && v == "us-west"));
+        assert!(labels.iter().any(|(k, v)| k == "type" && v == "redis"));
     }
 
     #[test]
