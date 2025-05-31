@@ -102,7 +102,7 @@ impl RegistryBuilder {
     ///
     /// # Note
     ///
-    /// The namespace cannot be empty and must be in `snake_case` format,
+    /// The namespace cannot be an empty string and must be in `snake_case` format,
     /// otherwise it will throw a panic.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         let namespace = namespace.into();
@@ -269,8 +269,8 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The name of subsystem cannot be empty and must be in `snake_case` format, otherwise it will
-    /// throw a panic.
+    /// The name of subsystem cannot be an empty string and must be in `snake_case` format,
+    /// otherwise it will throw a panic.
     ///
     /// # Example
     ///
@@ -306,8 +306,8 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The name of subsystem cannot be empty and must be in `snake_case` format, otherwise it will
-    /// throw a panic.
+    /// The name of subsystem cannot be an empty string and must be in `snake_case` format,
+    /// otherwise it will throw a panic.
     ///
     /// # Example
     ///
