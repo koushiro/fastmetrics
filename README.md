@@ -1,11 +1,11 @@
 # fastmetrics
 
-[![CI Status](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
-[![Crates.io](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
-[![Documentation](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
-[![MSRV 1.75.0](https://img.shields.io/badge/MSRV-1.75.0-green?logo=rust)](https://www.whatrustisit.com)
-[![License](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
+[![](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
+[![](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
+[![](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
+[![](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
+[![](https://img.shields.io/badge/MSRV-1.80.0-green?logo=rust)](https://www.whatrustisit.com)
+[![](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
 
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
 and it's compatible with Prometheus.
