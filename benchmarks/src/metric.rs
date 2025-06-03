@@ -5,7 +5,12 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use rand::Rng;
 
 fn bench_counter(c: &mut Criterion) {
-    let mut group = c.benchmark_group("counter::inc");
+    bench_counter_u64(c);
+    bench_counter_f64(c);
+}
+
+fn bench_counter_u64(c: &mut Criterion) {
+    let mut group = c.benchmark_group("counter(u64)::inc");
     group.bench_function("prometheus", |b| {
         use prometheus::IntCounter;
         let counter = IntCounter::new("my_counter", "My counter").unwrap();
@@ -27,8 +32,37 @@ fn bench_counter(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_counter_f64(c: &mut Criterion) {
+    let mut group = c.benchmark_group("counter(f64)::inc");
+    group.bench_function("prometheus", |b| {
+        use prometheus::Counter;
+        let counter = Counter::new("my_counter", "My counter").unwrap();
+
+        b.iter(|| counter.inc());
+    });
+    group.bench_function("prometheus_client", |b| {
+        use prometheus_client::metrics::counter::Counter;
+        use std::sync::atomic::AtomicU64;
+        let counter = Counter::<f64, AtomicU64>::default();
+
+        b.iter(|| black_box(counter.inc()));
+    });
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::counter::Counter;
+        let counter = Counter::<f64>::default();
+
+        b.iter(|| black_box(counter.inc()));
+    });
+    group.finish();
+}
+
 fn bench_gauge(c: &mut Criterion) {
-    let mut group = c.benchmark_group("gauge::set");
+    bench_gauge_i64(c);
+    bench_gauge_f64(c);
+}
+
+fn bench_gauge_i64(c: &mut Criterion) {
+    let mut group = c.benchmark_group("gauge(i64)::set");
     group.bench_function("prometheus", |b| {
         use prometheus::IntGauge;
         let gauge = IntGauge::new("my_gauge", "My gauge").unwrap();
@@ -61,7 +95,7 @@ fn bench_gauge(c: &mut Criterion) {
     });
     group.finish();
 
-    let mut group = c.benchmark_group("gauge::inc_by");
+    let mut group = c.benchmark_group("gauge(i64)::inc_by");
     group.bench_function("prometheus", |b| {
         use prometheus::IntGauge;
         let gauge = IntGauge::new("my_gauge", "My gauge").unwrap();
@@ -94,7 +128,7 @@ fn bench_gauge(c: &mut Criterion) {
     });
     group.finish();
 
-    let mut group = c.benchmark_group("gauge::dec_by");
+    let mut group = c.benchmark_group("gauge(i64)::dec_by");
     group.bench_function("prometheus", |b| {
         use prometheus::IntGauge;
         let gauge = IntGauge::new("my_gauge", "My gauge").unwrap();
@@ -121,6 +155,110 @@ fn bench_gauge(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
+            |input| black_box(gauge.dec_by(black_box(input))),
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+}
+
+fn bench_gauge_f64(c: &mut Criterion) {
+    let mut group = c.benchmark_group("gauge(f64)::set");
+    group.bench_function("prometheus", |b| {
+        use prometheus::Gauge;
+        let gauge = Gauge::new("my_gauge", "My gauge").unwrap();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.set(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("prometheus_client", |b| {
+        use prometheus_client::metrics::gauge::Gauge;
+        use std::sync::atomic::AtomicU64;
+        let gauge = Gauge::<f64, AtomicU64>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| black_box(gauge.set(black_box(input))),
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
+        let gauge = Gauge::<f64>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.set(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+
+    let mut group = c.benchmark_group("gauge(f64)::inc_by");
+    group.bench_function("prometheus", |b| {
+        use prometheus::Gauge;
+        let gauge = Gauge::new("my_gauge", "My gauge").unwrap();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.add(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("prometheus_client", |b| {
+        use prometheus_client::metrics::gauge::Gauge;
+        use std::sync::atomic::AtomicU64;
+        let gauge = Gauge::<f64, AtomicU64>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| black_box(gauge.inc_by(black_box(input))),
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
+        let gauge = Gauge::<f64>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| black_box(gauge.inc_by(black_box(input))),
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+
+    let mut group = c.benchmark_group("gauge(f64)::dec_by");
+    group.bench_function("prometheus", |b| {
+        use prometheus::Gauge;
+        let gauge = Gauge::new("my_gauge", "My gauge").unwrap();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.sub(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("prometheus_client", |b| {
+        use prometheus_client::metrics::gauge::Gauge;
+        use std::sync::atomic::AtomicU64;
+        let gauge = Gauge::<f64, AtomicU64>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| black_box(gauge.dec_by(black_box(input))),
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
+        let gauge = Gauge::<f64>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
             |input| black_box(gauge.dec_by(black_box(input))),
             BatchSize::SmallInput,
         );

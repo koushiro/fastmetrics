@@ -19,7 +19,7 @@ and it's compatible with Prometheus.
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
-- Derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
+- Derive macros to simplify code (e.g., like registering metrics, label handling, etc.)
 
 ## Usage
 
