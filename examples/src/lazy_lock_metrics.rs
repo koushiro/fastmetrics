@@ -55,14 +55,9 @@ static ACTIVE_CONNECTIONS: LazyLock<Gauge> = LazyLock::new(|| {
         .expect("Failed to register active_connections")
 });
 
-static CACHE_SIZE_BYTES: LazyLock<Gauge> = LazyLock::new(|| {
-    register_with_unit(
-        "cache_size_bytes",
-        "Current cache size in bytes",
-        Unit::Bytes,
-        <Gauge>::default(),
-    )
-    .expect("Failed to register cache_size_bytes")
+static CACHE_SIZE: LazyLock<Gauge> = LazyLock::new(|| {
+    register_with_unit("cache_size", "Current cache size in bytes", Unit::Bytes, Gauge::default())
+        .expect("Failed to register cache_size_bytes")
 });
 
 // Helper functions to update metrics from anywhere in the application
@@ -114,7 +109,7 @@ fn simulate_http_server() {
 
         // Update cache size
         let cache_size = rng.random_range(1024..1024 * 1024 * 10);
-        CACHE_SIZE_BYTES.set(cache_size);
+        CACHE_SIZE.set(cache_size);
     }
 
     println!("Simulation completed!");
