@@ -172,11 +172,13 @@ pub fn register<M>(
     name: impl Into<Cow<'static, str>>,
     help: impl Into<Cow<'static, str>>,
     metric: M,
-) -> Result<(), RegistryError>
+) -> Result<M, RegistryError>
 where
-    M: EncodeMetric + 'static,
+    M: EncodeMetric + Clone + 'static,
 {
-    with_global_registry_mut(|registry| registry.register(name, help, metric).map(|_| ()))
+    with_global_registry_mut(|registry| {
+        registry.register(name, help, metric.clone()).map(|_| metric)
+    })
 }
 
 /// Registers a metric with unit into the global registry.
@@ -185,12 +187,12 @@ pub fn register_with_unit<M>(
     help: impl Into<Cow<'static, str>>,
     unit: Unit,
     metric: M,
-) -> Result<(), RegistryError>
+) -> Result<M, RegistryError>
 where
-    M: EncodeMetric + 'static,
+    M: EncodeMetric + Clone + 'static,
 {
     with_global_registry_mut(|registry| {
-        registry.register_with_unit(name, help, unit, metric).map(|_| ())
+        registry.register_with_unit(name, help, unit, metric.clone()).map(|_| metric)
     })
 }
 
