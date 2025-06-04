@@ -38,8 +38,8 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                 return Ok(quote! {});
             }
 
-            // Handle #[register(flatten)] or #[register(subsystem)] fields (both need to call
-            // register on the field)
+            // Handle #[register(flatten)] or #[register(subsystem)] fields
+            // (both need to call register on the field)
             let is_flatten =
                 field_attrs.register.flatten || field_attrs.register.subsystem.is_some();
             if is_flatten {
@@ -178,8 +178,8 @@ impl FieldAttributes {
                     }
                     if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
                     {
-                        // `flatten` cannot coexist with `rename` or `unit` but can coexist with
-                        // `subsystem`
+                        // `flatten` cannot coexist with `rename` or `unit`,
+                        // but can coexist with `subsystem`
                         return Err(Error::new_spanned(
                             attr,
                             "`flatten` attribute cannot coexist with `rename` or `unit` attributes",
