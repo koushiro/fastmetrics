@@ -34,5 +34,9 @@ name = "derive_register_global"
 path = "src/derive/register_global.rs"
 
 [[example]]
+name = "lazy_lock_metrics"
+path = "src/lazy_lock_metrics.rs"
+
+[[example]]
 name = "axum-exporter"
 path = "src/exporter/axum.rs"

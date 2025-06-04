@@ -1,4 +1,4 @@
-use std::hint::black_box;
+use std::{hint::black_box, sync::atomic::AtomicU64};
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 // use pprof::criterion::{Output, PProfProfiler};
@@ -42,7 +42,6 @@ fn bench_counter_f64(c: &mut Criterion) {
     });
     group.bench_function("prometheus_client", |b| {
         use prometheus_client::metrics::counter::Counter;
-        use std::sync::atomic::AtomicU64;
         let counter = Counter::<f64, AtomicU64>::default();
 
         b.iter(|| black_box(counter.inc()));
@@ -176,7 +175,6 @@ fn bench_gauge_f64(c: &mut Criterion) {
     });
     group.bench_function("prometheus_client", |b| {
         use prometheus_client::metrics::gauge::Gauge;
-        use std::sync::atomic::AtomicU64;
         let gauge = Gauge::<f64, AtomicU64>::default();
 
         b.iter_batched(
@@ -210,7 +208,6 @@ fn bench_gauge_f64(c: &mut Criterion) {
     });
     group.bench_function("prometheus_client", |b| {
         use prometheus_client::metrics::gauge::Gauge;
-        use std::sync::atomic::AtomicU64;
         let gauge = Gauge::<f64, AtomicU64>::default();
 
         b.iter_batched(
@@ -244,7 +241,6 @@ fn bench_gauge_f64(c: &mut Criterion) {
     });
     group.bench_function("prometheus_client", |b| {
         use prometheus_client::metrics::gauge::Gauge;
-        use std::sync::atomic::AtomicU64;
         let gauge = Gauge::<f64, AtomicU64>::default();
 
         b.iter_batched(
