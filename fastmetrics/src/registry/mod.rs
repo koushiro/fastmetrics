@@ -462,7 +462,10 @@ fn is_lowercase(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt, time::Duration};
+
     use super::*;
+    use crate::encoder::MetricEncoder;
 
     #[test]
     fn test_registry_subsystem() {
@@ -526,6 +529,38 @@ mod tests {
         assert!(labels.iter().any(|(k, v)| k == "env" && v == "prod"));
         assert!(labels.iter().any(|(k, v)| k == "region" && v == "us-west"));
         assert!(labels.iter().any(|(k, v)| k == "type" && v == "redis"));
+    }
+
+    #[derive(Default)]
+    pub(crate) struct DummyCounter;
+    impl EncodeMetric for DummyCounter {
+        fn encode(&self, _encoder: &mut dyn MetricEncoder) -> fmt::Result {
+            Ok(())
+        }
+
+        fn metric_type(&self) -> MetricType {
+            MetricType::Counter
+        }
+
+        fn timestamp(&self) -> Option<Duration> {
+            None
+        }
+    }
+
+    #[test]
+    fn test_register_same_metric() {
+        let mut registry = Registry::default();
+
+        // Register first counter
+        registry.register("my_dummy_counter", "", <DummyCounter>::default()).unwrap();
+
+        // Try to register another counter with the same name - this will fail
+        let result = registry.register(
+            "my_dummy_counter",
+            "Another dummy counter",
+            <DummyCounter>::default(),
+        );
+        assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
     }
 
     #[test]
