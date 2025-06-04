@@ -57,7 +57,7 @@ static ACTIVE_CONNECTIONS: LazyLock<Gauge> = LazyLock::new(|| {
 
 static CACHE_SIZE: LazyLock<Gauge> = LazyLock::new(|| {
     register_with_unit("cache_size", "Current cache size in bytes", Unit::Bytes, Gauge::default())
-        .expect("Failed to register cache_size_bytes")
+        .expect("Failed to register cache_size")
 });
 
 // Helper functions to update metrics from anywhere in the application

@@ -16,13 +16,21 @@ use crate::raw::MetricType;
 /// The metadata of a metric family.
 ///
 /// There are four pieces of metadata: name, TYPE, UNIT and HELP.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Metadata {
     name: Cow<'static, str>,
     help: Cow<'static, str>,
     ty: MetricType,
     unit: Option<Unit>,
 }
+
+impl PartialEq for Metadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.ty == other.ty && self.unit == other.unit
+    }
+}
+
+impl Eq for Metadata {}
 
 impl Hash for Metadata {
     fn hash<H: Hasher>(&self, state: &mut H) {

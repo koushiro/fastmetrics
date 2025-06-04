@@ -167,7 +167,78 @@ where
     f(&mut registry)
 }
 
-/// Registers a metric into the global registry.
+/// Registers a metric with the global [`Registry`] and returns the metric instance.
+///
+/// This function provides a convenient way to register metrics with the global registry
+/// while retaining ownership of the metric for updates. It's particularly useful with
+/// `LazyLock` for creating static global metrics.
+///
+/// # Arguments
+///
+/// * `name` - The name of the metric (must be in `snake_case` format)
+/// * `help` - A description of what the metric measures
+/// * `metric` - The metric instance to register (must implement [`Clone`])
+///
+/// # Returns
+///
+/// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
+/// - A same metric already exists
+/// - The metric name is not in `snake_case` format
+///
+/// # Examples
+///
+/// ## Basic usage
+///
+/// ```rust
+/// # use fastmetrics::{
+/// #     metrics::counter::Counter,
+/// #     registry::register,
+/// # };
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let counter = register("http_requests_total", "Total HTTP requests", <Counter>::default())?;
+///
+/// // Use the returned counter
+/// counter.inc();
+/// assert_eq!(counter.total(), 1);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## With LazyLock for static metrics
+///
+/// ```rust
+/// # use std::sync::LazyLock;
+/// # use fastmetrics::{
+/// #     metrics::counter::Counter,
+/// #     registry::register,
+/// # };
+/// static REQUEST_COUNTER: LazyLock<Counter> = LazyLock::new(|| {
+///     register("requests_total", "Total requests processed", <Counter>::default())
+///         .expect("Failed to register counter")
+/// });
+///
+/// fn handle_request() {
+///     REQUEST_COUNTER.inc();
+/// }
+/// ```
+///
+/// ## Error handling
+///
+/// ```rust
+/// # use fastmetrics::{
+/// #     metrics::counter::Counter,
+/// #     registry::{register, RegistryError},
+/// # };
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// // Register first counter
+/// let counter1 = register("my_counter", "A counter", <Counter>::default()).unwrap();
+///
+/// // Try to register another counter with the same name - this will fail
+/// let result = register("my_counter", "Another counter", <Counter>::default());
+/// assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
+/// # Ok(())
+/// # }
+/// ```
 pub fn register<M>(
     name: impl Into<Cow<'static, str>>,
     help: impl Into<Cow<'static, str>>,
@@ -181,7 +252,109 @@ where
     })
 }
 
-/// Registers a metric with unit into the global registry.
+/// Registers a metric with a unit to the global [`Registry`] and returns the metric instance.
+///
+/// This function is similar to [`register`] but allows specifying a unit for the metric,
+/// which is important for proper metric interpretation and display in monitoring systems.
+///
+/// # Arguments
+///
+/// * `name` - The name of the metric (must be in `snake_case` format)
+/// * `help` - A description of what the metric measures
+/// * `unit` - The unit of measurement (e.g., [`Unit::Seconds`], [`Unit::Bytes`])
+/// * `metric` - The metric instance to register (must implement [`Clone`])
+///
+/// # Returns
+///
+/// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
+/// - A same metric already exists
+/// - The metric name is not in `snake_case` format
+/// - The unit format is invalid (custom units must be in `lowercase` format)
+/// - The metric type doesn't support units (StateSet, Info, Unknown types must have empty units)
+///
+/// # Examples
+///
+/// ## With predefined units
+///
+/// ```rust
+/// # use fastmetrics::{
+/// #     metrics::histogram::Histogram,
+/// #     registry::{register_with_unit, Unit},
+/// # };
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let duration_histogram = register_with_unit(
+///     "request_duration",
+///     "HTTP request duration",
+///     Unit::Seconds,
+///     Histogram::default(),
+/// )?;
+///
+/// duration_histogram.observe(0.1); // 100ms
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## With custom units
+///
+/// ```rust
+/// # use fastmetrics::{
+/// #     metrics::gauge::Gauge,
+/// #     registry::{register_with_unit, Unit},
+/// # };
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let temperature = register_with_unit(
+///     "cpu_temperature",
+///     "CPU temperature",
+///     Unit::Other("celsius".into()),
+///     <Gauge>::default(),
+/// )?;
+///
+/// temperature.set(65);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## With LazyLock for static metrics
+///
+/// ```rust
+/// # use std::sync::LazyLock;
+/// # use fastmetrics::{
+/// #     metrics::gauge::Gauge,
+/// #     registry::{register_with_unit, Unit},
+/// # };
+/// static MEMORY_USAGE: LazyLock<Gauge> = LazyLock::new(|| {
+///     register_with_unit(
+///         "memory_usage",
+///         "Current memory usage",
+///         Unit::Bytes,
+///         <Gauge>::default(),
+///     )
+///     .expect("Failed to register memory_usage gauge")
+/// });
+///
+/// fn update_memory_stats() {
+///     MEMORY_USAGE.set(1024 * 1024 * 512); // 512MB
+/// }
+/// ```
+///
+/// ## Error cases
+///
+/// ```rust
+/// # use fastmetrics::{
+/// #     metrics::gauge::Gauge,
+/// #     registry::{register_with_unit, Unit, RegistryError},
+/// # };
+/// # fn main() {
+/// // Invalid unit format (must be in lowercase format)
+/// let result = register_with_unit(
+///     "invalid_metric",
+///     "Invalid metric",
+///     Unit::Other("UPPERCASE".into()),
+///     <Gauge>::default(),
+/// );
+/// assert!(matches!(result, Err(RegistryError::OtherUnitFormatMustBeLowercase { .. })));
+/// # }
+/// ```
 pub fn register_with_unit<M>(
     name: impl Into<Cow<'static, str>>,
     help: impl Into<Cow<'static, str>>,
