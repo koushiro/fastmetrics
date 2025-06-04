@@ -32,7 +32,7 @@ pub trait EncodeLabelSet {
     /// Encodes this set of labels using the provided [`LabelSetEncoder`].
     ///
     /// This method should encode all labels in the set using the provided encoder,
-    /// typically by obtaining individual label encoder for each label in the set.
+    /// typically by getting individual label encoder for each label in the set.
     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result;
 
     /// Returns whether the label set is empty.
