@@ -531,7 +531,6 @@ mod tests {
         assert!(labels.iter().any(|(k, v)| k == "type" && v == "redis"));
     }
 
-    #[derive(Default)]
     pub(crate) struct DummyCounter;
     impl EncodeMetric for DummyCounter {
         fn encode(&self, _encoder: &mut dyn MetricEncoder) -> fmt::Result {
@@ -552,14 +551,10 @@ mod tests {
         let mut registry = Registry::default();
 
         // Register first counter
-        registry.register("my_dummy_counter", "", <DummyCounter>::default()).unwrap();
+        registry.register("my_dummy_counter", "", DummyCounter).unwrap();
 
-        // Try to register another counter with the same name - this will fail
-        let result = registry.register(
-            "my_dummy_counter",
-            "Another dummy counter",
-            <DummyCounter>::default(),
-        );
+        // Try to register another counter with the same name and type - this will fail
+        let result = registry.register("my_dummy_counter", "Another dummy counter", DummyCounter);
         assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
     }
 
