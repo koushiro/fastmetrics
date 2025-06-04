@@ -167,7 +167,7 @@ where
     f(&mut registry)
 }
 
-/// Registers a metric with the global [`Registry`] and returns the metric instance.
+/// Registers a metric to the global [`Registry`] and returns the metric instance.
 ///
 /// This function provides a convenient way to register metrics with the global registry
 /// while retaining ownership of the metric for updates. It's particularly useful with
