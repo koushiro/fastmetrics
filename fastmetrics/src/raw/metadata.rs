@@ -120,3 +120,12 @@ impl Unit {
         }
     }
 }
+
+impl<T> From<T> for Unit
+where
+    T: Into<Cow<'static, str>>,
+{
+    fn from(name: T) -> Self {
+        Unit::Other(name.into())
+    }
+}
