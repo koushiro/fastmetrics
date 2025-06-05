@@ -6,8 +6,11 @@ struct Metrics {
     #[register(flatten)]
     inner1: InnerMetrics1,
 
-    #[register(flatten, rename = "inner")]
+    #[register(flatten, subsystem = "inner")]
     inner2: InnerMetrics2,
+
+    #[register(flatten, rename = "inner")]
+    inner3: InnerMetrics3,
 }
 
 #[derive(Default, Register)]
@@ -19,9 +22,15 @@ struct InnerMetrics1 {
 
 #[derive(Default, Register)]
 struct InnerMetrics2 {
-    /// Total HTTP requests
+    /// Duration of HTTP requests
     #[register(rename = "http_requests_duration", unit(Seconds))]
     request_duration: Histogram,
+}
+
+#[derive(Default, Register)]
+struct InnerMetrics3 {
+    /// Inner counter
+    counter: Counter,
 }
 
 fn main() {}

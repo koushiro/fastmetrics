@@ -6,7 +6,7 @@ use fastmetrics::{
 use fastmetrics_derive::Register;
 
 #[derive(Default, Register)]
-struct Metrics {
+struct DemoMetrics {
     /// My counter help
     #[register(rename = "my_counter")]
     counter_family: Family<(), Counter>,
@@ -20,6 +20,10 @@ struct Metrics {
     // No help
     #[register(unit(Bytes))]
     counter: Counter,
+
+    /// This doc comment will be ignored
+    #[register(help = "Custom help text that override doc comments")]
+    override_help_counter: Counter,
 
     /**
 
@@ -65,8 +69,9 @@ struct FlattenMetrics {
 }
 
 fn main() {
-    let mut registry = Registry::default();
-    let metrics = Metrics::default();
+    let mut registry = Registry::builder().with_namespace("demo").build();
+
+    let metrics = DemoMetrics::default();
     metrics.register(&mut registry).unwrap();
 
     let mut output = String::new();

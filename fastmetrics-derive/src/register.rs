@@ -61,9 +61,14 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
             // Get the metric name from rename attribute or field ident
             let name = field_attrs.register.rename.unwrap_or(field_ident.to_string());
 
-            // Get help from doc comments
-            let docs = field_attrs.docs;
-            let help = if docs.is_empty() { String::new() } else { docs.join(" ") };
+            // Get help from help attribute or doc comments
+            let help = field_attrs.register.help.unwrap_or_else(|| {
+                if field_attrs.docs.is_empty() {
+                    String::new()
+                } else {
+                    field_attrs.docs.join(" ")
+                }
+            });
 
             // Generate `register` code based on unit attribute
             let body = match &field_attrs.register.unit {
@@ -142,6 +147,13 @@ impl FieldAttributes {
                     field_attrs.register.rename = Some(rename);
                 }
 
+                if let Some(help) = register_attr.help {
+                    if field_attrs.register.help.is_some() {
+                        return Err(Error::new_spanned(attr, "duplicated `help` attribute"));
+                    }
+                    field_attrs.register.help = Some(help);
+                }
+
                 if let Some(unit) = register_attr.unit {
                     if field_attrs.register.unit.is_some() {
                         return Err(Error::new_spanned(attr, "duplicated `unit` attribute"));
@@ -161,6 +173,7 @@ impl FieldAttributes {
                         return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
                     }
                     if field_attrs.register.rename.is_some()
+                        || field_attrs.register.help.is_some()
                         || field_attrs.register.unit.is_some()
                         || field_attrs.register.subsystem.is_some()
                     {
@@ -176,13 +189,15 @@ impl FieldAttributes {
                     if field_attrs.register.flatten {
                         return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
                     }
-                    if field_attrs.register.rename.is_some() || field_attrs.register.unit.is_some()
+                    if field_attrs.register.rename.is_some()
+                        || field_attrs.register.help.is_some()
+                        || field_attrs.register.unit.is_some()
                     {
-                        // `flatten` cannot coexist with `rename` or `unit`,
+                        // `flatten` cannot coexist with `rename`, `help` or `unit`,
                         // but can coexist with `subsystem`
                         return Err(Error::new_spanned(
                             attr,
-                            "`flatten` attribute cannot coexist with `rename` or `unit` attributes",
+                            "`flatten` attribute cannot coexist with `rename`, `help` or `unit` attributes",
                         ));
                     }
                     field_attrs.register.flatten = true;
@@ -209,6 +224,9 @@ struct FieldRegisterAttribute {
     // #[register(rename = "...")]
     /// Custom name for the metric instead of field name
     rename: Option<String>,
+    // #[register(help = "...")]
+    /// Custom help text that overrides doc comments
+    help: Option<String>,
     // #[register(unit(...)] or #[register(unit = "...")]
     /// Unit for the metric
     unit: Option<UnitValue>,
@@ -256,6 +274,18 @@ impl FieldRegisterAttribute {
                             return Err(Error::new_spanned(nv, "duplicated `rename` attribute"));
                         }
                         register_attr.rename = Some(s.value())
+                    } else {
+                        return Err(Error::new_spanned(nv.value, "expected a literal string"));
+                    }
+                },
+
+                // #[register(help = "...")]
+                Meta::NameValue(nv) if nv.path.is_ident("help") => {
+                    if let Expr::Lit(ExprLit { lit: Lit::Str(ref s), .. }) = nv.value {
+                        if register_attr.help.is_some() {
+                            return Err(Error::new_spanned(nv, "duplicated `help` attribute"));
+                        }
+                        register_attr.help = Some(s.value())
                     } else {
                         return Err(Error::new_spanned(nv.value, "expected a literal string"));
                     }
