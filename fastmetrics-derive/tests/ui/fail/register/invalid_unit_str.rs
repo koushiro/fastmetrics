@@ -4,7 +4,7 @@ use fastmetrics_derive::Register;
 #[derive(Default, Register)]
 struct Metrics {
     /// Duration of HTTP requests
-    #[register(rename = "http_requests_duration", unit = Seconds)]
+    #[register(rename = "http_requests_duration", unit = 42)]
     request_duration: Histogram,
 }
 
