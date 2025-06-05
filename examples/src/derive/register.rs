@@ -49,6 +49,10 @@ struct DemoMetrics {
     #[register(unit(Bytes))]
     counter: Counter,
 
+    /// This doc comment will be ignored
+    #[register(help = "Custom help text that override doc comments")]
+    override_help_counter: Counter,
+
     /**
 
     My histogram help line 1
@@ -95,9 +99,10 @@ struct FlattenMetrics {
 impl DemoMetrics {
     fn new() -> Self {
         Self {
-            counter: Default::default(),
             counter_family: Default::default(),
             gauge: Default::default(),
+            counter: Default::default(),
+            override_help_counter: Default::default(),
             histogram: Histogram::new(exponential_buckets(1.0, 2.0, 10)),
             inner: Default::default(),
             flatten: Default::default(),
