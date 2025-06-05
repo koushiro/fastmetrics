@@ -50,7 +50,7 @@ struct DemoMetrics {
     counter: Counter,
 
     /// This doc comment will be ignored
-    #[register(help = "Custom help text that override doc comments")]
+    #[register(help = "Custom help text that overrides doc comments")]
     override_help_counter: Counter,
 
     /**
