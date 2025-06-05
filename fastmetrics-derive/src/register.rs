@@ -35,7 +35,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
 
             // Skip field if marked with #[register(skip)]
             if field_attrs.register.skip {
-                return Ok(quote! {});
+                return Ok(quote! { /* skip */ });
             }
 
             // Handle #[register(flatten)] or #[register(subsystem)] fields
@@ -64,7 +64,8 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                 Some(rename) => rename.to_token_stream(),
                 None => {
                     let field_name = field_ident.to_string();
-                    quote! { #field_name }
+                    let name_lit_str = LitStr::new(&field_name, field_ident.span());
+                    quote!(#name_lit_str)
                 },
             };
 
@@ -77,7 +78,8 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                     } else {
                         field_attrs.docs.join(" ")
                     };
-                    quote! { #help_text }
+                    let help_lit_str = LitStr::new(&help_text, proc_macro2::Span::call_site());
+                    quote!(#help_lit_str)
                 },
             };
 
@@ -262,34 +264,40 @@ impl StringValue {
             Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Ok(StringValue::Literal(s.clone())),
 
             // Handle path expressions: CONST_STR, module::CONST
-            Expr::Path(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::Path(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle function calls: some_fn(), module::get_name()
-            Expr::Call(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::Call(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle method calls: obj.get_name()
-            Expr::MethodCall(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::MethodCall(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle field access: obj.field
-            Expr::Field(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::Field(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle index access: arr[0]
-            Expr::Index(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::Index(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle macro calls: format!("hello"), concat!("a", "b")
-            Expr::Macro(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::Macro(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle conditional expressions: if cond { "a" } else { "b" }
-            Expr::If(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::If(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle match expressions: match x { ... }
-            Expr::Match(_) => Ok(StringValue::Expression(quote! { #expr })),
+            Expr::Match(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Handle parenthesized expressions: (expr)
             Expr::Paren(paren) => StringValue::from_expr(&paren.expr),
 
             // Handle grouped expressions: { expr }
             Expr::Group(group) => StringValue::from_expr(&group.expr),
+
+            // Handle references: &CONST_STR
+            Expr::Reference(_) => Ok(StringValue::Expression(quote!(#expr))),
+
+            // Handle try expressions: expr?
+            Expr::Try(_) => Ok(StringValue::Expression(quote!(#expr))),
 
             // Reject all other expression types with a helpful error message
             _ => Err(Error::new_spanned(
@@ -301,7 +309,7 @@ impl StringValue {
 
     fn to_token_stream(&self) -> TokenStream {
         match self {
-            StringValue::Literal(lit_str) => quote! { #lit_str },
+            StringValue::Literal(lit_str) => quote!(#lit_str),
             StringValue::Expression(expr) => expr.clone(),
         }
     }
