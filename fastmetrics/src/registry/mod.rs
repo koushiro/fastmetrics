@@ -228,16 +228,15 @@ impl Registry {
     /// Registers a metric with an optional unit into [`Registry`].
     ///
     /// This is the most flexible registration method that allows specifying an optional unit.
-    /// Use [`register`] for metrics without units or [`register_with_unit`] for metrics with units
-    /// unless you need the flexibility of optional units.
+    /// Use [`Registry::register`] for metrics without units or [`Registry::register_with_unit`]
+    /// for metrics with units unless you need the flexibility of optional units.
     ///
     /// # Example
     ///
     /// ```rust
     /// # use fastmetrics::{
     /// #     metrics::{counter::Counter, histogram::Histogram},
-    /// #     raw::metadata::Unit,
-    /// #     registry::{Registry, RegistryError},
+    /// #     registry::{Registry, RegistryError, Unit},
     /// # };
     /// # fn main() -> Result<(), RegistryError> {
     /// let mut registry = Registry::default();

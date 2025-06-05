@@ -297,13 +297,13 @@ where
 /// ```rust
 /// # use fastmetrics::{
 /// #     metrics::gauge::Gauge,
-/// #     registry::{register_with_unit, RegistryError, Unit},
+/// #     registry::{register_with_unit, RegistryError},
 /// # };
 /// # fn main() -> Result<(), RegistryError> {
 /// let temperature = register_with_unit(
 ///     "cpu_temperature",
 ///     "CPU temperature",
-///     Unit::Other("celsius".into()),
+///     "celsius",
 ///     <Gauge>::default(),
 /// )?;
 ///
@@ -340,14 +340,14 @@ where
 /// ```rust
 /// # use fastmetrics::{
 /// #     metrics::gauge::Gauge,
-/// #     registry::{register_with_unit, Unit, RegistryError},
+/// #     registry::{register_with_unit, RegistryError},
 /// # };
 /// # fn main() -> Result<(), RegistryError> {
 /// // Invalid unit format (must be in lowercase format)
 /// let result = register_with_unit(
 ///     "invalid_metric",
 ///     "Invalid metric",
-///     Unit::Other("UPPERCASE".into()),
+///     "UPPERCASE",
 ///     <Gauge>::default(),
 /// );
 /// assert!(matches!(result, Err(RegistryError::OtherUnitFormatMustBeLowercase { .. })));
@@ -441,8 +441,8 @@ where
 /// # };
 /// # fn main() -> Result<(), RegistryError> {
 /// let use_metric_units = true; // from config
-/// let unit = if use_metric_units {
-///     Some(Unit::Other("celsius".into()))
+/// let unit: Option<Unit> = if use_metric_units {
+///     Some("celsius".into())
 /// } else {
 ///     None
 /// };
@@ -487,14 +487,14 @@ where
 /// ```rust
 /// # use fastmetrics::{
 /// #     metrics::{counter::Counter, gauge::Gauge},
-/// #     registry::{register_metric, Unit, RegistryError},
+/// #     registry::{register_metric, RegistryError, Unit},
 /// # };
 /// # fn main() -> Result<(), RegistryError> {
 /// // Invalid unit format (must be lowercase)
 /// let result = register_metric(
 ///     "invalid_metric",
 ///     "Invalid metric",
-///     Some(Unit::Other("UPPERCASE".into())),
+///     Some("UPPERCASE"),
 ///     <Gauge>::default(),
 /// );
 /// assert!(matches!(result, Err(RegistryError::OtherUnitFormatMustBeLowercase { .. })));
