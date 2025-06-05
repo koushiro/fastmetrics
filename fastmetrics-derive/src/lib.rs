@@ -155,7 +155,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// #[derive(Default, fastmetrics_derive::Register)]
 /// struct FlattenMetrics {
 ///     /// Flatten gauge help
-///     gauge: Gauge,
+///     flatten_gauge: Gauge,
 /// }
 ///
 /// let mut registry = Registry::builder().with_namespace("demo").build();
