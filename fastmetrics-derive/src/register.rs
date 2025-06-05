@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
     punctuated::Punctuated, Attribute, Data, DeriveInput, Error, Expr, ExprLit, Field, Fields,
-    FieldsNamed, Lit, Meta, MetaNameValue, Path, Result, Token,
+    FieldsNamed, Lit, LitStr, Meta, MetaNameValue, Path, Result, Token,
 };
 
 use crate::utils::wrap_in_const;
@@ -250,7 +250,7 @@ struct FieldRegisterAttribute {
 /// Represents a string value which can be a literal string or an expression
 enum StringValue {
     /// String literal (e.g., "hello")
-    Literal(String),
+    Literal(LitStr),
     /// Expression that evaluates to a string (e.g., CONST_STR, some_fn())
     Expression(TokenStream),
 }
@@ -259,7 +259,7 @@ impl StringValue {
     fn from_expr(expr: &Expr) -> Result<Self> {
         match expr {
             // Handle string literals: "hello"
-            Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Ok(StringValue::Literal(s.value())),
+            Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Ok(StringValue::Literal(s.clone())),
 
             // Handle path expressions: CONST_STR, module::CONST
             Expr::Path(_) => Ok(StringValue::Expression(quote! { #expr })),
@@ -301,7 +301,7 @@ impl StringValue {
 
     fn to_token_stream(&self) -> TokenStream {
         match self {
-            StringValue::Literal(s) => quote! { #s },
+            StringValue::Literal(lit_str) => quote! { #lit_str },
             StringValue::Expression(expr) => expr.clone(),
         }
     }
@@ -311,7 +311,7 @@ impl StringValue {
 enum UnitValue {
     /// Unit variant from the Unit enum (e.g., Bytes)
     Path(Path),
-    /// Custom unit string or expression (e.g. "bytes" or UNIT_CONST)
+    /// Custom unit string literal or expression (e.g. "bytes" or UNIT_CONST)
     StringValue(StringValue),
 }
 
