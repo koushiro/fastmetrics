@@ -102,6 +102,8 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// #     metrics::{counter::Counter, gauge::Gauge, histogram::Histogram, family::Family},
 /// #     registry::{Register, Registry},
 /// # };
+/// static OVERRIDE_HELP: &str = "Custom help text that overrides doc comments";
+///
 /// #[derive(Default, fastmetrics_derive::Register)]
 /// struct DemoMetrics {
 ///     /// My counter help
@@ -119,7 +121,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///     counter: Counter,
 ///
 ///     /// This doc comment will be ignored
-///     #[register(help = "Custom help text that overrides doc comments")]
+///     #[register(help = OVERRIDE_HELP)]
 ///     override_help_counter: Counter,
 ///     
 ///     /**
@@ -153,7 +155,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// #[derive(Default, fastmetrics_derive::Register)]
 /// struct FlattenMetrics {
 ///     /// Flatten gauge help
-///     gauge: Gauge,
+///     flatten_gauge: Gauge,
 /// }
 ///
 /// let mut registry = Registry::builder().with_namespace("demo").build();

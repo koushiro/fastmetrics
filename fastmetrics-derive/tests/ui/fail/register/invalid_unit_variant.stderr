@@ -1,5 +1,5 @@
-error: expected identifier
+error[E0599]: no variant or associated item named `InvalidVariant` found for enum `Unit` in the current scope
  --> tests/ui/fail/register/invalid_unit_variant.rs:7:56
   |
-7 |     #[register(rename = "http_requests_duration", unit("Seconds"))]
-  |                                                        ^^^^^^^^^
+7 |     #[register(rename = "http_requests_duration", unit(InvalidVariant))]
+  |                                                        ^^^^^^^^^^^^^^ variant or associated item not found in `Unit`
