@@ -157,7 +157,7 @@ impl Registry {
 
 // register
 impl Registry {
-    /// Registers a metric into [`Registry`].
+    /// Registers a metric without a unit into [`Registry`].
     ///
     /// # Example
     ///
@@ -187,7 +187,7 @@ impl Registry {
         help: impl Into<Cow<'static, str>>,
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
-        self.register_metric(name, help, None, metric)
+        self.register_metric(name, help, None::<Unit>, metric)
     }
 
     /// Registers a metric with the specified unit into [`Registry`].
@@ -219,24 +219,44 @@ impl Registry {
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
-        unit: Unit,
+        unit: impl Into<Unit>,
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
-        let name = name.into();
-        match metric.metric_type() {
-            MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
-                return Err(RegistryError::MustHaveAnEmptyUnitString { name: name.clone() });
-            },
-            _ => {},
-        }
         self.register_metric(name, help, Some(unit), metric)
     }
 
-    fn register_metric(
+    /// Registers a metric with an optional unit into [`Registry`].
+    ///
+    /// This is the most flexible registration method that allows specifying an optional unit.
+    /// Use [`register`] for metrics without units or [`register_with_unit`] for metrics with units
+    /// unless you need the flexibility of optional units.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use fastmetrics::{
+    /// #     metrics::{counter::Counter, histogram::Histogram},
+    /// #     raw::metadata::Unit,
+    /// #     registry::{Registry, RegistryError},
+    /// # };
+    /// # fn main() -> Result<(), RegistryError> {
+    /// let mut registry = Registry::default();
+    ///
+    /// // Register without a unit
+    /// let counter = <Counter>::default();
+    /// registry.register_metric("requests", "Total requests", None::<Unit>, counter)?;
+    ///
+    /// // Register with the unit
+    /// let histogram = Histogram::default();
+    /// registry.register_metric("duration", "Request duration", Some(Unit::Seconds), histogram)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn register_metric(
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
-        unit: Option<Unit>,
+        unit: Option<impl Into<Unit>>,
         metric: impl EncodeMetric + 'static,
     ) -> Result<&mut Self, RegistryError> {
         let name = name.into();
@@ -244,6 +264,19 @@ impl Registry {
             return Err(RegistryError::InvalidNameFormat { name: name.clone() });
         }
 
+        let unit = unit.map(Into::into);
+
+        // Check if metric type requires empty unit
+        match metric.metric_type() {
+            MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
+                if unit.is_some() {
+                    return Err(RegistryError::MustHaveAnEmptyUnitString { name: name.clone() });
+                }
+            },
+            _ => {},
+        }
+
+        // Check unit format
         match unit {
             Some(Unit::Other(unit)) if !is_lowercase(unit.as_ref()) => {
                 return Err(RegistryError::OtherUnitFormatMustBeLowercase { unit: unit.clone() });
