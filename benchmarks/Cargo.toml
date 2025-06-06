@@ -9,7 +9,7 @@ publish = false
 [dev-dependencies]
 criterion = "0.6"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
-pprof = { version = "0.14.0", default-features = false, features = [
+pprof = { version = "0.15.0", default-features = false, features = [
     "criterion",
     "flamegraph",
     # Enable the feature on Mac M1
