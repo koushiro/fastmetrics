@@ -275,7 +275,7 @@ impl Registry {
             _ => {},
         }
 
-        // Check unit format
+        // Check the unit format
         match unit {
             Some(Unit::Other(unit)) if !is_lowercase(unit.as_ref()) => {
                 return Err(RegistryError::OtherUnitFormatMustBeLowercase { unit: unit.clone() });
