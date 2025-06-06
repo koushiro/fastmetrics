@@ -36,7 +36,7 @@ use fastmetrics::{
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
 struct Labels {
     method: Method,
-    status: u32,
+    status: u16,
 }
 
 // Need to enable `derive` feature to use `#[derive(EncodeLabelValue)]`
@@ -84,14 +84,14 @@ fn main() -> Box<dyn std::error::Error> {
 }
 ```
 
-See [documentation](https://docs.rs/fastmetrics) and [examples](./examples) for more details.
+See [documentation](https://docs.rs/fastmetrics) and [examples](https://github.com/koushiro/fastmetrics/tree/main/examples) for more details.
 
 ## Performance
 
 Compared with the existing rust client libraries, its text encoding is about 20%~30% faster than the fastest rust library (prometheus-client),
 while its Protobuf encoding is on par with the fastest rust library (prometheus).
 
-See [benchmarks](./benchmarks/README.md) for more details
+See [benchmarks](https://github.com/koushiro/fastmetrics/blob/main/benchmarks/README.md) for more details
 
 ## Acknowledgment
 
