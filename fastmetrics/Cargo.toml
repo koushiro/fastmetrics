@@ -22,7 +22,7 @@ derive = ["dep:fastmetrics-derive"]
 protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
 
 [build-dependencies]
-prost-build = { version = "0.13", optional = true }
+prost-build = { version = "0.14", optional = true }
 
 [dependencies]
 cfg-if = "1.0"
