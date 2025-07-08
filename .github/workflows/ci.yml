@@ -32,14 +32,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/taplo
-          key: ${{runner.os}}-taplo-0.9.3
+          key: ${{runner.os}}-taplo-0.10.0
 
       - name: Install taplo-cli if not cached
         if: steps.cache-taplo.outputs.cache-hit != 'true'
         shell: bash
         run: cargo install taplo-cli@${TAPLO_CLI_VERSION} --locked
         env:
-          TAPLO_CLI_VERSION: 0.9.3
+          TAPLO_CLI_VERSION: 0.10.0
 
       - name: Run taplo fmt
         run: taplo fmt --check
