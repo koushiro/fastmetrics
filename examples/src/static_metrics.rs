@@ -128,7 +128,7 @@ fn main() -> Result<()> {
     with_global_registry(|registry| text::encode(&mut output, registry))?;
 
     println!("\n=== Exported Metrics ===");
-    println!("{}", output);
+    println!("{output}");
 
     Ok(())
 }
