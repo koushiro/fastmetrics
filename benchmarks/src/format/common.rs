@@ -116,8 +116,8 @@ pub fn setup_prometheus_client_registry(
             Histogram::new(exponential_buckets(0.005, 2.0, 10))
         });
 
-        registry.register(format!("my_counter_{}", i), "My counter", counter_family.clone());
-        registry.register(format!("my_histogram_{}", i), "My histogram", histogram_family.clone());
+        registry.register(format!("my_counter_{i}"), "My counter", counter_family.clone());
+        registry.register(format!("my_histogram_{i}"), "My histogram", histogram_family.clone());
 
         for _ in 0..observe_time {
             let labels = rng.random::<Labels>();
@@ -151,10 +151,10 @@ pub fn setup_fastmetrics_registry(
         });
 
         registry
-            .register(format!("my_counter_{}", i), "My counter", counter_family.clone())
+            .register(format!("my_counter_{i}"), "My counter", counter_family.clone())
             .unwrap();
         registry
-            .register(format!("my_histogram_{}", i), "My histogram", histogram_family.clone())
+            .register(format!("my_histogram_{i}"), "My histogram", histogram_family.clone())
             .unwrap();
 
         for _ in 0..observe_time {
