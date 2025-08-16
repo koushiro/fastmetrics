@@ -181,6 +181,7 @@ where
 {
     fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
         let (name, value) = self;
+        // Skip encoding this label if the value indicates it should not be encoded.
         if value.skip_encoding() {
             return Ok(());
         }
@@ -252,7 +253,11 @@ pub trait EncodeLabelValue {
     /// Encodes this type as a label value using the provided [`LabelEncoder`].
     fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result;
 
-    /// Returns whether this label value will skip encoding.
+    /// Returns whether this label value should be skipped during encoding.
+    ///
+    /// If this method returns `true`, the entire label (key and value) will be omitted
+    /// from the encoded output. This can be used to avoid emitting labels with empty,
+    /// default, or otherwise ignorable values.
     fn skip_encoding(&self) -> bool {
         false
     }
