@@ -5,7 +5,7 @@ use std::{borrow::Cow, fmt, io, time::Duration};
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
-        EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
+        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     raw::{bucket::Bucket, quantile::Quantile, Metadata, MetricType},
     registry::Registry,
@@ -438,15 +438,6 @@ impl encoder::LabelEncoder for LabelEncoder<'_> {
     }
 
     encode_float_value_impls! { f32, f64 }
-
-    fn encode_some_value(&mut self, value: &dyn EncodeLabelValue) -> fmt::Result {
-        value.encode(self)
-    }
-
-    fn encode_none_value(&mut self) -> fmt::Result {
-        /* do nothing */
-        Ok(())
-    }
 }
 
 struct UnknownValueEncoder<'a> {
