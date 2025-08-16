@@ -5,7 +5,7 @@ use std::{borrow::Cow, fmt, time::Duration};
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
-        EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
+        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     raw::{
         bucket::{Bucket, BUCKET_LABEL},
@@ -608,16 +608,6 @@ where
     }
 
     encode_float_value_impls! { f32, f64 }
-
-    #[inline]
-    fn encode_some_value(&mut self, value: &dyn EncodeLabelValue) -> fmt::Result {
-        value.encode(self)
-    }
-
-    #[inline]
-    fn encode_none_value(&mut self) -> fmt::Result {
-        self.writer.write_str("=\"\"")
-    }
 }
 
 macro_rules! encode_integer_number_impls {

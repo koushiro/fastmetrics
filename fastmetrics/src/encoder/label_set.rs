@@ -154,11 +154,6 @@ pub trait LabelEncoder {
     fn encode_f32_value(&mut self, value: f32) -> fmt::Result;
     /// Encodes a 64-bit floating point as a label value.
     fn encode_f64_value(&mut self, value: f64) -> fmt::Result;
-
-    /// Encodes a `Some` type that implements [`EncodeLabelValue`] as a label value.
-    fn encode_some_value(&mut self, value: &dyn EncodeLabelValue) -> fmt::Result;
-    /// Encodes a `None` type as a label value.
-    fn encode_none_value(&mut self) -> fmt::Result;
 }
 
 /// Trait for types that represent complete labels (name-value pairs).
@@ -186,6 +181,10 @@ where
 {
     fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
         let (name, value) = self;
+        // Skip encoding this label if the value indicates it should not be encoded.
+        if value.skip_encoding() {
+            return Ok(());
+        }
         name.encode(encoder)?;
         value.encode(encoder)?;
         Ok(())
@@ -253,6 +252,15 @@ impl_encode_label_name_for_deref! { <T> EncodeLabelName for Arc<T> where T: ?Siz
 pub trait EncodeLabelValue {
     /// Encodes this type as a label value using the provided [`LabelEncoder`].
     fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result;
+
+    /// Returns whether this label value should be skipped during encoding.
+    ///
+    /// If this method returns `true`, the entire label (key and value) will be omitted
+    /// from the encoded output. This can be used to avoid emitting labels with empty,
+    /// default, or otherwise ignorable values.
+    fn skip_encoding(&self) -> bool {
+        false
+    }
 }
 
 impl EncodeLabelValue for str {
@@ -296,9 +304,14 @@ where
     #[inline]
     fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
         match self {
-            Some(value) => encoder.encode_some_value(value),
-            None => encoder.encode_none_value(),
+            Some(value) => value.encode(encoder),
+            None => Ok(()),
         }
+    }
+
+    #[inline]
+    fn skip_encoding(&self) -> bool {
+        self.is_none()
     }
 }
 
@@ -308,6 +321,11 @@ macro_rules! impl_encode_label_value_for_deref {
             #[inline]
             fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
                 (**self).encode(encoder)
+            }
+
+            #[inline]
+            fn skip_encoding(&self) -> bool {
+                (**self).skip_encoding()
             }
         }
     )
