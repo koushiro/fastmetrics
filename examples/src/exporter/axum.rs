@@ -19,7 +19,7 @@ use axum::{
 };
 use fastmetrics::{
     encoder::EncodeLabelSet,
-    format::{protobuf, text},
+    format::{prost, text},
     metrics::{counter::Counter, family::Family, histogram::Histogram},
     registry::{Register, Registry},
 };
@@ -148,7 +148,7 @@ async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
 
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = Vec::new();
-    protobuf::encode(&mut output, &state.registry)?;
+    prost::encode(&mut output, &state.registry)?;
 
     let response = Response::builder().status(StatusCode::OK).body(Body::from(output))?;
     Ok(response)

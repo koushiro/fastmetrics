@@ -15,7 +15,7 @@ and it's compatible with Prometheus.
 ## Features
 
 - Full support for [OpenMetrics] specification
-- Fast encoding in both text and protobuf exposition format
+- Fast encoding in both text and (optional) protobuf exposition format
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels

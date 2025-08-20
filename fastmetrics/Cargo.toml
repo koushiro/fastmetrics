@@ -19,10 +19,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["foldhash"]
 derive = ["dep:fastmetrics-derive"]
-protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
+prost = ["dep:prost", "dep:prost-build", "dep:prost-types"]
+protobuf = ["dep:protobuf", "dep:protobuf-codegen"]
 
 [build-dependencies]
 prost-build = { version = "0.14", optional = true }
+protobuf-codegen = { version = "3.7", optional = true }
 
 [dependencies]
 cfg-if = "1.0"
@@ -35,6 +37,7 @@ fastmetrics-derive = { path = "../fastmetrics-derive", version = "0.3.0", option
 foldhash = { version = "0.1", optional = true }
 prost = { version = "0.14", optional = true }
 prost-types = { version = "0.14", optional = true }
+protobuf = { version = "3.7", optional = true }
 
 [dev-dependencies]
 indoc = "2.0"

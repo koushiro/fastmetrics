@@ -8,7 +8,7 @@ publish = false
 
 [dev-dependencies]
 criterion = "0.7"
-fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "prost", "protobuf"] }
 pprof = { version = "0.14.0", default-features = false, features = [
     "criterion",
     "flamegraph",

@@ -19,6 +19,8 @@
 //! [OpenMetrics protobuf format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format
 //! [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 
+#[cfg(feature = "prost")]
+pub mod prost;
 #[cfg(feature = "protobuf")]
 pub mod protobuf;
 pub mod text;
