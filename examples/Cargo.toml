@@ -9,7 +9,7 @@ publish = false
 [dev-dependencies]
 anyhow = "1.0"
 axum = "0.8.1"
-fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "prost"] }
 pin-project = "1.1"
 rand = "0.9"
 thiserror = "2.0"

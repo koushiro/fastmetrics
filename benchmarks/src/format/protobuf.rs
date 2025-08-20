@@ -48,7 +48,19 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics: {count} metrics * {times} observe times");
+            let id = format!("fastmetrics(prost): {count} metrics * {times} observe times");
+            group.bench_function(id, |b| {
+                let registry = setup_fastmetrics_registry(count, times);
+
+                let mut buffer = Vec::new();
+
+                b.iter(|| {
+                    fastmetrics::format::prost::encode(&mut buffer, &registry).unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics(protobuf): {count} metrics * {times} observe times");
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
 

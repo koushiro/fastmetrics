@@ -1,4 +1,4 @@
-//! Protobuf exposition format.
+//! Protobuf exposition format using [prost](https://github.com/tokio-rs/prost) crate.
 
 use std::{borrow::Cow, fmt, io, time::Duration};
 
@@ -17,7 +17,7 @@ use crate::{
 #[allow(missing_docs)]
 #[allow(clippy::all)]
 mod openmetrics_data_model {
-    include!(concat!(env!("OUT_DIR"), "/openmetrics.rs"));
+    include!(concat!(env!("OUT_DIR"), "/prost/openmetrics.rs"));
 }
 
 /// Encodes metrics from a registry into the [OpenMetrics protobuf format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format).
@@ -37,7 +37,7 @@ mod openmetrics_data_model {
 ///
 /// ```rust
 /// # use fastmetrics::{
-/// #     format::protobuf,
+/// #     format::prost,
 /// #     metrics::counter::Counter,
 /// #     registry::Registry,
 /// # };
@@ -57,7 +57,7 @@ mod openmetrics_data_model {
 ///
 /// // Encode metrics in protobuf format
 /// let mut output = Vec::new();
-/// protobuf::encode(&mut output, &registry)?;
+/// prost::encode(&mut output, &registry)?;
 /// assert!(!output.is_empty());
 /// # Ok(())
 /// # }
