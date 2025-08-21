@@ -4,7 +4,7 @@
 [![](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
 [![](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
 [![](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
-[![](https://img.shields.io/badge/MSRV-1.80.0-green?logo=rust)](https://www.whatrustisit.com)
+[![](https://img.shields.io/badge/MSRV-1.81.0-green?logo=rust)](https://www.whatrustisit.com)
 [![](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
 
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
