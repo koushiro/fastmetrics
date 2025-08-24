@@ -127,7 +127,7 @@ impl From<MetricType> for openmetrics_data_model::MetricType {
 
 impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
     fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
-        let family = openmetrics_data_model::MetricFamily {
+        let mut metric_family = openmetrics_data_model::MetricFamily {
             name: {
                 match self.namespace {
                     Some(namespace) => format!("{}_{}", namespace, metadata.name()),
@@ -146,20 +146,19 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
             help: metadata.help().to_owned(),
             metrics: vec![],
         };
-        self.metric_families.push(family);
 
         let mut labels = vec![];
         self.const_labels.encode(&mut LabelSetEncoder { labels: &mut labels })?;
 
         metric.encode(&mut MetricEncoder {
-            metrics: &mut self
-                .metric_families
-                .last_mut()
-                .expect("metric families must not be none")
-                .metrics,
+            metrics: &mut metric_family.metrics,
             labels,
             timestamp: metric.timestamp(),
-        })
+        })?;
+
+        self.metric_families.push(metric_family);
+
+        Ok(())
     }
 }
 
@@ -190,6 +189,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 
@@ -206,6 +206,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 
@@ -239,6 +240,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 
@@ -260,6 +262,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 
@@ -276,6 +279,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 
@@ -321,6 +325,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 
@@ -363,6 +368,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 timestamp: self.timestamp.map(into_prost_timestamp),
             }],
         });
+
         Ok(())
     }
 

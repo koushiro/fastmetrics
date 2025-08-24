@@ -67,7 +67,7 @@ mod openmetrics_data_model {
 pub fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> io::Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     let mut encoder = Encoder::new(&mut metric_set, registry);
-    encoder.encode().expect("fmt::Error should not be encountered");
+    encoder.encode().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     protobuf::Message::write_to_writer(&metric_set, buffer)?;
     Ok(())
 }
@@ -129,7 +129,7 @@ impl From<MetricType> for openmetrics_data_model::MetricType {
 
 impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
     fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
-        let family = openmetrics_data_model::MetricFamily {
+        let mut metric_family = openmetrics_data_model::MetricFamily {
             name: {
                 match self.namespace {
                     Some(namespace) => format!("{}_{}", namespace, metadata.name()),
@@ -146,20 +146,19 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
             metrics: vec![],
             special_fields: protobuf::SpecialFields::new(),
         };
-        self.metric_families.push(family);
 
         let mut labels = vec![];
         self.const_labels.encode(&mut LabelSetEncoder { labels: &mut labels })?;
 
         metric.encode(&mut MetricEncoder {
-            metrics: &mut self
-                .metric_families
-                .last_mut()
-                .expect("metric families must not be none")
-                .metrics,
+            metrics: &mut metric_family.metrics,
             labels,
             timestamp: metric.timestamp(),
-        })
+        })?;
+
+        self.metric_families.push(metric_family);
+
+        Ok(())
     }
 }
 
@@ -196,6 +195,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
@@ -217,6 +217,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
@@ -253,6 +254,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
@@ -280,6 +282,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
@@ -301,6 +304,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
@@ -351,6 +355,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
@@ -397,6 +402,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             }],
             special_fields: protobuf::SpecialFields::new(),
         });
+
         Ok(())
     }
 
