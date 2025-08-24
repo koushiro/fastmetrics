@@ -67,7 +67,7 @@ mod openmetrics_data_model {
 pub fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> io::Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     let mut encoder = Encoder::new(&mut metric_set, registry);
-    encoder.encode().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    encoder.encode().expect("fmt::Error should not be encountered");
     protobuf::Message::write_to_writer(&metric_set, buffer)?;
     Ok(())
 }
