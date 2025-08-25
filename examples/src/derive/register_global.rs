@@ -33,6 +33,8 @@ enum Number {
     Even,
 }
 
+static OVERRIDE_HELP: &str = "Custom help text that overrides doc comments";
+
 #[derive(Default, Register)]
 struct DemoMetrics {
     /// My counter help
@@ -48,6 +50,10 @@ struct DemoMetrics {
     // No help
     #[register(unit(Bytes))]
     counter: Counter,
+
+    /// This doc comment will be ignored
+    #[register(help = OVERRIDE_HELP)]
+    override_help_counter: Counter,
 
     /**
 
@@ -89,15 +95,16 @@ struct InnermostMetrics {
 #[derive(Default, Register)]
 struct FlattenMetrics {
     /// Flatten gauge help
-    gauge: Gauge,
+    flatten_gauge: Gauge,
 }
 
 impl DemoMetrics {
     fn new() -> Self {
         Self {
-            counter: Default::default(),
             counter_family: Default::default(),
             gauge: Default::default(),
+            counter: Default::default(),
+            override_help_counter: Default::default(),
             histogram: Histogram::new(exponential_buckets(1.0, 2.0, 10)),
             inner: Default::default(),
             flatten: Default::default(),

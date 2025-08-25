@@ -20,26 +20,25 @@ env:
   RUSTFLAGS: -D warnings
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  TAPLO_CLI_VERSION: 0.10.0
 
 jobs:
   check-format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cache taplo-cli
         id: cache-taplo
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/taplo
-          key: ${{runner.os}}-taplo-0.9.3
+          key: ${{runner.os}}-taplo-${{ env.TAPLO_CLI_VERSION }}
 
       - name: Install taplo-cli if not cached
         if: steps.cache-taplo.outputs.cache-hit != 'true'
         shell: bash
         run: cargo install taplo-cli@${TAPLO_CLI_VERSION} --locked
-        env:
-          TAPLO_CLI_VERSION: 0.9.3
 
       - name: Run taplo fmt
         run: taplo fmt --check
@@ -50,7 +49,7 @@ jobs:
   check-clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -73,7 +72,7 @@ jobs:
   build-default-features:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -96,7 +95,7 @@ jobs:
   build-all-features:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -119,7 +118,7 @@ jobs:
   check-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -133,9 +132,9 @@ jobs:
   check-msrv:
     runs-on: ubuntu-latest
     env:
-      MSRV: 1.75.0
+      MSRV: 1.81.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -155,7 +154,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3

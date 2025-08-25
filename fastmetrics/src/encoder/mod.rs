@@ -93,7 +93,7 @@ pub trait MetricEncoder {
 /// Trait for types that can be encoded as metrics.
 ///
 /// This trait is implemented by all metric types and provides methods for encoding
-/// the metric's value and obtaining its type information.
+/// the metric's value and collecting its type information.
 pub trait EncodeMetric: Send + Sync {
     /// Encodes this metric using the provided [`MetricEncoder`].
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result;

@@ -99,17 +99,41 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// # use std::marker::PhantomData;
 /// # use fastmetrics::{
 /// #    format::text,
-/// #     metrics::{counter::Counter, gauge::Gauge, histogram::Histogram},
+/// #     metrics::{counter::Counter, gauge::Gauge, histogram::Histogram, family::Family},
 /// #     registry::{Register, Registry},
 /// # };
-/// #[derive(Default, fastmetrics_derive::Register)]
-/// struct Metrics {
-///     /// Total HTTP requests
-///     http_requests: Counter,
+/// static OVERRIDE_HELP: &str = "Custom help text that overrides doc comments";
 ///
-///     /// Duration of HTTP requests
-///     #[register(rename = "http_request_duration", unit(Seconds))]
-///     request_duration: Histogram,
+/// #[derive(Default, fastmetrics_derive::Register)]
+/// struct DemoMetrics {
+///     /// My counter help
+///     #[register(rename = "my_counter")]
+///     counter_family: Family<(), Counter>,
+///
+///     /// My gauge help line 1
+///     /// help line 2
+///     /// help line 3
+///     #[register(rename = "my_gauge")]
+///     gauge: Gauge,
+///     
+///     // No help
+///     #[register(unit(Bytes))]
+///     counter: Counter,
+///
+///     /// This doc comment will be ignored
+///     #[register(help = OVERRIDE_HELP)]
+///     override_help_counter: Counter,
+///     
+///     /**
+///
+///     My histogram help line 1
+///
+///     help line 2
+///     help line 3
+///
+///     */
+///     #[register(rename = "my_histogram", unit = "bytes")]
+///     histogram: Histogram,
 ///
 ///     #[register(subsystem = "inner")]
 ///     inner: InnerMetrics,
@@ -117,8 +141,9 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///     #[register(flatten)]
 ///     flatten: FlattenMetrics,
 ///
+///     // skip the field
 ///     #[register(skip)]
-///     _skip: ()
+///     _skip: (),
 /// }
 ///
 /// #[derive(Default, fastmetrics_derive::Register)]
@@ -130,12 +155,12 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// #[derive(Default, fastmetrics_derive::Register)]
 /// struct FlattenMetrics {
 ///     /// Flatten gauge help
-///     gauge: Gauge,
+///     flatten_gauge: Gauge,
 /// }
 ///
-/// let mut registry = Registry::default();
+/// let mut registry = Registry::builder().with_namespace("demo").build();
 ///
-/// let metrics = Metrics::default();
+/// let metrics = DemoMetrics::default();
 /// metrics.register(&mut registry).unwrap();
 ///
 /// let mut output = String::new();

@@ -10,7 +10,7 @@ use fastmetrics::{
 };
 use rand::Rng;
 
-struct Metrics {
+pub struct Metrics {
     counter: Counter,
     gauge: Gauge,
     histogram: Histogram,

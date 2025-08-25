@@ -5,7 +5,7 @@ use std::{borrow::Cow, fmt, time::Duration};
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
-        EncodeLabelValue, EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
+        EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     raw::{
         bucket::{Bucket, BUCKET_LABEL},
@@ -198,45 +198,68 @@ where
         self.writer.write_str(self.metric_name.as_ref())
     }
 
-    fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
+    /// Pre-encode common labels (const_labels + family_labels) to a string buffer
+    fn encode_common_labels_to_string(&self) -> Result<Option<String>, fmt::Error> {
         let has_const_labels = !self.const_labels.is_empty();
         let has_family_labels = match self.family_labels {
             None => false,
             Some(labels) if labels.is_empty() => false,
             Some(_) => true,
         };
+
+        if !has_const_labels && !has_family_labels {
+            return Ok(None);
+        }
+
+        let mut common_labels = String::new();
+
+        if has_const_labels {
+            self.const_labels.encode(&mut LabelSetEncoder::new(
+                &mut common_labels,
+                LabelNameCheck::Enable(self.metric_type),
+            ))?;
+        }
+
+        if let Some(family_labels) = self.family_labels {
+            if has_family_labels {
+                if has_const_labels {
+                    common_labels.push(',');
+                }
+                family_labels.encode(&mut LabelSetEncoder::new(
+                    &mut common_labels,
+                    LabelNameCheck::Enable(self.metric_type),
+                ))?;
+            }
+        }
+
+        Ok(Some(common_labels))
+    }
+
+    /// Encode label set with pre-computed common labels for better performance
+    fn encode_label_set_with_common(
+        &mut self,
+        common_labels: Option<&str>,
+        additional_labels: Option<&dyn EncodeLabelSet>,
+    ) -> fmt::Result {
+        let has_common_labels = common_labels.is_some();
         let has_additional_labels = match additional_labels {
             None => false,
             Some(labels) if labels.is_empty() => false,
             Some(_) => true,
         };
 
-        if !has_const_labels && !has_family_labels && !has_additional_labels {
+        if !has_common_labels && !has_additional_labels {
             self.writer.write_str(" ")?;
             return Ok(());
         }
 
         self.writer.write_str("{")?;
-        if has_const_labels {
-            self.const_labels.encode(&mut LabelSetEncoder::new(
-                self.writer,
-                LabelNameCheck::Enable(self.metric_type),
-            ))?;
-        }
-        if let Some(family_labels) = self.family_labels {
-            if has_family_labels {
-                if has_const_labels {
-                    self.writer.write_str(",")?;
-                }
-                family_labels.encode(&mut LabelSetEncoder::new(
-                    self.writer,
-                    LabelNameCheck::Enable(self.metric_type),
-                ))?;
-            }
+        if let Some(common) = common_labels {
+            self.writer.write_str(common)?;
         }
         if let Some(additional_labels) = additional_labels {
             if has_additional_labels {
-                if has_const_labels || has_family_labels {
+                if has_common_labels {
                     self.writer.write_str(",")?;
                 }
                 additional_labels
@@ -246,12 +269,20 @@ where
         self.writer.write_str("} ")
     }
 
+    fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
+        let common_labels = self.encode_common_labels_to_string()?;
+        self.encode_label_set_with_common(common_labels.as_deref(), additional_labels)
+    }
+
     fn encode_buckets(
         &mut self,
         buckets: &[Bucket],
         exemplars: &[Option<&dyn EncodeExemplar>],
     ) -> fmt::Result {
         assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
+
+        // pre-encode common labels once
+        let common_labels = self.encode_common_labels_to_string()?;
 
         let mut cumulative_count = 0;
         for (bucket, exemplar) in buckets.iter().zip(exemplars) {
@@ -260,10 +291,18 @@ where
 
             let upper_bound = bucket.upper_bound();
             let bucket_count = bucket.count();
+
+            // use pre-computed common labels
             if upper_bound == f64::INFINITY {
-                self.encode_label_set(Some(&[(BUCKET_LABEL, "+Inf")]))?;
+                self.encode_label_set_with_common(
+                    common_labels.as_deref(),
+                    Some(&[(BUCKET_LABEL, "+Inf")]),
+                )?;
             } else {
-                self.encode_label_set(Some(&[(BUCKET_LABEL, upper_bound)]))?;
+                self.encode_label_set_with_common(
+                    common_labels.as_deref(),
+                    Some(&[(BUCKET_LABEL, upper_bound)]),
+                )?;
             }
 
             cumulative_count += bucket_count;
@@ -390,10 +429,16 @@ where
     }
 
     fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
+        // pre-encode common labels once
+        let common_labels = self.encode_common_labels_to_string()?;
+
         // encode state metrics
         for (state, enabled) in states {
             self.encode_metric_name()?;
-            self.encode_label_set(Some(&[(self.metric_name.clone(), state)]))?;
+            self.encode_label_set_with_common(
+                common_labels.as_deref(),
+                Some(&[(self.metric_name.clone(), state)]),
+            )?;
             if enabled {
                 self.writer.write_str("1")?;
             } else {
@@ -459,10 +504,16 @@ where
         count: u64,
         created: Option<Duration>,
     ) -> fmt::Result {
+        // pre-encode common labels once
+        let common_labels = self.encode_common_labels_to_string()?;
+
         // encode quantile metrics
         for quantile in quantiles {
             self.encode_metric_name()?;
-            self.encode_label_set(Some(&[(QUANTILE_LABEL, quantile.quantile())]))?;
+            self.encode_label_set_with_common(
+                common_labels.as_deref(),
+                Some(&[(QUANTILE_LABEL, quantile.quantile())]),
+            )?;
             self.writer.write_str(dtoa::Buffer::new().format(quantile.value()))?;
             self.encode_timestamp()?;
             self.encode_newline()?;
@@ -608,16 +659,6 @@ where
     }
 
     encode_float_value_impls! { f32, f64 }
-
-    #[inline]
-    fn encode_some_value(&mut self, value: &dyn EncodeLabelValue) -> fmt::Result {
-        value.encode(self)
-    }
-
-    #[inline]
-    fn encode_none_value(&mut self) -> fmt::Result {
-        self.writer.write_str("=\"\"")
-    }
 }
 
 macro_rules! encode_integer_number_impls {

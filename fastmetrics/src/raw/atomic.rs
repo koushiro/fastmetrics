@@ -36,22 +36,22 @@ macro_rules! impl_atomic_for_integer {
     ($($ty:ident, $atomic:ident, $size:expr)*) => ($(
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
-            #[inline]
+            #[inline(always)]
             fn inc_by(&self, v: $ty) -> $ty {
                 self.fetch_add(v, Ordering::Relaxed)
             }
 
-            #[inline]
+            #[inline(always)]
             fn dec_by(&self, v: $ty) -> $ty {
                 self.fetch_sub(v, Ordering::Relaxed)
             }
 
-            #[inline]
+            #[inline(always)]
             fn set(&self, v: $ty) {
                 self.store(v, Ordering::Relaxed)
             }
 
-            #[inline]
+            #[inline(always)]
             fn get(&self) -> $ty {
                 self.load(Ordering::Relaxed)
             }
@@ -74,21 +74,17 @@ macro_rules! impl_atomic_for_float  {
         impl Atomic<$ty> for $atomic {
             #[inline]
             fn inc_by(&self, v: $ty) -> $ty {
-                let mut old_u = self.load(Ordering::Relaxed);
+                let old_bits = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                    let old_f = $ty::from_bits(old_bits);
+                    let new_f = old_f + v;
+                    Some($ty::to_bits(new_f))
+                })
+                .unwrap_or_else(|_| self.load(Ordering::Relaxed));
 
-                let mut old_f;
-                loop {
-                    old_f = $ty::from_bits(old_u);
-                    let new = $ty::to_bits(old_f + v);
-                    match self.compare_exchange_weak(old_u, new, Ordering::Relaxed, Ordering::Relaxed) {
-                        Ok(_) => break,
-                        Err(x) => old_u = x,
-                    }
-                }
-                old_f
+                $ty::from_bits(old_bits)
             }
 
-            #[inline]
+            #[inline(always)]
             fn dec_by(&self, v: $ty) -> $ty {
                 self.inc_by(-v)
             }

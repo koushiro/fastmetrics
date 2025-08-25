@@ -9,7 +9,7 @@ publish = false
 [dev-dependencies]
 anyhow = "1.0"
 axum = "0.8.1"
-fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "prost"] }
 pin-project = "1.1"
 rand = "0.9"
 thiserror = "2.0"
@@ -22,6 +22,10 @@ name = "metrics"
 path = "src/metrics.rs"
 
 [[example]]
+name = "static_metrics"
+path = "src/static_metrics.rs"
+
+[[example]]
 name = "derive_encode_label"
 path = "src/derive/encode_label.rs"
 
@@ -32,6 +36,10 @@ path = "src/derive/register.rs"
 [[example]]
 name = "derive_register_global"
 path = "src/derive/register_global.rs"
+
+[[example]]
+name = "derive_register_static_metrics"
+path = "src/derive/register_static_metrics.rs"
 
 [[example]]
 name = "axum-exporter"

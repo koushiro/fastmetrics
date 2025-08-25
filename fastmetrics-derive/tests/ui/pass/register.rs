@@ -5,8 +5,10 @@ use fastmetrics::{
 };
 use fastmetrics_derive::Register;
 
+static OVERRIDE_HELP: &str = "Custom help text that overrides doc comments";
+
 #[derive(Default, Register)]
-struct Metrics {
+struct DemoMetrics {
     /// My counter help
     #[register(rename = "my_counter")]
     counter_family: Family<(), Counter>,
@@ -20,6 +22,10 @@ struct Metrics {
     // No help
     #[register(unit(Bytes))]
     counter: Counter,
+
+    /// This doc comment will be ignored
+    #[register(help = OVERRIDE_HELP)]
+    override_help_counter: Counter,
 
     /**
 
@@ -61,12 +67,13 @@ struct InnermostMetrics {
 #[derive(Default, Register)]
 struct FlattenMetrics {
     /// Flatten gauge help
-    gauge: Gauge,
+    flatten_gauge: Gauge,
 }
 
 fn main() {
-    let mut registry = Registry::default();
-    let metrics = Metrics::default();
+    let mut registry = Registry::builder().with_namespace("demo").build();
+
+    let metrics = DemoMetrics::default();
     metrics.register(&mut registry).unwrap();
 
     let mut output = String::new();

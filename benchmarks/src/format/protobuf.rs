@@ -10,13 +10,13 @@ use crate::common::{
 };
 
 fn bench_protobuf_encoding(c: &mut Criterion) {
-    let mut group = c.benchmark_group("protobuf::encode");
-
     let metric_counts = [10, 100];
     let observe_times = [100, 1_000, 10_000, 100_000];
 
     for count in metric_counts {
         for times in observe_times {
+            let mut group = c.benchmark_group("protobuf::encode");
+
             let id = format!("prometheus: {count} metrics * {times} observe times");
             group.bench_function(id, |b| {
                 let registry = setup_prometheus_registry(count, times);
@@ -48,7 +48,19 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics: {count} metrics * {times} observe times");
+            let id = format!("fastmetrics(prost): {count} metrics * {times} observe times");
+            group.bench_function(id, |b| {
+                let registry = setup_fastmetrics_registry(count, times);
+
+                let mut buffer = Vec::new();
+
+                b.iter(|| {
+                    fastmetrics::format::prost::encode(&mut buffer, &registry).unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics(protobuf): {count} metrics * {times} observe times");
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
 
@@ -59,10 +71,10 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                     black_box(&mut buffer);
                 });
             });
+
+            group.finish();
         }
     }
-
-    group.finish();
 }
 
 criterion_group!(

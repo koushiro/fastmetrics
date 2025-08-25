@@ -1,5 +1,5 @@
-error: expected a literal string
+error: expect a string literal or any expression that evaluates to a string
  --> tests/ui/fail/register/invalid_unit_str.rs:7:58
   |
-7 |     #[register(rename = "http_requests_duration", unit = Seconds)]
-  |                                                          ^^^^^^^
+7 |     #[register(rename = "http_requests_duration", unit = 42)]
+  |                                                          ^^

@@ -17,7 +17,7 @@ use rand::{
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
 struct Labels {
     operation: Operation,
-    error: Option<String>,
+    error: Option<Error>,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
@@ -28,15 +28,28 @@ enum Operation {
     Delete,
 }
 
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+enum Error {
+    NotFound,
+    Fail,
+}
+
 impl Distribution<Labels> for StandardUniform {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Labels {
         let operation = match rng.random_range(0..=3) {
             0 => Operation::Read,
             1 => Operation::Write,
             2 => Operation::List,
-            _ => Operation::Delete,
+            3 => Operation::Delete,
+            _ => unreachable!(),
         };
-        Labels { operation, error: None }
+        let error = match rng.random_range(0..=2) {
+            0 => None,
+            1 => Some(Error::NotFound),
+            2 => Some(Error::Fail),
+            _ => unreachable!(),
+        };
+        Labels { operation, error }
     }
 }
 
@@ -48,7 +61,7 @@ fn main() -> Result<()> {
         Family::<Labels, Histogram>::new(|| Histogram::new(exponential_buckets(1.0, 2.0, 10)));
 
     registry
-        .register("operation", "Total number of operation", operation.clone())?
+        .register("operation", "Total number of operations", operation.clone())?
         .register_with_unit(
             "operation",
             "Operation size of bytes",

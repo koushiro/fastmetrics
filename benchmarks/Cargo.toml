@@ -7,8 +7,8 @@ license.workspace = true
 publish = false
 
 [dev-dependencies]
-criterion = "0.6"
-fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
+criterion = "0.7"
+fastmetrics = { path = "../fastmetrics", features = ["derive", "prost", "protobuf"] }
 pprof = { version = "0.15.0", default-features = false, features = [
     "criterion",
     "flamegraph",
@@ -16,7 +16,7 @@ pprof = { version = "0.15.0", default-features = false, features = [
     "frame-pointer",
 ] }
 prometheus = "0.14"
-prometheus-client = { version = "0.23", features = ["protobuf"] }
+prometheus-client = { version = "0.24", features = ["protobuf"] }
 prost_0_12 = { package = "prost", version = "0.12" }
 rand = "0.9.0"
 

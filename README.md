@@ -1,11 +1,11 @@
 # fastmetrics
 
-[![CI Status](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
-[![Crates.io](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
-[![Documentation](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
-[![MSRV 1.75.0](https://img.shields.io/badge/MSRV-1.75.0-green?logo=rust)](https://www.whatrustisit.com)
-[![License](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
+[![](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
+[![](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
+[![](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
+[![](https://img.shields.io/crates/l/fastmetrics)](LICENSE)
+[![](https://img.shields.io/badge/MSRV-1.81.0-green?logo=rust)](https://www.whatrustisit.com)
+[![](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
 
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
 and it's compatible with Prometheus.
@@ -15,11 +15,11 @@ and it's compatible with Prometheus.
 ## Features
 
 - Full support for [OpenMetrics] specification
-- Fast encoding in both text and protobuf exposition format
+- Fast encoding in both text and (optional) protobuf exposition format
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
-- Derive macros to simplify code (e.g., like label handling, stateset value handling, etc.)
+- Derive macros to simplify code (e.g., like registering metrics, label handling, etc.)
 
 ## Usage
 
@@ -36,7 +36,7 @@ use fastmetrics::{
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
 struct Labels {
     method: Method,
-    status: u32,
+    status: u16,
 }
 
 // Need to enable `derive` feature to use `#[derive(EncodeLabelValue)]`
@@ -84,14 +84,14 @@ fn main() -> Box<dyn std::error::Error> {
 }
 ```
 
-See [documentation](https://docs.rs/fastmetrics) and [examples](./examples) for more details.
+See [documentation](https://docs.rs/fastmetrics) and [examples](https://github.com/koushiro/fastmetrics/tree/main/examples) for more details.
 
 ## Performance
 
 Compared with the existing rust client libraries, its text encoding is about 20%~30% faster than the fastest rust library (prometheus-client),
 while its Protobuf encoding is on par with the fastest rust library (prometheus).
 
-See [benchmarks](./benchmarks/README.md) for more details
+See [benchmarks](https://github.com/koushiro/fastmetrics/blob/main/benchmarks/README.md) for more details
 
 ## Acknowledgment
 
