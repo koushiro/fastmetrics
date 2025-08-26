@@ -34,7 +34,7 @@ parking_lot = "0.12"
 paste = "1.0"
 
 fastmetrics-derive = { path = "../fastmetrics-derive", version = "0.4.0", optional = true }
-foldhash = { version = "0.1", optional = true }
+foldhash = { version = "0.2", optional = true }
 prost = { version = "0.14", optional = true }
 prost-types = { version = "0.14", optional = true }
 protobuf = { version = "3.7", optional = true }
