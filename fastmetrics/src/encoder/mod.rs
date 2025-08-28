@@ -105,6 +105,27 @@ pub trait EncodeMetric: Send + Sync {
     fn timestamp(&self) -> Option<Duration> {
         None
     }
+
+    /// Returns `true` if the metric is empty.
+    ///
+    /// An "empty" metric is one that has no data points to expose.
+    /// This is especially useful for metric families, which can be considered empty
+    /// if they contain no individual metrics. In such cases, the `# TYPE`, `# HELP`, and `# UNIT`
+    /// lines for the metric family will not be rendered.
+    ///
+    /// The definition of "empty" depends on the metric type:
+    // - `Counter`, `Gauge`, `Histogram` and `GaugeHistogram` are never considered empty.
+    ///   A value of `0` is a valid and meaningful state that should be exposed.
+    ///   An unobserved `Histogram` is still represented with a `_count` of `0`, a `_sum` of `0`,
+    ///   and bucket counts of `0`.
+    /// - `StateSet` and `Info` are never considered empty.
+    /// - A `Summary` might be considered empty if it has not recorded any observations.
+    /// - A `Family` is empty if it contains no labeled metrics.
+    ///
+    /// By default, this method returns `false`, assuming a metric is not empty.
+    fn is_empty(&self) -> bool {
+        false
+    }
 }
 
 impl EncodeMetric for Box<dyn EncodeMetric> {
@@ -118,5 +139,9 @@ impl EncodeMetric for Box<dyn EncodeMetric> {
 
     fn timestamp(&self) -> Option<Duration> {
         (**self).timestamp()
+    }
+
+    fn is_empty(&self) -> bool {
+        (**self).is_empty()
     }
 }

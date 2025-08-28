@@ -296,6 +296,10 @@ where
     fn metric_type(&self) -> MetricType {
         <M as TypedMetric>::TYPE
     }
+
+    fn is_empty(&self) -> bool {
+        self.read().is_empty()
+    }
 }
 
 #[cfg(test)]
@@ -409,6 +413,38 @@ mod tests {
                 assert!(output.contains(
                     r#"http_requests_duration_seconds_sum{method="PUT",status="200"} 2.0"#
                 ));
+            },
+        );
+    }
+
+    #[test]
+    fn test_empty_metric_family() {
+        check_text_encoding(
+            |registry| {
+                let http_requests = Family::<Labels, Counter>::default();
+                registry
+                    .register("http_requests", "Total HTTP requests", http_requests)
+                    .unwrap();
+            },
+            |output| {
+                assert_eq!(output, "# EOF\n");
+            },
+        );
+
+        check_text_encoding(
+            |registry| {
+                let http_requests = Family::<Labels, Counter>::default();
+                registry
+                    .register("http_requests", "Total HTTP requests", http_requests.clone())
+                    .unwrap();
+
+                let labels = Labels { method: Method::Get, status: 200, error: None };
+                http_requests.with_or_new(&labels, |_| {});
+            },
+            |output| {
+                assert!(output.contains("# TYPE http_requests counter"));
+                assert!(output.contains("# HELP http_requests Total HTTP requests"));
+                assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 0"#));
             },
         );
     }

@@ -162,6 +162,11 @@ where
     W: fmt::Write,
 {
     fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
+        if metric.is_empty() {
+            // skip empty metric family
+            return Ok(());
+        }
+
         let metric_name = metric_name(self.namespace, metadata.name(), metadata.unit());
 
         self.encode_type(metric_name.as_ref(), metadata.metric_type())?;
