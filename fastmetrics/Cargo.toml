@@ -1,6 +1,6 @@
 [package]
 name = "fastmetrics"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Qinxuan Chen <https://github.com/koushiro>"]
 description = "OpenMetrics client library in Rust."
 keywords = ["openmetrics", "metrics", "prometheus"]
