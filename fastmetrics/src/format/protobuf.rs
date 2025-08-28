@@ -129,6 +129,11 @@ impl From<MetricType> for openmetrics_data_model::MetricType {
 
 impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
     fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
+        if metric.is_empty() {
+            // skip empty metric family
+            return Ok(());
+        }
+
         let mut metric_family = openmetrics_data_model::MetricFamily {
             name: {
                 match self.namespace {
