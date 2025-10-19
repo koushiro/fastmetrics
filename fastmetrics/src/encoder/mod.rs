@@ -7,7 +7,7 @@ mod value;
 use std::{fmt, time::Duration};
 
 pub use self::{exemplar::*, label_set::*, value::*};
-use crate::raw::{bucket::Bucket, quantile::Quantile, Metadata, MetricType};
+use crate::raw::{Metadata, MetricType, bucket::Bucket, quantile::Quantile};
 
 /// Trait for encoding metric with metadata.
 ///

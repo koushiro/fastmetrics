@@ -5,7 +5,7 @@
 use std::{
     fmt::{self, Debug},
     ops::{AddAssign, SubAssign},
-    sync::{atomic::*, Arc},
+    sync::{Arc, atomic::*},
 };
 
 use crate::{

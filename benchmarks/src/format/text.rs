@@ -2,9 +2,9 @@ mod common;
 
 use std::hint::black_box;
 
-use criterion::{criterion_group, criterion_main, Criterion};
-// use pprof::criterion::{Output, PProfProfiler};
+use criterion::{Criterion, criterion_group, criterion_main};
 
+// use pprof::criterion::{Output, PProfProfiler};
 use crate::common::{
     setup_fastmetrics_registry, setup_prometheus_client_registry, setup_prometheus_registry,
 };
