@@ -6,9 +6,9 @@ use fastmetrics::{
         counter::Counter,
         family::Family,
         gauge::Gauge,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     },
-    registry::{set_global_registry, with_global_registry, Register, Registry},
+    registry::{Register, Registry, set_global_registry, with_global_registry},
 };
 use rand::Rng;
 

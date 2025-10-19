@@ -12,7 +12,7 @@ mod state_set_value;
 mod utils;
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, Error};
+use syn::{DeriveInput, Error, parse_macro_input};
 
 /// Derive the `EncodeLabelSet` trait for structs.
 ///

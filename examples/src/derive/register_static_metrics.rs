@@ -8,7 +8,7 @@ use fastmetrics::{
         counter::Counter,
         family::Family,
         gauge::Gauge,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     },
     registry::*,
 };

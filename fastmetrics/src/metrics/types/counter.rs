@@ -5,7 +5,7 @@
 use std::{
     fmt::{self, Debug},
     ops::AddAssign,
-    sync::{atomic::*, Arc},
+    sync::{Arc, atomic::*},
     time::Duration,
 };
 

@@ -1,6 +1,6 @@
 use std::{hint::black_box, sync::atomic::AtomicU64};
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 // use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 
@@ -265,7 +265,7 @@ fn bench_gauge_f64(c: &mut Criterion) {
 fn bench_histogram(c: &mut Criterion) {
     let mut group = c.benchmark_group("histogram::observe");
     group.bench_function("prometheus", |b| {
-        use prometheus::{exponential_buckets, histogram_opts, Histogram};
+        use prometheus::{Histogram, exponential_buckets, histogram_opts};
         let histogram = Histogram::with_opts(histogram_opts!(
             "my_histogram",
             "My histogram",
@@ -280,7 +280,7 @@ fn bench_histogram(c: &mut Criterion) {
         );
     });
     group.bench_function("prometheus_client", |b| {
-        use prometheus_client::metrics::histogram::{exponential_buckets, Histogram};
+        use prometheus_client::metrics::histogram::{Histogram, exponential_buckets};
         let histogram = Histogram::new(exponential_buckets(0.005f64, 2f64, 10));
 
         b.iter_batched(
@@ -290,7 +290,7 @@ fn bench_histogram(c: &mut Criterion) {
         );
     });
     group.bench_function("fastmetrics", |b| {
-        use fastmetrics::metrics::histogram::{exponential_buckets, Histogram};
+        use fastmetrics::metrics::histogram::{Histogram, exponential_buckets};
         let histogram = Histogram::new(exponential_buckets(0.005f64, 2f64, 10));
 
         b.iter_batched(

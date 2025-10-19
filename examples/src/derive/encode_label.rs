@@ -5,13 +5,13 @@ use fastmetrics::{
     metrics::{
         counter::Counter,
         family::Family,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     },
     registry::{Registry, Unit},
 };
 use rand::{
-    distr::{Distribution, StandardUniform},
     Rng,
+    distr::{Distribution, StandardUniform},
 };
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]

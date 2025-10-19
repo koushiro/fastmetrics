@@ -310,7 +310,7 @@ mod tests {
         metrics::{
             check_text_encoding,
             counter::Counter,
-            histogram::{exponential_buckets, Histogram},
+            histogram::{Histogram, exponential_buckets},
         },
     };
 
@@ -365,8 +365,11 @@ mod tests {
             |output| {
                 // println!("{}", output);
                 assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 1"#));
-                assert!(output
-                    .contains(r#"http_requests_total{method="GET",status="404",error="true"} 1"#));
+                assert!(
+                    output.contains(
+                        r#"http_requests_total{method="GET",status="404",error="true"} 1"#
+                    )
+                );
                 assert!(output.contains(r#"http_requests_total{method="PUT",status="200"} 1"#));
             },
         );

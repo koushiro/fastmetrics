@@ -1,6 +1,6 @@
 use rand::{
-    distr::{Distribution, StandardUniform},
     Rng,
+    distr::{Distribution, StandardUniform},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -103,7 +103,7 @@ pub fn setup_prometheus_client_registry(
     use prometheus_client::metrics::{
         counter::Counter,
         family::Family,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     };
 
     let mut rng = rand::rng();
@@ -137,7 +137,7 @@ pub fn setup_fastmetrics_registry(
     use fastmetrics::metrics::{
         counter::Counter,
         family::Family,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     };
 
     let mut rng = rand::rng();

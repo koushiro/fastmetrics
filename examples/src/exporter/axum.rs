@@ -4,18 +4,18 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::Arc,
-    task::{ready, Context, Poll},
+    task::{Context, Poll, ready},
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
 use axum::{
+    ServiceExt,
     body::Body,
     extract::{Request, State},
     http::{StatusCode, Uri},
     response::{IntoResponse, Response},
-    routing::{get, Router},
-    ServiceExt,
+    routing::{Router, get},
 };
 use fastmetrics::{
     encoder::EncodeLabelSet,
