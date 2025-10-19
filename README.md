@@ -1,4 +1,4 @@
-# fastmetrics
+# FastMetrics
 
 [![](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
 [![](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
@@ -8,9 +8,10 @@
 [![](https://deepwiki.com/badge.svg)](https://deepwiki.com/koushiro/fastmetrics)
 
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
-and it's compatible with Prometheus.
+and it's compatible with [Prometheus].
 
 [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
+[Prometheus]: https://prometheus.io
 
 ## Features
 

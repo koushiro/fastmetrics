@@ -2,7 +2,7 @@
 name = "fastmetrics"
 version = "0.4.1"
 authors = ["Qinxuan Chen <https://github.com/koushiro>"]
-description = "OpenMetrics client library in Rust."
+description = "OpenMetrics / Prometheus client library in Rust."
 keywords = ["openmetrics", "metrics", "prometheus"]
 documentation = "https://docs.rs/fastmetrics"
 readme = "../README.md"
