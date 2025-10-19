@@ -5,7 +5,7 @@
 use std::{
     fmt::{self, Debug},
     marker::PhantomData,
-    sync::{atomic::*, Arc},
+    sync::{Arc, atomic::*},
 };
 
 #[cfg(feature = "derive")]

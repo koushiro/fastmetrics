@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    punctuated::Punctuated, Attribute, Data, DeriveInput, Error, Expr, ExprLit, Field, Fields,
-    FieldsNamed, Lit, LitStr, Meta, MetaNameValue, Path, Result, Token,
+    Attribute, Data, DeriveInput, Error, Expr, ExprLit, Field, Fields, FieldsNamed, Lit, LitStr,
+    Meta, MetaNameValue, Path, Result, Token, punctuated::Punctuated,
 };
 
 use crate::utils::wrap_in_const;

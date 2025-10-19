@@ -1,7 +1,7 @@
 #[cfg(feature = "derive")]
 pub use fastmetrics_derive::Register;
 
-use super::{with_global_registry_mut, Registry, RegistryError};
+use super::{Registry, RegistryError, with_global_registry_mut};
 
 /// A trait for types that can be registered into a [`Registry`].
 ///

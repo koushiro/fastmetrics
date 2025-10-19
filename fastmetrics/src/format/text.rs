@@ -8,9 +8,9 @@ use crate::{
         EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
     raw::{
-        bucket::{Bucket, BUCKET_LABEL},
-        quantile::{Quantile, QUANTILE_LABEL},
         Metadata, MetricType, Unit,
+        bucket::{BUCKET_LABEL, Bucket},
+        quantile::{QUANTILE_LABEL, Quantile},
     },
     registry::Registry,
 };

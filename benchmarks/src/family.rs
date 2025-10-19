@@ -1,14 +1,14 @@
 use std::hint::black_box;
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 // use pprof::criterion::{Output, PProfProfiler};
 use rand::{
-    distr::{Distribution, StandardUniform},
     Rng,
+    distr::{Distribution, StandardUniform},
 };
 
 mod prometheus_setup {
-    use prometheus::{exponential_buckets, histogram_opts, opts, HistogramVec, IntCounterVec};
+    use prometheus::{HistogramVec, IntCounterVec, exponential_buckets, histogram_opts, opts};
 
     pub struct Families {
         pub counter: IntCounterVec,
@@ -35,7 +35,7 @@ mod prometheus_client_setup {
     use prometheus_client::metrics::{
         counter::Counter,
         family::Family,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     };
 
     pub struct Families<L> {
@@ -60,7 +60,7 @@ mod fastmetrics_setup {
     use fastmetrics::metrics::{
         counter::Counter,
         family::Family,
-        histogram::{exponential_buckets, Histogram},
+        histogram::{Histogram, exponential_buckets},
     };
 
     pub struct Families<L> {
