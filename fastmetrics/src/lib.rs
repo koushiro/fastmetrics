@@ -1,9 +1,15 @@
+//! # FastMetrics
+//!
+//! [![](https://github.com/koushiro/fastmetrics/actions/workflows/ci.yml/badge.svg)](https://github.com/koushiro/fastmetrics/actions)
+//! [![](https://img.shields.io/crates/v/fastmetrics)](https://crates.io/crates/fastmetrics)
+//! [![](https://img.shields.io/docsrs/fastmetrics)](https://docs.rs/fastmetrics)
+//!
 //! OpenMetrics client library for Rust.
 //!
 //! A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native
-//! metrics at scale, and it's compatible with Prometheus.
+//! metrics at scale, and it's compatible with [Prometheus].
 //!
-//! # Features
+//! ## Features
 //!
 //! - Full support for [OpenMetrics] specification
 //! - Fast encoding in both text and protobuf exposition format
@@ -13,8 +19,9 @@
 //! - Derive macros to simplify code (e.g., like registering metrics, label handling, etc.)
 //!
 //! [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
+//! [Prometheus]: https://prometheus.io
 //!
-//! # Example
+//! ## Example
 //!
 //! ```rust
 //! use fastmetrics::{
