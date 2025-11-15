@@ -7,15 +7,20 @@ license.workspace = true
 publish = false
 
 [dev-dependencies]
+actix-web = { version = "4", default-features = false, features = ["macros", "rustls"] }
 anyhow = "1.0"
-axum = "0.8.1"
+axum = "0.8"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "prost"] }
+futures = "0.3"
 pin-project = "1.1"
+poem = { version = "3.1", features = ["websocket", "tower-compat"] }
 rand = "0.9"
+rocket = { version = "0.5", features = ["json"] }
 thiserror = "2.0"
-tokio = { version = "1.43", features = ["net", "macros", "rt-multi-thread"] }
+tokio = { version = "1.48", features = ["net", "macros", "rt-multi-thread"] }
 tower = "0.5"
-tower-http = { version = "0.6.2", features = ["normalize-path"] }
+tower-http = { version = "0.6", features = ["normalize-path"] }
+warp = { version = "0.4", features = ["server"] }
 
 [[example]]
 name = "metrics"
@@ -42,5 +47,21 @@ name = "derive_register_static_metrics"
 path = "src/derive/register_static_metrics.rs"
 
 [[example]]
+name = "actix-exporter"
+path = "src/exporter/actix.rs"
+
+[[example]]
 name = "axum-exporter"
 path = "src/exporter/axum.rs"
+
+[[example]]
+name = "poem-exporter"
+path = "src/exporter/poem.rs"
+
+[[example]]
+name = "rocket-exporter"
+path = "src/exporter/rocket.rs"
+
+[[example]]
+name = "warp-exporter"
+path = "src/exporter/warp.rs"

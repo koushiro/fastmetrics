@@ -1,0 +1,117 @@
+use std::{net::Ipv4Addr, sync::Arc, time::Instant};
+
+use anyhow::Result;
+use fastmetrics::{
+    format::{prost, text},
+    registry::{Register, Registry},
+};
+use rocket::{
+    Config, State,
+    fairing::{Fairing, Info, Kind},
+    http::{ContentType, Status},
+    request::Request,
+    response::Response,
+};
+
+mod common;
+use self::common::{Metrics, canonical_method_label};
+
+struct AppState {
+    registry: Arc<Registry>,
+    metrics: Metrics,
+}
+
+/// Rocket fairing that instruments requests.
+struct MetricsFairing {
+    metrics: Metrics,
+}
+
+impl MetricsFairing {
+    fn new(metrics: Metrics) -> Self {
+        Self { metrics }
+    }
+}
+
+#[rocket::async_trait]
+impl Fairing for MetricsFairing {
+    fn info(&self) -> Info {
+        Info { name: "Fastmetrics HTTP instrumentation", kind: Kind::Request | Kind::Response }
+    }
+
+    async fn on_request(&self, request: &mut Request<'_>, _data: &mut rocket::Data<'_>) {
+        // Save start time in request-local cache
+        let _ = request.local_cache(Instant::now);
+        self.metrics.inc_in_flight();
+    }
+
+    async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
+        let start = *request.local_cache(Instant::now);
+        self.metrics.observe(
+            canonical_method_label(request.method().as_str()),
+            response.status().code,
+            start,
+        );
+        self.metrics.dec_in_flight();
+    }
+}
+
+#[rocket::get("/metrics")]
+async fn metrics_text(state: &State<AppState>) -> (Status, (ContentType, String)) {
+    let mut output = String::new();
+    if let Err(e) = text::encode(&mut output, &state.registry) {
+        return (
+            Status::InternalServerError,
+            (ContentType::Plain, format!("text encode error: {e}")),
+        );
+    }
+    (Status::Ok, (ContentType::Plain, output))
+}
+
+#[rocket::get("/metrics/text")]
+async fn metrics_text_explicit(state: &State<AppState>) -> (Status, (ContentType, String)) {
+    metrics_text(state).await
+}
+
+#[rocket::get("/metrics/protobuf")]
+async fn metrics_protobuf(state: &State<AppState>) -> (Status, (ContentType, Vec<u8>)) {
+    let mut output = Vec::new();
+    if let Err(e) = prost::encode(&mut output, &state.registry) {
+        return (
+            Status::InternalServerError,
+            (ContentType::Plain, format!("protobuf encode error: {e}").into_bytes()),
+        );
+    }
+    (Status::Ok, (ContentType::Binary, output))
+}
+
+#[rocket::catch(404)]
+fn not_found(req: &Request<'_>) -> (Status, String) {
+    (Status::NotFound, format!("Not found: {}", req.uri()))
+}
+
+#[rocket::main]
+async fn main() -> Result<()> {
+    let mut registry = Registry::builder().with_namespace("rocket").build();
+    let metrics = Metrics::default();
+    metrics.register(&mut registry)?;
+
+    let ip_addr = Ipv4Addr::UNSPECIFIED.into();
+    let port = 3003;
+    println!("✅ Rocket metrics exporter listening on {ip_addr}:{port}");
+    println!("   GET /metrics");
+    println!("   GET /metrics/text");
+    println!("   GET /metrics/protobuf");
+
+    let state = AppState { registry: Arc::new(registry), metrics: metrics.clone() };
+    let metrics = state.metrics.clone();
+
+    rocket::custom(Config { address: ip_addr, port, ..Config::default() })
+        .manage(state)
+        .attach(MetricsFairing::new(metrics))
+        .mount("/", rocket::routes![metrics_text, metrics_text_explicit, metrics_protobuf])
+        .register("/", rocket::catchers![not_found])
+        .launch()
+        .await?;
+
+    Ok(())
+}
