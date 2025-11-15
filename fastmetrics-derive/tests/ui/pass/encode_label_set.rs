@@ -5,10 +5,12 @@ struct MyLabels {
     service: String,
     endpoint: String,
     status_code: u16,
+
     #[label(flatten)]
     extra: ExtraLabels,
+
     #[label(skip)]
-    skip_field: u64,
+    _skip: u64,
 }
 
 #[derive(EncodeLabelSet)]
@@ -23,6 +25,6 @@ fn main() {
         endpoint: "/login".to_string(),
         status_code: 200,
         extra: ExtraLabels { region: "us-east-1" },
-        skip_field: 42,
+        _skip: 42,
     };
 }
