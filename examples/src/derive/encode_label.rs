@@ -18,6 +18,17 @@ use rand::{
 struct Labels {
     operation: Operation,
     error: Option<Error>,
+
+    #[label(flatten)]
+    extra: ExtraLabels,
+
+    #[label(skip)]
+    _skip: u64,
+}
+
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+struct ExtraLabels {
+    region: &'static str,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
@@ -49,7 +60,16 @@ impl Distribution<Labels> for StandardUniform {
             2 => Some(Error::Fail),
             _ => unreachable!(),
         };
-        Labels { operation, error }
+        let extra = ExtraLabels {
+            region: match rng.random_range(0..=2) {
+                0 => "us-east-1",
+                1 => "eu-west-1",
+                2 => "ap-southeast-1",
+                _ => unreachable!(),
+            },
+        };
+        let skip = rng.random_range(1..=1_000_000);
+        Labels { operation, extra, error, _skip: skip }
     }
 }
 

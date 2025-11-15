@@ -1,0 +1,11 @@
+error: duplicated `skip` attribute
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:11:5
+   |
+11 |     #[label(skip)]
+   |     ^^^^^^^^^^^^^^
+
+error: duplicated `flatten` attribute
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:18:5
+   |
+18 |     #[label(flatten)]
+   |     ^^^^^^^^^^^^^^^^^
