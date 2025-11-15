@@ -59,9 +59,6 @@ impl Default for Metrics {
 
 impl Metrics {
     /// Observe a completed request.
-    ///
-    /// `method` must be a canonical label produced by one of the [`canonical_method_label`]
-    /// function.
     pub fn observe(&self, method: impl AsRef<str>, status: u16, start: Instant) {
         let elapsed = start.elapsed();
         let labels = HttpLabels { status, method: canonical_method_label(method) };
@@ -81,7 +78,6 @@ impl Metrics {
     }
 }
 
-/// Normalize a raw method string (e.g. from `Method::as_str()`) to canonical label.
 fn canonical_method_label(method: impl AsRef<str>) -> &'static str {
     match method.as_ref() {
         "GET" => "GET",

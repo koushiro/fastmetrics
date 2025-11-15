@@ -23,44 +23,40 @@ struct AppState {
     metrics: Metrics,
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
-enum ApiError {
-    EncodeText(std::fmt::Error),
-    EncodeProtobuf(std::io::Error),
-}
+struct TextEncodeReject;
+impl warp::reject::Reject for TextEncodeReject {}
 
-impl warp::reject::Reject for ApiError {}
-
-fn metrics_text(state: AppState) -> Result<impl Reply, Rejection> {
+fn metrics_encode_text(state: AppState) -> Result<impl Reply, TextEncodeReject> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry)
-        .map_err(|e| warp::reject::custom(ApiError::EncodeText(e)))?;
+    text::encode(&mut output, &state.registry).map_err(|_| TextEncodeReject)?;
     Ok(warp::reply::with_status(output, StatusCode::OK))
 }
 
-fn metrics_protobuf(state: AppState) -> Result<impl Reply, Rejection> {
+#[derive(Debug)]
+struct ProtobufEncodeReject;
+impl warp::reject::Reject for ProtobufEncodeReject {}
+
+fn metrics_encode_protobuf(state: AppState) -> Result<impl Reply, ProtobufEncodeReject> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry)
-        .map_err(|e| warp::reject::custom(ApiError::EncodeProtobuf(e)))?;
+    prost::encode(&mut output, &state.registry).map_err(|_| ProtobufEncodeReject)?;
     Ok(warp::reply::with_status(output, StatusCode::OK))
 }
 
 async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
     state.metrics.inc_in_flight();
-    let result = metrics_text(state.clone());
+    let result = metrics_encode_text(state.clone());
     match result {
         Ok(reply) => {
             state.metrics.observe(method, StatusCode::OK.as_u16(), start);
             state.metrics.dec_in_flight();
             Ok(reply)
         },
-        Err(reject) => {
-            // can't get status code from the Rejection type, so use INTERNAL_SERVER_ERROR here
+        Err(err) => {
             state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
             state.metrics.dec_in_flight();
-            Err(reject)
+            Err(warp::reject::custom(err))
         },
     }
 }
@@ -68,18 +64,17 @@ async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Re
 async fn protobuf_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
     state.metrics.inc_in_flight();
-    let result = metrics_protobuf(state.clone());
+    let result = metrics_encode_protobuf(state.clone());
     match result {
         Ok(reply) => {
             state.metrics.observe(method, StatusCode::OK.as_u16(), start);
             state.metrics.dec_in_flight();
             Ok(reply)
         },
-        Err(reject) => {
-            // can't get status code from the Rejection type, so use INTERNAL_SERVER_ERROR here
+        Err(err) => {
             state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
             state.metrics.dec_in_flight();
-            Err(reject)
+            Err(warp::reject::custom(err))
         },
     }
 }
