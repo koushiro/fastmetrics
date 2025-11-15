@@ -69,7 +69,7 @@ impl Distribution<Labels> for StandardUniform {
             },
         };
         let skip = rng.random_range(1..=1_000_000);
-        Labels { operation, extra, error, _skip: skip }
+        Labels { operation, error, extra, _skip: skip }
     }
 }
 

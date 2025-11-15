@@ -28,13 +28,16 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     };
 
     // Process all fields with #[label(...)] attributes
-    let encode_stmts = fields
+    let parsed_fields = fields
         .iter()
-        .map(|f| {
-            let ident = f.ident.as_ref().expect("fields must be named");
-            let ident_str = ident.to_string();
+        .map(|field| Ok((field, FieldAttributes::parse(field)?)))
+        .collect::<Result<Vec<_>>>()?;
 
-            let attrs = FieldAttributes::parse(f)?;
+    let encode_stmts = parsed_fields
+        .iter()
+        .map(|(field, attrs)| {
+            let ident = field.ident.as_ref().expect("fields must be named");
+            let ident_str = ident.to_string();
 
             // #[label(skip)] -> no encoding for this field
             if attrs.label.skip {
@@ -55,12 +58,10 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let is_empty_exprs = fields
+    let is_empty_exprs = parsed_fields
         .iter()
-        .map(|f| {
-            let ident = f.ident.as_ref().expect("fields must be named");
-
-            let attrs = FieldAttributes::parse(f)?;
+        .map(|(field, attrs)| {
+            let ident = field.ident.as_ref().expect("fields must be named");
 
             if attrs.label.skip {
                 // Skipped field contributes nothing
