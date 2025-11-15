@@ -5,7 +5,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, ready},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use anyhow::Result;
@@ -13,14 +13,12 @@ use axum::{
     ServiceExt,
     body::Body,
     extract::{Request, State},
-    http::{StatusCode, Uri},
+    http::{Method, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{Router, get},
 };
 use fastmetrics::{
-    encoder::EncodeLabelSet,
     format::{prost, text},
-    metrics::{counter::Counter, family::Family, histogram::Histogram},
     registry::{Register, Registry},
 };
 use pin_project::pin_project;
@@ -28,28 +26,8 @@ use tokio::net::TcpListener;
 use tower::{Layer, Service};
 use tower_http::normalize_path::NormalizePathLayer;
 
-#[derive(Clone, Default, Register)]
-pub struct Metrics {
-    /// Total number of HTTP requests
-    http_requests: Family<RequestsLabels, Counter>,
-    /// Duration of HTTP request
-    #[register(unit(Seconds))]
-    http_request_duration: Family<RequestsLabels, Histogram>,
-}
-
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
-pub struct RequestsLabels {
-    pub status: u16,
-}
-
-impl Metrics {
-    pub fn observe(&self, status: StatusCode, duration: Duration) {
-        let labels = RequestsLabels { status: status.as_u16() };
-        self.http_requests.with_or_new(&labels, |req| req.inc());
-        self.http_request_duration
-            .with_or_new(&labels, |hist| hist.observe(duration.as_secs_f64()))
-    }
-}
+mod common;
+use self::common::Metrics;
 
 #[derive(Clone)]
 struct MetricsLayer {
@@ -84,17 +62,27 @@ where
 
     fn call(&mut self, req: Request<R>) -> Self::Future {
         let start = Instant::now();
+        let method = req.method().clone();
+        self.metrics.inc_in_flight();
         let inner_future = self.inner.call(req);
-        MetricsFuture { inner: inner_future, start, metrics: self.metrics.clone() }
+        MetricsFuture {
+            inner: inner_future,
+            start,
+            metrics: self.metrics.clone(),
+            method,
+            done: false,
+        }
     }
 }
 
-#[pin_project]
+#[pin_project(PinnedDrop)]
 struct MetricsFuture<F> {
     #[pin]
     inner: F,
     start: Instant,
     metrics: Metrics,
+    method: Method,
+    done: bool,
 }
 
 impl<F, ResBody, E> Future for MetricsFuture<F>
@@ -106,12 +94,30 @@ where
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
 
-        let duration = this.start.elapsed();
+        let result = ready!(this.inner.poll(cx));
+        match result {
+            Ok(ref response) => {
+                this.metrics.observe(this.method, response.status().as_u16(), *this.start);
+            },
+            Err(_) => {
+                let status = StatusCode::INTERNAL_SERVER_ERROR;
+                this.metrics.observe(this.method, status.as_u16(), *this.start);
+            },
+        }
 
-        let response = ready!(this.inner.poll(cx))?;
-        this.metrics.observe(response.status(), duration);
+        this.metrics.dec_in_flight();
+        *this.done = true;
+        Poll::Ready(result)
+    }
+}
 
-        Poll::Ready(Ok(response))
+#[pin_project::pinned_drop]
+impl<F> PinnedDrop for MetricsFuture<F> {
+    fn drop(self: Pin<&mut Self>) {
+        let this = self.project();
+        if !*this.done {
+            this.metrics.dec_in_flight();
+        }
     }
 }
 
@@ -133,15 +139,13 @@ enum AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let error_msg = self.to_string();
-        (StatusCode::INTERNAL_SERVER_ERROR, error_msg).into_response()
+        (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
     }
 }
 
 async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = String::new();
     text::encode(&mut output, &state.registry)?;
-
     let response = Response::builder().status(StatusCode::OK).body(Body::from(output))?;
     Ok(response)
 }
@@ -149,7 +153,6 @@ async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = Vec::new();
     prost::encode(&mut output, &state.registry)?;
-
     let response = Response::builder().status(StatusCode::OK).body(Body::from(output))?;
     Ok(response)
 }
@@ -161,32 +164,35 @@ async fn not_found_handler(uri: Uri) -> impl IntoResponse {
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut registry = Registry::builder().with_namespace("axum").build();
-
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 
-    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3000);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3001);
+    println!("✅ Axum metrics exporter listening on {addr}");
+    println!("   GET /metrics");
+    println!("   GET /metrics/text");
+    println!("   GET /metrics/protobuf");
+
     let listener = TcpListener::bind(addr).await?;
-    println!("✅ Axum server is listening on: {addr}");
-
-    let state = AppState { registry: Arc::new(registry) };
-    let router = Router::new()
-        .route("/metrics", get(text_handler))
-        .nest(
-            "/metrics",
-            Router::new()
-                .route("/text", get(text_handler))
-                .route("/protobuf", get(protobuf_handler)),
-        )
-        .route("/{other}", get(not_found_handler))
-        .with_state(state)
-        .layer(MetricsLayer { metrics });
-
     let app = {
+        let router = Router::new()
+            .route("/metrics", get(text_handler))
+            .nest(
+                "/metrics",
+                Router::new()
+                    .route("/text", get(text_handler))
+                    .route("/protobuf", get(protobuf_handler)),
+            )
+            .route("/{other}", get(not_found_handler))
+            .with_state(AppState { registry: Arc::new(registry) })
+            .layer(MetricsLayer { metrics });
+
+        // Normalize paths (trim trailing slashes)
         let normalized = NormalizePathLayer::trim_trailing_slash().layer(router);
         ServiceExt::<Request>::into_make_service(normalized)
     };
 
     axum::serve(listener, app).await?;
+
     Ok(())
 }

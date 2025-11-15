@@ -1,0 +1,161 @@
+use std::{
+    net::{Ipv4Addr, SocketAddr},
+    sync::Arc,
+    time::Instant,
+};
+
+use anyhow::Result;
+use fastmetrics::{
+    format::{prost, text},
+    registry::{Register, Registry},
+};
+use warp::{
+    Filter, Rejection, Reply,
+    http::{Method, StatusCode},
+};
+
+mod common;
+use self::common::Metrics;
+
+#[derive(Clone)]
+struct AppState {
+    registry: Arc<Registry>,
+    metrics: Metrics,
+}
+
+#[derive(Debug)]
+struct TextEncodeReject;
+impl warp::reject::Reject for TextEncodeReject {}
+
+fn metrics_encode_text(state: AppState) -> Result<impl Reply, TextEncodeReject> {
+    let mut output = String::new();
+    text::encode(&mut output, &state.registry).map_err(|_| TextEncodeReject)?;
+    Ok(warp::reply::with_status(output, StatusCode::OK))
+}
+
+#[derive(Debug)]
+struct ProtobufEncodeReject;
+impl warp::reject::Reject for ProtobufEncodeReject {}
+
+fn metrics_encode_protobuf(state: AppState) -> Result<impl Reply, ProtobufEncodeReject> {
+    let mut output = Vec::new();
+    prost::encode(&mut output, &state.registry).map_err(|_| ProtobufEncodeReject)?;
+    Ok(warp::reply::with_status(output, StatusCode::OK))
+}
+
+async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
+    let start = Instant::now();
+    state.metrics.inc_in_flight();
+    let result = metrics_encode_text(state.clone());
+    match result {
+        Ok(reply) => {
+            state.metrics.observe(method, StatusCode::OK.as_u16(), start);
+            state.metrics.dec_in_flight();
+            Ok(reply)
+        },
+        Err(err) => {
+            state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
+            state.metrics.dec_in_flight();
+            Err(warp::reject::custom(err))
+        },
+    }
+}
+
+async fn protobuf_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
+    let start = Instant::now();
+    state.metrics.inc_in_flight();
+    let result = metrics_encode_protobuf(state.clone());
+    match result {
+        Ok(reply) => {
+            state.metrics.observe(method, StatusCode::OK.as_u16(), start);
+            state.metrics.dec_in_flight();
+            Ok(reply)
+        },
+        Err(err) => {
+            state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
+            state.metrics.dec_in_flight();
+            Err(warp::reject::custom(err))
+        },
+    }
+}
+
+async fn not_found_endpoint(
+    path: warp::path::FullPath,
+    method: Method,
+    state: AppState,
+) -> Result<impl Reply, Rejection> {
+    let start = Instant::now();
+    state.metrics.inc_in_flight();
+
+    let reply = format!("Not found: {}", path.as_str());
+    let reply = warp::reply::with_status(reply, StatusCode::NOT_FOUND);
+
+    state.metrics.observe(method, StatusCode::NOT_FOUND.as_u16(), start);
+    state.metrics.dec_in_flight();
+    Ok(reply)
+}
+
+fn build_filters(
+    state: AppState,
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+    // /metrics (text)
+    let metrics_text_route = warp::path!("metrics")
+        .and(warp::method())
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
+        .and_then(text_endpoint);
+
+    // /metrics/text
+    let metrics_text_explicit = warp::path!("metrics" / "text")
+        .and(warp::method())
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
+        .and_then(text_endpoint);
+
+    // /metrics/protobuf
+    let metrics_protobuf_route = warp::path!("metrics" / "protobuf")
+        .and(warp::method())
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
+        .and_then(protobuf_endpoint);
+
+    // Not found catch-all
+    let not_found = warp::path::full()
+        .and(warp::method())
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
+        .and_then(not_found_endpoint);
+
+    metrics_text_route
+        .or(metrics_text_explicit)
+        .or(metrics_protobuf_route)
+        .or(not_found)
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let mut registry = Registry::builder().with_namespace("warp").build();
+    let metrics = Metrics::default();
+    metrics.register(&mut registry)?;
+
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3004);
+    println!("✅ Warp metrics exporter listening on {addr}");
+    println!("   GET /metrics");
+    println!("   GET /metrics/text");
+    println!("   GET /metrics/protobuf");
+
+    let state = AppState { registry: Arc::new(registry), metrics: metrics.clone() };
+    let filters = build_filters(state);
+
+    warp::serve(filters).run(addr).await;
+
+    Ok(())
+}
