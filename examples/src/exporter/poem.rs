@@ -15,9 +15,7 @@ use poem::{
 };
 
 mod common;
-use self::common::{Metrics, canonical_method_label};
-
-// Metrics moved to common.rs (shared across exporter examples)
+use self::common::Metrics;
 
 #[derive(Clone)]
 struct AppState {
@@ -41,9 +39,7 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
             let status = StatusCode::OK;
             let body = output;
 
-            state
-                .metrics
-                .observe(canonical_method_label(req.method()), status.as_u16(), start);
+            state.metrics.observe(req.method(), status.as_u16(), start);
             state.metrics.dec_in_flight();
 
             Response::builder().status(status).body(body)
@@ -52,9 +48,7 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
             let status = StatusCode::INTERNAL_SERVER_ERROR;
             let body = format!("text encode error: {e}");
 
-            state
-                .metrics
-                .observe(canonical_method_label(req.method()), status.as_u16(), start);
+            state.metrics.observe(req.method(), status.as_u16(), start);
             state.metrics.dec_in_flight();
 
             Response::builder().status(status).body(body)
@@ -75,9 +69,7 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
             let status = StatusCode::OK;
             let body = output;
 
-            state
-                .metrics
-                .observe(canonical_method_label(req.method()), status.as_u16(), start);
+            state.metrics.observe(req.method(), status.as_u16(), start);
             state.metrics.dec_in_flight();
 
             Response::builder().status(status).body(body)
@@ -86,9 +78,7 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
             let status = StatusCode::INTERNAL_SERVER_ERROR;
             let body = format!("protobuf encode error: {e}");
 
-            state
-                .metrics
-                .observe(canonical_method_label(req.method()), status.as_u16(), start);
+            state.metrics.observe(req.method(), status.as_u16(), start);
             state.metrics.dec_in_flight();
 
             Response::builder().status(status).body(body)
@@ -104,9 +94,7 @@ async fn not_found(req: &Request, Data(state): Data<&AppState>) -> Response {
     let status = StatusCode::NOT_FOUND;
     let body = format!("Not found: {}", req.uri().path());
 
-    state
-        .metrics
-        .observe(canonical_method_label(req.method()), status.as_u16(), start);
+    state.metrics.observe(req.method(), status.as_u16(), start);
     state.metrics.dec_in_flight();
 
     Response::builder().status(status).body(body)

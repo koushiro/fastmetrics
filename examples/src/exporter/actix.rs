@@ -19,11 +19,10 @@ use fastmetrics::{
 use futures::future::{LocalBoxFuture, Ready, ready};
 
 mod common;
-use self::common::{Metrics, canonical_method_label};
+use self::common::Metrics;
 
 struct AppState {
     registry: Arc<Registry>,
-    _metrics: Metrics,
 }
 
 struct MetricsLayer {
@@ -84,16 +83,11 @@ where
         Box::pin(async move {
             let res = fut.await;
             match &res {
-                Ok(sr) => metrics.observe(
-                    canonical_method_label(method),
-                    sr.response().status().as_u16(),
-                    start,
-                ),
-                Err(_) => metrics.observe(
-                    canonical_method_label(method),
-                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                    start,
-                ),
+                Ok(sr) => metrics.observe(method, sr.response().status().as_u16(), start),
+                Err(_) => {
+                    let status = StatusCode::INTERNAL_SERVER_ERROR;
+                    metrics.observe(method, status.as_u16(), start)
+                },
             }
             metrics.dec_in_flight();
             res
@@ -125,22 +119,23 @@ async fn main() -> Result<()> {
     println!("   GET /metrics/text");
     println!("   GET /metrics/protobuf");
 
-    let state = Data::new(AppState { registry: Arc::new(registry), _metrics: metrics.clone() });
+    let state = Data::new(AppState { registry: Arc::new(registry) });
+    let app = {
+        let metrics = metrics.clone();
+        move || {
+            App::new()
+                .app_data(state.clone())
+                .wrap(MetricsLayer::new(metrics.clone()))
+                .route("/metrics", web::get().to(text_handler))
+                .service(
+                    web::scope("/metrics")
+                        .route("/text", web::get().to(text_handler))
+                        .route("/protobuf", web::get().to(protobuf_handler)),
+                )
+        }
+    };
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(state.clone())
-            .wrap(MetricsLayer::new(metrics.clone()))
-            .route("/metrics", web::get().to(text_handler))
-            .service(
-                web::scope("/metrics")
-                    .route("/text", web::get().to(text_handler))
-                    .route("/protobuf", web::get().to(protobuf_handler)),
-            )
-    })
-    .bind(addr)?
-    .run()
-    .await?;
+    HttpServer::new(app).bind(addr)?.run().await?;
 
     Ok(())
 }

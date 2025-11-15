@@ -14,7 +14,7 @@ use rocket::{
 };
 
 mod common;
-use self::common::{Metrics, canonical_method_label};
+use self::common::Metrics;
 
 struct AppState {
     registry: Arc<Registry>,
@@ -46,11 +46,7 @@ impl Fairing for MetricsFairing {
 
     async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
         let start = *request.local_cache(Instant::now);
-        self.metrics.observe(
-            canonical_method_label(request.method().as_str()),
-            response.status().code,
-            start,
-        );
+        self.metrics.observe(request.method().as_str(), response.status().code, start);
         self.metrics.dec_in_flight();
     }
 }

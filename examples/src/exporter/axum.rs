@@ -27,7 +27,7 @@ use tower::{Layer, Service};
 use tower_http::normalize_path::NormalizePathLayer;
 
 mod common;
-use self::common::{Metrics, canonical_method_label};
+use self::common::Metrics;
 
 #[derive(Clone)]
 struct MetricsLayer {
@@ -97,18 +97,11 @@ where
         let result = ready!(this.inner.poll(cx));
         match result {
             Ok(ref response) => {
-                this.metrics.observe(
-                    canonical_method_label(this.method),
-                    response.status().as_u16(),
-                    *this.start,
-                );
+                this.metrics.observe(this.method, response.status().as_u16(), *this.start);
             },
             Err(_) => {
-                this.metrics.observe(
-                    canonical_method_label(this.method),
-                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                    *this.start,
-                );
+                let status = StatusCode::INTERNAL_SERVER_ERROR;
+                this.metrics.observe(this.method, status.as_u16(), *this.start);
             },
         }
 
@@ -121,8 +114,9 @@ where
 #[pin_project::pinned_drop]
 impl<F> PinnedDrop for MetricsFuture<F> {
     fn drop(self: Pin<&mut Self>) {
-        if !self.done {
-            self.metrics.dec_in_flight();
+        let this = self.project();
+        if !*this.done {
+            this.metrics.dec_in_flight();
         }
     }
 }

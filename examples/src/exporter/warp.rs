@@ -15,7 +15,7 @@ use warp::{
 };
 
 mod common;
-use self::common::{Metrics, canonical_method_label};
+use self::common::Metrics;
 
 #[derive(Clone)]
 struct AppState {
@@ -52,18 +52,13 @@ async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Re
     let result = metrics_text(state.clone());
     match result {
         Ok(reply) => {
-            state
-                .metrics
-                .observe(canonical_method_label(&method), StatusCode::OK.as_u16(), start);
+            state.metrics.observe(method, StatusCode::OK.as_u16(), start);
             state.metrics.dec_in_flight();
             Ok(reply)
         },
         Err(reject) => {
-            state.metrics.observe(
-                canonical_method_label(&method),
-                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                start,
-            );
+            // can't get status code from the Rejection type, so use INTERNAL_SERVER_ERROR here
+            state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
             state.metrics.dec_in_flight();
             Err(reject)
         },
@@ -76,18 +71,13 @@ async fn protobuf_endpoint(method: Method, state: AppState) -> Result<impl Reply
     let result = metrics_protobuf(state.clone());
     match result {
         Ok(reply) => {
-            state
-                .metrics
-                .observe(canonical_method_label(&method), StatusCode::OK.as_u16(), start);
+            state.metrics.observe(method, StatusCode::OK.as_u16(), start);
             state.metrics.dec_in_flight();
             Ok(reply)
         },
         Err(reject) => {
-            state.metrics.observe(
-                canonical_method_label(&method),
-                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                start,
-            );
+            // can't get status code from the Rejection type, so use INTERNAL_SERVER_ERROR here
+            state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
             state.metrics.dec_in_flight();
             Err(reject)
         },
@@ -101,11 +91,11 @@ async fn not_found_endpoint(
 ) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
     state.metrics.inc_in_flight();
+
     let reply = format!("Not found: {}", path.as_str());
     let reply = warp::reply::with_status(reply, StatusCode::NOT_FOUND);
-    state
-        .metrics
-        .observe(canonical_method_label(&method), StatusCode::NOT_FOUND.as_u16(), start);
+
+    state.metrics.observe(method, StatusCode::NOT_FOUND.as_u16(), start);
     state.metrics.dec_in_flight();
     Ok(reply)
 }
@@ -113,34 +103,40 @@ async fn not_found_endpoint(
 fn build_filters(
     state: AppState,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    // Clone state up front to avoid move/borrow issues
-    let s1 = state.clone();
-    let s2 = state.clone();
-    let s3 = state.clone();
-    let s4 = state;
-
     // /metrics (text)
     let metrics_text_route = warp::path!("metrics")
         .and(warp::method())
-        .and(warp::any().map(move || s1.clone()))
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
         .and_then(text_endpoint);
 
     // /metrics/text
     let metrics_text_explicit = warp::path!("metrics" / "text")
         .and(warp::method())
-        .and(warp::any().map(move || s2.clone()))
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
         .and_then(text_endpoint);
 
     // /metrics/protobuf
     let metrics_protobuf_route = warp::path!("metrics" / "protobuf")
         .and(warp::method())
-        .and(warp::any().map(move || s3.clone()))
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
         .and_then(protobuf_endpoint);
 
     // Not found catch-all
     let not_found = warp::path::full()
         .and(warp::method())
-        .and(warp::any().map(move || s4.clone()))
+        .and(warp::any().map({
+            let state = state.clone();
+            move || state.clone()
+        }))
         .and_then(not_found_endpoint);
 
     metrics_text_route

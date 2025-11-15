@@ -60,10 +60,11 @@ impl Default for Metrics {
 impl Metrics {
     /// Observe a completed request.
     ///
-    /// `method` must be a canonical label produced by one of the `method_str_*` helpers.
-    pub fn observe(&self, method: &'static str, status: u16, start: Instant) {
+    /// `method` must be a canonical label produced by one of the [`canonical_method_label`]
+    /// function.
+    pub fn observe(&self, method: impl AsRef<str>, status: u16, start: Instant) {
         let elapsed = start.elapsed();
-        let labels = HttpLabels { status, method };
+        let labels = HttpLabels { status, method: canonical_method_label(method) };
         self.http_requests.with_or_new(&labels, |c| c.inc());
         self.http_request_duration
             .with_or_new(&labels, |h| h.observe(elapsed.as_secs_f64()));
@@ -81,7 +82,7 @@ impl Metrics {
 }
 
 /// Normalize a raw method string (e.g. from `Method::as_str()`) to canonical label.
-pub fn canonical_method_label(method: impl AsRef<str>) -> &'static str {
+fn canonical_method_label(method: impl AsRef<str>) -> &'static str {
     match method.as_ref() {
         "GET" => "GET",
         "POST" => "POST",
