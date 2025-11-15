@@ -1,0 +1,5 @@
+error: unrecognized register attribute
+ --> tests/ui/fail/register/unrecognized_attr.rs:6:16
+  |
+6 |     #[register(unknown)]
+  |                ^^^^^^^

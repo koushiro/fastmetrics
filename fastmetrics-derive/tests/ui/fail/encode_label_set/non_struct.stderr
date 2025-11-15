@@ -1,5 +1,5 @@
 error: #[derive(EncodeLabelSet)] can only be used for structs.
- --> tests/ui/fail/encode_label_set_non_struct.rs:5:6
+ --> tests/ui/fail/encode_label_set/non_struct.rs:5:6
   |
 5 | enum NotAStruct {
   |      ^^^^^^^^^^

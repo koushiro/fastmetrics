@@ -30,7 +30,7 @@ use syn::{DeriveInput, Error, parse_macro_input};
 ///     endpoint: String,
 /// }
 /// ```
-#[proc_macro_derive(EncodeLabelSet)]
+#[proc_macro_derive(EncodeLabelSet, attributes(label))]
 pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     encode_label_set::expand_derive(input)
@@ -115,7 +115,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///     /// help line 3
 ///     #[register(rename = "my_gauge")]
 ///     gauge: Gauge,
-///     
+///
 ///     // No help
 ///     #[register(unit(Bytes))]
 ///     counter: Counter,
@@ -123,7 +123,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///     /// This doc comment will be ignored
 ///     #[register(help = OVERRIDE_HELP)]
 ///     override_help_counter: Counter,
-///     
+///
 ///     /**
 ///
 ///     My histogram help line 1
