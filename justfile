@@ -40,7 +40,7 @@ gen-docs:
 # Run examples: `just example [NAME] <ARGS>`
 [working-directory: 'examples']
 [positional-arguments]
-example NAME *ARGS:
+@example NAME *ARGS:
     #!/usr/bin/env bash
     set -eo pipefail
     if [ -n "{{ARGS}}" ]; then
