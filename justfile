@@ -39,9 +39,10 @@ gen-docs:
 
 # Run examples: `just example [NAME] <ARGS>`
 [working-directory: 'examples']
-@example NAME *ARGS:
+[positional-arguments]
+example NAME *ARGS:
     #!/usr/bin/env bash
-    set -euo pipefail
+    set -eo pipefail
     if [ -n "{{ARGS}}" ]; then
         echo "Running example \"{{NAME}}\" with: {{ARGS}}"
         cargo run --example {{NAME}} -- {{ARGS}}
@@ -50,12 +51,12 @@ gen-docs:
         cargo run --example {{NAME}}
     fi
 
-# Run benchmarks: `just bench [-- <args...>]` or `just bench <name...> [-- <args...>]`
+# Run benchmarks: `just bench <ARGS>` or `just bench [NAME] <ARGS>`
 [working-directory: 'benchmarks']
 [positional-arguments]
 @bench *ARGS:
     #!/usr/bin/env bash
-    set -euo pipefail
+    set -eo pipefail
     # Array-safe split: names before `--`, extra args after
     names=()
     extra_args=()
@@ -73,7 +74,7 @@ gen-docs:
     done
 
     if [ ${#names[@]} -eq 0 ]; then
-        if [ ${#extra[@]} -gt 0 ]; then
+        if [ ${#extra_args[@]} -gt 0 ]; then
             echo "Running all benchmarks with: ${extra_args[*]}"
             cargo bench -- "${extra_args[@]}"
         else
