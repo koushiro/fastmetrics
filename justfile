@@ -37,69 +37,57 @@ test:
 gen-docs:
 	@cargo doc --no-deps --workspace --lib --all-features
 
+# Run examples: `just example [NAME] <ARGS>`
+[working-directory: 'examples']
+@example NAME *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "{{ARGS}}" ]; then
+        echo "Running example \"{{NAME}}\" with: {{ARGS}}"
+        cargo run --example {{NAME}} -- {{ARGS}}
+    else
+        echo "Running example \"{{NAME}}\""
+        cargo run --example {{NAME}}
+    fi
+
 # Run benchmarks: `just bench [-- <args...>]` or `just bench <name...> [-- <args...>]`
 [working-directory: 'benchmarks']
 [positional-arguments]
-@bench *args:
+@bench *ARGS:
     #!/usr/bin/env bash
-    # Split args: names before `--`, extra args after
-    names=""
-    while [ $# -gt 0 ] && [ "$1" != "--" ]; do
-        names="$names $1"
-        shift
+    set -euo pipefail
+    # Array-safe split: names before `--`, extra args after
+    names=()
+    extra_args=()
+    parsing_names=1
+    for arg in "$@"; do
+        if [ "$parsing_names" -eq 1 ]; then
+            if [ "$arg" = "--" ]; then
+                parsing_names=0
+            else
+                names+=("$arg")
+            fi
+        else
+            extra_args+=("$arg")
+        fi
     done
-    if [ "${1-}" = "--" ]; then
-        shift
-    fi
-    extra_args="$@"
 
-    if [ -z "$names" ]; then
-        if [ -n "$extra_args" ]; then
-            echo "Running all benchmarks with \"$extra_args\""
-            cargo bench -- $extra_args
+    if [ ${#names[@]} -eq 0 ]; then
+        if [ ${#extra[@]} -gt 0 ]; then
+            echo "Running all benchmarks with: ${extra_args[*]}"
+            cargo bench -- "${extra_args[@]}"
         else
             echo "Running all benchmarks"
             cargo bench -- --quiet
         fi
     else
-        for name in $names; do
-            if [ -n "$extra_args" ]; then
-                echo "Running benchmark \"$name\" with \"$extra_args\""
-                cargo bench --bench $name -- $extra_args
+        for name in "${names[@]}"; do
+            if [ ${#extra[@]} -gt 0 ]; then
+                echo "Running benchmark \"$name\" with: ${extra_args[*]}"
+                cargo bench --bench "$name" -- "${extra_args[@]}"
             else
                 echo "Running benchmark \"$name\""
-                cargo bench --bench $name -- --quiet
+                cargo bench --bench "$name" -- --quiet
             fi
         done
     fi
-
-# Run examples: `just example <name...> [-- <args...>]`
-[working-directory: 'examples']
-[positional-arguments]
-[no-exit-message]
-@example *args:
-    #!/usr/bin/env bash
-    # Split args: names before `--`, extra args after
-    names=""
-    while [ $# -gt 0 ] && [ "$1" != "--" ]; do
-        names="$names $1"
-        shift
-    done
-    if [ "${1-}" = "--" ]; then
-        shift
-    fi
-    extra_args="$@"
-
-    if [ -z "$names" ]; then
-        echo "{{BOLD + RED}}Error{{NORMAL}}: must specify at least one example name."
-        exit 1
-    fi
-    for name in $names; do
-        if [ -n "$extra_args" ]; then
-            echo "Running example \"$name\" with \"$extra_args\""
-            cargo run --example $name -- $extra_args
-        else
-            echo "Running example \"$name\""
-            cargo run --example $name
-        fi
-    done
