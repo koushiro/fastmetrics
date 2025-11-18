@@ -1,0 +1,27 @@
+error: `flatten` attribute cannot coexist with other label attributes
+ --> tests/ui/fail/encode_label_set/exclusive_attr_conflicts.rs:9:19
+  |
+9 |     #[label(skip, flatten)]
+  |                   ^^^^^^^
+
+error: `skip` attribute cannot coexist with other label attributes
+  --> tests/ui/fail/encode_label_set/exclusive_attr_conflicts.rs:16:22
+   |
+16 |     #[label(flatten, skip)]
+   |                      ^^^^
+
+error: `skip`, `flatten` attributes are mutually exclusive
+  --> tests/ui/fail/encode_label_set/exclusive_attr_conflicts.rs:23:5
+   |
+23 | /     #[label(skip)]
+24 | |     #[label(flatten)]
+25 | |     inner: Inner,
+   | |________________^
+
+error: `skip`, `flatten` attributes are mutually exclusive
+  --> tests/ui/fail/encode_label_set/exclusive_attr_conflicts.rs:31:5
+   |
+31 | /     #[label(flatten)]
+32 | |     #[label(skip)]
+33 | |     inner: Inner,
+   | |________________^

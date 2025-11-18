@@ -1,5 +1,0 @@
-error: `flatten` attribute cannot coexist with `skip` attribute
-  --> tests/ui/fail/encode_label_set/skip_and_flatten_conflict.rs:10:5
-   |
-10 |     #[label(skip, flatten)]
-   |     ^^^^^^^^^^^^^^^^^^^^^^^

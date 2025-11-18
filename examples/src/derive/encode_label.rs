@@ -16,6 +16,7 @@ use rand::{
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
 struct Labels {
+    #[label(rename = "op")]
     operation: Operation,
     error: Option<Error>,
 
