@@ -1,5 +1,0 @@
-error: `flatten` attribute cannot coexist with `rename`, `help` or `unit` attributes
-  --> tests/ui/fail/register/flatten_cannot_coexist_with_other_attrs_except_subsystem.rs:12:5
-   |
-12 |     #[register(flatten, rename = "inner")]
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

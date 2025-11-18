@@ -5,7 +5,7 @@ use syn::{
     Meta, MetaNameValue, Path, Result, Token, punctuated::Punctuated,
 };
 
-use crate::utils::wrap_in_const;
+use crate::utils::{StringValue, wrap_in_const};
 
 pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
@@ -27,18 +27,18 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     };
 
     // Generate register code for each field
-    let register_calls = fields
+    let register_stmts = fields
         .into_iter()
         .map(|field| {
             let field_ident = field.ident.as_ref().expect("fields must be named");
             let field_attrs = FieldAttributes::parse(field)?;
 
-            // Skip field if marked with #[register(skip)]
+            // #[register(skip)] -> no encoding for this field
             if field_attrs.register.skip {
                 return Ok(quote! { /* skip */ });
             }
 
-            // Handle #[register(flatten)] or #[register(subsystem)] fields
+            // #[register(flatten)] or #[register(subsystem)] -> encode nested or subsystem metrics
             // (both need to call register on the field)
             let is_flatten =
                 field_attrs.register.flatten || field_attrs.register.subsystem.is_some();
@@ -59,6 +59,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                 });
             }
 
+            // #[register(rename = "...")] -> override metric name
             // Get the metric name from rename attribute or field ident
             let name = match &field_attrs.register.rename {
                 Some(rename) => rename.to_token_stream(),
@@ -125,7 +126,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::registry::Register for #name #ty_generics #where_clause {
             fn register(&self, registry: &mut ::fastmetrics::registry::Registry) -> ::core::result::Result<(), ::fastmetrics::registry::RegistryError> {
-                #(#register_calls)*
+                #(#register_stmts)*
 
                 ::core::result::Result::Ok(())
             }
@@ -145,78 +146,94 @@ struct FieldAttributes {
 
 impl FieldAttributes {
     fn parse(field: &Field) -> Result<Self> {
-        let mut field_attrs = FieldAttributes::default();
+        let mut field_attrs = FieldAttributes {
+            register: FieldRegisterAttribute::default(),
+            docs: extract_doc_comments(field),
+        };
 
-        let docs = extract_doc_comments(field);
-        field_attrs.docs = docs;
-
+        // Phase 1: collect all #[register(...)] attributes (each #[register(...)] separately)
+        let mut register_attrs: Vec<FieldRegisterAttribute> = Vec::new();
         for attr in &field.attrs {
             if attr.path().is_ident("register") {
                 let register_attr = FieldRegisterAttribute::parse(attr)?;
-
-                if let Some(rename) = register_attr.rename {
-                    if field_attrs.register.rename.is_some() {
-                        return Err(Error::new_spanned(attr, "duplicated `rename` attribute"));
-                    }
-                    field_attrs.register.rename = Some(rename);
-                }
-
-                if let Some(help) = register_attr.help {
-                    if field_attrs.register.help.is_some() {
-                        return Err(Error::new_spanned(attr, "duplicated `help` attribute"));
-                    }
-                    field_attrs.register.help = Some(help);
-                }
-
-                if let Some(unit) = register_attr.unit {
-                    if field_attrs.register.unit.is_some() {
-                        return Err(Error::new_spanned(attr, "duplicated `unit` attribute"));
-                    }
-                    field_attrs.register.unit = Some(unit);
-                }
-
-                if let Some(subsystem) = register_attr.subsystem {
-                    if field_attrs.register.subsystem.is_some() {
-                        return Err(Error::new_spanned(attr, "duplicated `subsystem` attribute"));
-                    }
-                    field_attrs.register.subsystem = Some(subsystem);
-                }
-
-                if register_attr.skip {
-                    if field_attrs.register.skip {
-                        return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
-                    }
-                    if field_attrs.register.rename.is_some()
-                        || field_attrs.register.help.is_some()
-                        || field_attrs.register.unit.is_some()
-                        || field_attrs.register.subsystem.is_some()
-                    {
-                        return Err(Error::new_spanned(
-                            attr,
-                            "`skip` attribute cannot coexist with other attributes",
-                        ));
-                    }
-                    field_attrs.register.skip = true;
-                }
-
-                if register_attr.flatten {
-                    if field_attrs.register.flatten {
-                        return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
-                    }
-                    if field_attrs.register.rename.is_some()
-                        || field_attrs.register.help.is_some()
-                        || field_attrs.register.unit.is_some()
-                    {
-                        // `flatten` cannot coexist with `rename`, `help` or `unit`,
-                        // but can coexist with `subsystem`
-                        return Err(Error::new_spanned(
-                            attr,
-                            "`flatten` attribute cannot coexist with `rename`, `help` or `unit` attributes",
-                        ));
-                    }
-                    field_attrs.register.flatten = true;
-                }
+                register_attrs.push(register_attr);
             }
+        }
+
+        // Phase 2: merge register attributes
+        for attr in register_attrs {
+            if attr.skip {
+                if field_attrs.register.skip {
+                    return Err(Error::new_spanned(field, "duplicated `skip` attribute"));
+                }
+                field_attrs.register.skip = true;
+            }
+            if attr.flatten {
+                if field_attrs.register.flatten {
+                    return Err(Error::new_spanned(field, "duplicated `flatten` attribute"));
+                }
+                field_attrs.register.flatten = true;
+            }
+            if let Some(subsystem) = attr.subsystem {
+                if field_attrs.register.subsystem.is_some() {
+                    return Err(Error::new_spanned(field, "duplicated `subsystem` attribute"));
+                }
+                field_attrs.register.subsystem = Some(subsystem);
+            }
+            if let Some(rename) = attr.rename {
+                if field_attrs.register.rename.is_some() {
+                    return Err(Error::new_spanned(field, "duplicated `rename` attribute"));
+                }
+                field_attrs.register.rename = Some(rename);
+            }
+            if let Some(help) = attr.help {
+                if field_attrs.register.help.is_some() {
+                    return Err(Error::new_spanned(field, "duplicated `help` attribute"));
+                }
+                field_attrs.register.help = Some(help);
+            }
+            if let Some(unit) = attr.unit {
+                if field_attrs.register.unit.is_some() {
+                    return Err(Error::new_spanned(field, "duplicated `unit` attribute"));
+                }
+                field_attrs.register.unit = Some(unit);
+            }
+        }
+
+        // Phase 3: validate conflicts
+        let register = &field_attrs.register;
+
+        // Exclusive attributes: skip, flatten, subsystem must not coexist with each other
+        let exclusive_count =
+            (register.skip as u8) + (register.flatten as u8) + (register.subsystem.is_some() as u8);
+        if exclusive_count > 1 {
+            return Err(Error::new_spanned(
+                field,
+                "`skip`, `flatten`, `subsystem` attributes are mutually exclusive",
+            ));
+        }
+
+        // If any exclusive attribute is present, it cannot coexist with non-exclusive attributes
+        let has_non_exclusive =
+            register.rename.is_some() || register.help.is_some() || register.unit.is_some();
+
+        if register.skip && has_non_exclusive {
+            return Err(Error::new_spanned(
+                field,
+                "`skip` attribute cannot coexist with other register attributes",
+            ));
+        }
+        if register.flatten && has_non_exclusive {
+            return Err(Error::new_spanned(
+                field,
+                "`flatten` attribute cannot coexist with other register attributes",
+            ));
+        }
+        if register.subsystem.is_some() && has_non_exclusive {
+            return Err(Error::new_spanned(
+                field,
+                "`subsystem` attribute cannot coexist with other register attributes",
+            ));
         }
 
         Ok(field_attrs)
@@ -235,6 +252,10 @@ struct FieldRegisterAttribute {
     /// Whether to call the field's own `register` method instead of registering it directly.
     /// Used when a field contains nested metrics that should be registered individually.
     flatten: bool,
+    // #[register(subsystem = "...")]
+    /// Subsystem to register this nested struct into
+    subsystem: Option<StringValue>,
+
     // #[register(rename = "...")]
     /// Custom name for the metric instead of field name
     rename: Option<StringValue>,
@@ -244,75 +265,6 @@ struct FieldRegisterAttribute {
     // #[register(unit(...)] or #[register(unit = "...")]
     /// Unit for the metric
     unit: Option<UnitValue>,
-    // #[register(subsystem = "...")]
-    /// Subsystem to register this nested struct into
-    subsystem: Option<StringValue>,
-}
-
-/// Represents a string value which can be a literal string or an expression
-enum StringValue {
-    /// String literal (e.g., "hello")
-    Literal(LitStr),
-    /// Expression that evaluates to a string (e.g., CONST_STR, some_fn())
-    Expression(TokenStream),
-}
-
-impl StringValue {
-    fn from_expr(expr: &Expr) -> Result<Self> {
-        match expr {
-            // Handle string literals: "hello"
-            Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => Ok(StringValue::Literal(s.clone())),
-
-            // Handle path expressions: CONST_STR, module::CONST
-            Expr::Path(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle function calls: some_fn(), module::get_name()
-            Expr::Call(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle method calls: obj.get_name()
-            Expr::MethodCall(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle field access: obj.field
-            Expr::Field(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle index access: arr[0]
-            Expr::Index(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle macro calls: format!("hello"), concat!("a", "b")
-            Expr::Macro(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle conditional expressions: if cond { "a" } else { "b" }
-            Expr::If(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle match expressions: match x { ... }
-            Expr::Match(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle parenthesized expressions: (expr)
-            Expr::Paren(paren) => StringValue::from_expr(&paren.expr),
-
-            // Handle grouped expressions: { expr }
-            Expr::Group(group) => StringValue::from_expr(&group.expr),
-
-            // Handle references: &CONST_STR
-            Expr::Reference(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Handle try expressions: expr?
-            Expr::Try(_) => Ok(StringValue::Expression(quote!(#expr))),
-
-            // Reject all other expression types with a helpful error message
-            _ => Err(Error::new_spanned(
-                expr,
-                "expect a string literal or any expression that evaluates to a string",
-            )),
-        }
-    }
-
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            StringValue::Literal(lit_str) => quote!(#lit_str),
-            StringValue::Expression(expr) => expr.clone(),
-        }
-    }
 }
 
 /// Represents a unit value which can be a path (e.g., Bytes) or a string value (e.g., "bytes")
@@ -324,7 +276,7 @@ enum UnitValue {
 }
 
 impl FieldRegisterAttribute {
-    /// Parse a register attribute.
+    /// Parse a single `#[register(...)]` attribute.
     fn parse(attr: &Attribute) -> Result<Self> {
         let mut register_attr = Self::default();
 
@@ -336,6 +288,17 @@ impl FieldRegisterAttribute {
                     if register_attr.skip {
                         return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
                     }
+                    if register_attr.flatten
+                        || register_attr.subsystem.is_some()
+                        || register_attr.rename.is_some()
+                        || register_attr.help.is_some()
+                        || register_attr.unit.is_some()
+                    {
+                        return Err(Error::new_spanned(
+                            path,
+                            "`skip` attribute cannot coexist with other register attributes",
+                        ));
+                    }
                     register_attr.skip = true;
                 },
 
@@ -344,7 +307,38 @@ impl FieldRegisterAttribute {
                     if register_attr.flatten {
                         return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
                     }
+                    if register_attr.skip
+                        || register_attr.subsystem.is_some()
+                        || register_attr.rename.is_some()
+                        || register_attr.help.is_some()
+                        || register_attr.unit.is_some()
+                    {
+                        return Err(Error::new_spanned(
+                            path,
+                            "`flatten` attribute cannot coexist with other register attributes",
+                        ));
+                    }
                     register_attr.flatten = true;
+                },
+
+                // #[register(subsystem = "...")]
+                Meta::NameValue(nv) if nv.path.is_ident("subsystem") => {
+                    if register_attr.subsystem.is_some() {
+                        return Err(Error::new_spanned(nv, "duplicated `subsystem` attribute"));
+                    }
+                    if register_attr.skip
+                        || register_attr.flatten
+                        || register_attr.rename.is_some()
+                        || register_attr.help.is_some()
+                        || register_attr.unit.is_some()
+                    {
+                        return Err(Error::new_spanned(
+                            nv,
+                            "`subsystem` attribute cannot coexist with other register attributes",
+                        ));
+                    }
+                    let subsystem = StringValue::from_expr(&nv.value)?;
+                    register_attr.subsystem = Some(subsystem);
                 },
 
                 // #[register(rename = "...")]
@@ -382,15 +376,7 @@ impl FieldRegisterAttribute {
                     register_attr.unit = Some(UnitValue::Path(path));
                 },
 
-                // #[register(subsystem = "...")]
-                Meta::NameValue(nv) if nv.path.is_ident("subsystem") => {
-                    if register_attr.subsystem.is_some() {
-                        return Err(Error::new_spanned(nv, "duplicated `subsystem` attribute"));
-                    }
-                    let subsystem = StringValue::from_expr(&nv.value)?;
-                    register_attr.subsystem = Some(subsystem);
-                },
-
+                // unrecognized
                 _ => {
                     return Err(Error::new_spanned(meta, "unrecognized register attribute"));
                 },

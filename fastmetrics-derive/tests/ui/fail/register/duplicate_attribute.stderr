@@ -1,5 +1,111 @@
 error: duplicated `rename` attribute
- --> tests/ui/fail/register/duplicate_attribute.rs:7:51
+ --> tests/ui/fail/register/duplicate_attribute.rs:6:30
   |
-7 |     #[register(rename = "http_requests_duration", rename = "http_request_duration")]
-  |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6 |     #[register(rename = "a", rename = "b")]
+  |                              ^^^^^^^^^^^^
+
+error: duplicated `rename` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:12:5
+   |
+12 | /     #[register(rename = "a")]
+13 | |     #[register(rename = "b")]
+14 | |     counter: Counter,
+   | |____________________^
+
+error: duplicated `help` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:19:32
+   |
+19 |     #[register(help = "help1", help = "help2")]
+   |                                ^^^^^^^^^^^^^^
+
+error: duplicated `help` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:25:5
+   |
+25 | /     #[register(help = "help1")]
+26 | |     #[register(help = "help2")]
+27 | |     counter: Counter,
+   | |____________________^
+
+error: duplicated `unit` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:32:32
+   |
+32 |     #[register(unit = "bytes", unit = "bytes")]
+   |                                ^^^^^^^^^^^^^^
+
+error: duplicated `unit` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:38:5
+   |
+38 | /     #[register(unit = "bytes")]
+39 | |     #[register(unit = "bytes")]
+40 | |     counter: Counter,
+   | |____________________^
+
+error: duplicated `unit` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:45:29
+   |
+45 |     #[register(unit(Bytes), unit(Bytes))]
+   |                             ^^^^^^^^^^^
+
+error: duplicated `unit` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:51:5
+   |
+51 | /     #[register(unit(Bytes))]
+52 | |     #[register(unit(Bytes))]
+53 | |     counter: Counter,
+   | |____________________^
+
+error: duplicated `unit` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:58:32
+   |
+58 |     #[register(unit = "bytes", unit(Bytes))]
+   |                                ^^^^^^^^^^^
+
+error: duplicated `unit` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:64:5
+   |
+64 | /     #[register(unit = "bytes")]
+65 | |     #[register(unit(Bytes))]
+66 | |     counter: Counter,
+   | |____________________^
+
+error: duplicated `skip` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:71:22
+   |
+71 |     #[register(skip, skip)]
+   |                      ^^^^
+
+error: duplicated `skip` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:77:5
+   |
+77 | /     #[register(skip)]
+78 | |     #[register(skip)]
+79 | |     counter: Counter,
+   | |____________________^
+
+error: duplicated `flatten` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:84:25
+   |
+84 |     #[register(flatten, flatten)]
+   |                         ^^^^^^^
+
+error: duplicated `flatten` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:90:5
+   |
+90 | /     #[register(flatten)]
+91 | |     #[register(flatten)]
+92 | |     inner: InnerMetrics,
+   | |_______________________^
+
+error: duplicated `subsystem` attribute
+  --> tests/ui/fail/register/duplicate_attribute.rs:97:34
+   |
+97 |     #[register(subsystem = "s1", subsystem = "s2")]
+   |                                  ^^^^^^^^^^^^^^^^
+
+error: duplicated `subsystem` attribute
+   --> tests/ui/fail/register/duplicate_attribute.rs:103:5
+    |
+103 | /     #[register(subsystem = "s1")]
+104 | |     #[register(subsystem = "s2")]
+105 | |     inner: InnerMetrics,
+    | |_______________________^

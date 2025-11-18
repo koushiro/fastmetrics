@@ -78,5 +78,5 @@ fn main() {
 
     let mut output = String::new();
     text::encode(&mut output, &registry).unwrap();
-    println!("{}", output);
+    // println!("{}", output);
 }
