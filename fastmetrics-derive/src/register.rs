@@ -288,16 +288,15 @@ impl FieldRegisterAttribute {
                     if register_attr.skip {
                         return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
                     }
-                    if register_attr.flatten {
+                    if register_attr.flatten
+                        || register_attr.subsystem.is_some()
+                        || register_attr.rename.is_some()
+                        || register_attr.help.is_some()
+                        || register_attr.unit.is_some()
+                    {
                         return Err(Error::new_spanned(
                             path,
-                            "`flatten` attribute cannot coexist with other register attributes",
-                        ));
-                    }
-                    if register_attr.subsystem.is_some() {
-                        return Err(Error::new_spanned(
-                            path,
-                            "`subsystem` attribute cannot coexist with other register attributes",
+                            "`skip` attribute cannot coexist with other register attributes",
                         ));
                     }
                     register_attr.skip = true;
@@ -308,16 +307,15 @@ impl FieldRegisterAttribute {
                     if register_attr.flatten {
                         return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
                     }
-                    if register_attr.skip {
+                    if register_attr.skip
+                        || register_attr.subsystem.is_some()
+                        || register_attr.rename.is_some()
+                        || register_attr.help.is_some()
+                        || register_attr.unit.is_some()
+                    {
                         return Err(Error::new_spanned(
                             path,
-                            "`skip` attribute cannot coexist with other register attributes",
-                        ));
-                    }
-                    if register_attr.subsystem.is_some() {
-                        return Err(Error::new_spanned(
-                            path,
-                            "`subsystem` attribute cannot coexist with other register attributes",
+                            "`flatten` attribute cannot coexist with other register attributes",
                         ));
                     }
                     register_attr.flatten = true;
@@ -328,16 +326,15 @@ impl FieldRegisterAttribute {
                     if register_attr.subsystem.is_some() {
                         return Err(Error::new_spanned(nv, "duplicated `subsystem` attribute"));
                     }
-                    if register_attr.skip {
+                    if register_attr.skip
+                        || register_attr.flatten
+                        || register_attr.rename.is_some()
+                        || register_attr.help.is_some()
+                        || register_attr.unit.is_some()
+                    {
                         return Err(Error::new_spanned(
                             nv,
-                            "`skip` attribute cannot coexist with other register attributes",
-                        ));
-                    }
-                    if register_attr.flatten {
-                        return Err(Error::new_spanned(
-                            nv,
-                            "`flatten` attribute cannot coexist with other register attributes",
+                            "`subsystem` attribute cannot coexist with other register attributes",
                         ));
                     }
                     let subsystem = StringValue::from_expr(&nv.value)?;

@@ -43,19 +43,19 @@ error: `subsystem` attribute cannot coexist with other register attributes
 49 | |     inner: Inner,
    | |________________^
 
-error: `skip` attribute cannot coexist with other register attributes
+error: `flatten` attribute cannot coexist with other register attributes
   --> tests/ui/fail/register/exclusive_attr_conflicts.rs:61:22
    |
 61 |     #[register(skip, flatten)]
    |                      ^^^^^^^
 
-error: `flatten` attribute cannot coexist with other register attributes
+error: `subsystem` attribute cannot coexist with other register attributes
   --> tests/ui/fail/register/exclusive_attr_conflicts.rs:68:25
    |
 68 |     #[register(flatten, subsystem = "inner")]
    |                         ^^^^^^^^^^^^^^^^^^^
 
-error: `subsystem` attribute cannot coexist with other register attributes
+error: `skip` attribute cannot coexist with other register attributes
   --> tests/ui/fail/register/exclusive_attr_conflicts.rs:75:37
    |
 75 |     #[register(subsystem = "inner", skip)]
