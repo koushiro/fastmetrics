@@ -146,10 +146,10 @@ struct FieldAttributes {
 
 impl FieldAttributes {
     fn parse(field: &Field) -> Result<Self> {
-        let mut field_attrs = FieldAttributes::default();
-
-        // Collect doc comments first
-        field_attrs.docs = extract_doc_comments(field);
+        let mut field_attrs = FieldAttributes {
+            register: FieldRegisterAttribute::default(),
+            docs: extract_doc_comments(field),
+        };
 
         // Phase 1: collect all #[register(...)] attributes (each #[register(...)] separately)
         let mut register_attrs: Vec<FieldRegisterAttribute> = Vec::new();
