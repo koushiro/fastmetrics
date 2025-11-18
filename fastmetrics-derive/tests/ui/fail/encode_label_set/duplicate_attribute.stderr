@@ -1,11 +1,41 @@
-error: duplicated `skip` attribute
-  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:11:5
+error: duplicated `rename` attribute
+ --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:6:27
+  |
+6 |     #[label(rename = "a", rename = "b")]
+  |                           ^^^^^^^^^^^^
+
+error: duplicated `rename` attribute
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:13:5
    |
-11 |     #[label(skip)]
-   |     ^^^^^^^^^^^^^^
+13 | /     #[label(rename = "a")]
+14 | |     #[label(rename = "b")]
+15 | |     a: u8,
+   | |_________^
+
+error: duplicated `skip` attribute
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:21:19
+   |
+21 |     #[label(skip, skip)]
+   |                   ^^^^
+
+error: duplicated `skip` attribute
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:28:5
+   |
+28 | /     #[label(skip)]
+29 | |     #[label(skip)]
+30 | |     a: u8,
+   | |_________^
 
 error: duplicated `flatten` attribute
-  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:18:5
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:36:22
    |
-18 |     #[label(flatten)]
-   |     ^^^^^^^^^^^^^^^^^
+36 |     #[label(flatten, flatten)]
+   |                      ^^^^^^^
+
+error: duplicated `flatten` attribute
+  --> tests/ui/fail/encode_label_set/duplicate_attribute.rs:43:5
+   |
+43 | /     #[label(flatten)]
+44 | |     #[label(flatten)]
+45 | |     inner: Inner,
+   | |________________^

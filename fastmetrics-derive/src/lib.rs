@@ -23,11 +23,37 @@ use syn::{DeriveInput, Error, parse_macro_input};
 /// # Example
 ///
 /// ```rust
-/// # use fastmetrics_derive::EncodeLabelSet;
-/// #[derive(EncodeLabelSet)]
-/// struct MyLabels {
-///     service: String,
-///     endpoint: String,
+/// # use fastmetrics_derive::{EncodeLabelSet, EncodeLabelValue};
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+/// struct Labels {
+///    #[label(rename = "op")]
+///    operation: Operation,
+///    error: Option<Error>,
+///
+///    #[label(flatten)]
+///    extra: ExtraLabels,
+///
+///    #[label(skip)]
+///    _skip: u64,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+/// struct ExtraLabels {
+///    region: &'static str,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// enum Operation {
+///    Read,
+///    Write,
+///    List,
+///    Delete,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// enum Error {
+///    NotFound,
+///    Fail,
 /// }
 /// ```
 #[proc_macro_derive(EncodeLabelSet, attributes(label))]

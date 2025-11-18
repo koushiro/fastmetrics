@@ -5,7 +5,7 @@ use syn::{
     punctuated::Punctuated,
 };
 
-use crate::utils::wrap_in_const;
+use crate::utils::{StringValue, wrap_in_const};
 
 pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
@@ -37,7 +37,6 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
         .iter()
         .map(|(field, attrs)| {
             let ident = field.ident.as_ref().expect("fields must be named");
-            let ident_str = ident.to_string();
 
             // #[label(skip)] -> no encoding for this field
             if attrs.label.skip {
@@ -51,9 +50,16 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                 });
             }
 
-            // default: encode as ("field_name", &self.field)
+            // Determine the label name: rename override or field ident
+            let field_name_tokens = if let Some(rename) = &attrs.label.rename {
+                rename.to_token_stream()
+            } else {
+                let ident_str = ident.to_string();
+                quote!(#ident_str)
+            };
+
             Ok(quote! {
-                encoder.encode(&(#ident_str, &self.#ident))?
+                encoder.encode(&(#field_name_tokens, &self.#ident))?
             })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -111,36 +117,63 @@ impl FieldAttributes {
     fn parse(field: &Field) -> Result<Self> {
         let mut field_attrs = FieldAttributes::default();
 
+        // Phase 1: collect all #[label(...)] attributes
+        let mut label_attrs: Vec<FieldLabelAttribute> = Vec::new();
         for attr in &field.attrs {
             if attr.path().is_ident("label") {
                 let label_attr = FieldLabelAttribute::parse(attr)?;
-
-                if label_attr.skip {
-                    if field_attrs.label.skip {
-                        return Err(Error::new_spanned(attr, "duplicated `skip` attribute"));
-                    }
-                    if field_attrs.label.flatten {
-                        return Err(Error::new_spanned(
-                            attr,
-                            "`skip` attribute cannot coexist with `flatten` attribute",
-                        ));
-                    }
-                    field_attrs.label.skip = true;
-                }
-
-                if label_attr.flatten {
-                    if field_attrs.label.flatten {
-                        return Err(Error::new_spanned(attr, "duplicated `flatten` attribute"));
-                    }
-                    if field_attrs.label.skip {
-                        return Err(Error::new_spanned(
-                            attr,
-                            "`flatten` attribute cannot coexist with `skip` attribute",
-                        ));
-                    }
-                    field_attrs.label.flatten = true;
-                }
+                label_attrs.push(label_attr);
             }
+        }
+
+        // Phase 2: merge attributes
+        for attr in label_attrs {
+            if attr.skip {
+                if field_attrs.label.skip {
+                    return Err(Error::new_spanned(field, "duplicated `skip` attribute"));
+                }
+                field_attrs.label.skip = true;
+            }
+            if attr.flatten {
+                if field_attrs.label.flatten {
+                    return Err(Error::new_spanned(field, "duplicated `flatten` attribute"));
+                }
+                field_attrs.label.flatten = true;
+            }
+            if let Some(rename) = attr.rename {
+                if field_attrs.label.rename.is_some() {
+                    return Err(Error::new_spanned(field, "duplicated `rename` attribute"));
+                }
+                field_attrs.label.rename = Some(rename);
+            }
+        }
+
+        // Phase 3: validate conflicts
+        let label = &field_attrs.label;
+
+        // Exclusive attributes: skip, flatten are mutually exclusive
+        let exclusive_count = (label.skip as u8) + (label.flatten as u8);
+        if exclusive_count > 1 {
+            return Err(Error::new_spanned(
+                field,
+                "`skip`, `flatten` attributes are mutually exclusive",
+            ));
+        }
+
+        // Non-exclusive: rename
+        let has_non_exclusive = label.rename.is_some();
+
+        if label.skip && has_non_exclusive {
+            return Err(Error::new_spanned(
+                field,
+                "`skip` attribute cannot coexist with other label attributes",
+            ));
+        }
+        if label.flatten && has_non_exclusive {
+            return Err(Error::new_spanned(
+                field,
+                "`flatten` attribute cannot coexist with other label attributes",
+            ));
         }
 
         Ok(field_attrs)
@@ -153,6 +186,8 @@ struct FieldLabelAttribute {
     skip: bool,
     // #[label(flatten)]
     flatten: bool,
+    // #[label(rename = "...")]
+    rename: Option<StringValue>,
 }
 
 impl FieldLabelAttribute {
@@ -168,6 +203,12 @@ impl FieldLabelAttribute {
                     if label_attr.skip {
                         return Err(Error::new_spanned(path, "duplicated `skip` attribute"));
                     }
+                    if label_attr.flatten || label_attr.rename.is_some() {
+                        return Err(Error::new_spanned(
+                            path,
+                            "`skip` attribute cannot coexist with other label attributes",
+                        ));
+                    }
                     label_attr.skip = true;
                 },
 
@@ -176,7 +217,22 @@ impl FieldLabelAttribute {
                     if label_attr.flatten {
                         return Err(Error::new_spanned(path, "duplicated `flatten` attribute"));
                     }
+                    if label_attr.skip || label_attr.rename.is_some() {
+                        return Err(Error::new_spanned(
+                            path,
+                            "`flatten` attribute cannot coexist with other label attributes",
+                        ));
+                    }
                     label_attr.flatten = true;
+                },
+
+                // #[label(rename = "...")]
+                Meta::NameValue(nv) if nv.path.is_ident("rename") => {
+                    if label_attr.rename.is_some() {
+                        return Err(Error::new_spanned(nv, "duplicated `rename` attribute"));
+                    }
+                    let rename = StringValue::from_expr(&nv.value)?;
+                    label_attr.rename = Some(rename);
                 },
 
                 _ => {
