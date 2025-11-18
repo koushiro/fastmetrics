@@ -276,7 +276,7 @@ enum UnitValue {
 }
 
 impl FieldRegisterAttribute {
-    /// Parse a `#[register(...)]` attribute.
+    /// Parse a single `#[register(...)]` attribute.
     fn parse(attr: &Attribute) -> Result<Self> {
         let mut register_attr = Self::default();
 

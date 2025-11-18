@@ -24,9 +24,6 @@ pub fn is_lint_attribute(attr: &Attribute) -> bool {
 }
 
 /// Represents either a string literal or an arbitrary expression that evaluates to a string.
-///
-/// This is shared by derive macros needing to accept either a literal label name
-/// or a constant/expression producing one (e.g. rename attributes).
 pub enum StringValue {
     /// String literal: "name"
     Literal(LitStr),
