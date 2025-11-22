@@ -35,7 +35,7 @@ impl fmt::Display for RegistryError {
                 write!(f, "The name '{name}' should be snake_case")
             },
             Self::ReservedLabelName { name, ty } => {
-                write!(f, "The label name '{name}' is reserved for '{ty:?}' type")
+                write!(f, "The label name '{name}' is reserved for '{}' type", ty.as_str())
             },
         }
     }
