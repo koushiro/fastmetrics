@@ -51,6 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -64,6 +67,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -79,6 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -92,6 +101,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -129,6 +141,9 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v5
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
