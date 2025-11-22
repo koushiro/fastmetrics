@@ -29,12 +29,13 @@ use fastmetrics::{
     encoder::{EncodeLabelSet, EncodeLabelValue},
     format::text,
     metrics::{counter::Counter, family::Family},
+    raw::LabelSetSchema,
     registry::{Register, Registry},
 };
 
 // Define label types
-// Need to enable `derive` feature to use `#[derive(EncodeLabelSet)]`
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+// Need to enable `derive` feature to use `#[derive(EncodeLabelSet, LabelSetSchema)]`
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct Labels {
     method: Method,
     status: u16,

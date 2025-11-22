@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     encoder::{EncodeGaugeValue, EncodeMetric, MetricEncoder},
-    raw::{Atomic, MetricType, Number, TypedMetric},
+    raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
 /// A marker trait for **gauge** metric value.
@@ -138,16 +138,15 @@ impl<N: GaugeValue> Gauge<N> {
 
 impl<N: GaugeValue> TypedMetric for Gauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<N: GaugeValue> MetricLabelSet for Gauge<N> {
+    type LabelSet = ();
 }
 
 impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for Gauge<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         encoder.encode_gauge(&self.get())
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Gauge
     }
 }
 
@@ -182,16 +181,15 @@ impl<N: GaugeValue> ConstGauge<N> {
 
 impl<N: GaugeValue> TypedMetric for ConstGauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<N: GaugeValue> MetricLabelSet for ConstGauge<N> {
+    type LabelSet = ();
 }
 
 impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         encoder.encode_gauge(&self.get())
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Gauge
     }
 }
 

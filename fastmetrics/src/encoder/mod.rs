@@ -7,7 +7,7 @@ mod value;
 use std::{fmt, time::Duration};
 
 pub use self::{exemplar::*, label_set::*, value::*};
-use crate::raw::{Metadata, MetricType, bucket::Bucket, quantile::Quantile};
+use crate::raw::{Metadata, bucket::Bucket, quantile::Quantile};
 
 /// Trait for encoding metric with metadata.
 ///
@@ -98,9 +98,6 @@ pub trait EncodeMetric: Send + Sync {
     /// Encodes this metric using the provided [`MetricEncoder`].
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result;
 
-    /// Returns the type of this metric (counter, gauge, etc.).
-    fn metric_type(&self) -> MetricType;
-
     /// Returns the unix timestamp of this metric.
     fn timestamp(&self) -> Option<Duration> {
         None
@@ -131,10 +128,6 @@ pub trait EncodeMetric: Send + Sync {
 impl EncodeMetric for Box<dyn EncodeMetric> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         (**self).encode(encoder)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        (**self).metric_type()
     }
 
     fn timestamp(&self) -> Option<Duration> {

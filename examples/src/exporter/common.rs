@@ -13,12 +13,13 @@ use fastmetrics::{
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
+    raw::LabelSetSchema,
     registry::Register,
 };
 
 /// Labels attached to HTTP request metrics.
 /// `method` is canonical uppercase (GET/POST/PUT/DELETE/...) or "OTHER".
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 pub struct HttpLabels {
     pub status: u16,
     pub method: &'static str,

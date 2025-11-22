@@ -19,8 +19,15 @@ pub use self::{errors::*, global::*, register::*};
 pub use crate::raw::Unit;
 use crate::{
     encoder::EncodeMetric,
-    raw::{Metadata, MetricType},
+    raw::{
+        LabelSetSchema, Metadata, MetricLabelSet, MetricType, TypedMetric, bucket::BUCKET_LABEL,
+        quantile::QUANTILE_LABEL,
+    },
 };
+
+/// Trait representing a metric that can be registered and encoded.
+pub trait Metric: TypedMetric + MetricLabelSet + EncodeMetric + 'static {}
+impl<T> Metric for T where T: TypedMetric + MetricLabelSet + EncodeMetric + 'static {}
 
 /// A registry for collecting and organizing metrics.
 ///
@@ -185,7 +192,7 @@ impl Registry {
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric,
     ) -> Result<&mut Self, RegistryError> {
         self.register_metric(name, help, None::<Unit>, metric)
     }
@@ -220,7 +227,7 @@ impl Registry {
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
         unit: impl Into<Unit>,
-        metric: impl EncodeMetric + 'static,
+        metric: impl Metric,
     ) -> Result<&mut Self, RegistryError> {
         self.register_metric(name, help, Some(unit), metric)
     }
@@ -251,13 +258,14 @@ impl Registry {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn register_metric(
+    pub fn register_metric<M: Metric>(
         &mut self,
         name: impl Into<Cow<'static, str>>,
         help: impl Into<Cow<'static, str>>,
         unit: Option<impl Into<Unit>>,
-        metric: impl EncodeMetric + 'static,
+        metric: M,
     ) -> Result<&mut Self, RegistryError> {
+        // Check the metric name
         let name = name.into();
         if !is_snake_case(&name) {
             return Err(RegistryError::InvalidNameFormat { name: name.clone() });
@@ -266,7 +274,8 @@ impl Registry {
         let unit = unit.map(Into::into);
 
         // Check if metric type requires empty unit
-        match metric.metric_type() {
+        let metric_type = <M as TypedMetric>::TYPE;
+        match metric_type {
             MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
                 if unit.is_some() {
                     return Err(RegistryError::MustHaveAnEmptyUnitString { name: name.clone() });
@@ -283,7 +292,36 @@ impl Registry {
             _ => {},
         }
 
-        let metadata = Metadata::new(name.clone(), help, metric.metric_type(), unit);
+        if let Some(names) = <M::LabelSet as LabelSetSchema>::names() {
+            // Check the label names
+            for name in names.iter().copied() {
+                if !is_snake_case(name) {
+                    return Err(RegistryError::InvalidNameFormat { name: name.into() });
+                }
+
+                match metric_type {
+                    MetricType::Histogram | MetricType::GaugeHistogram => {
+                        if name == BUCKET_LABEL {
+                            return Err(RegistryError::ReservedLabelName {
+                                name: name.into(),
+                                ty: metric_type,
+                            });
+                        }
+                    },
+                    MetricType::Summary => {
+                        if name == QUANTILE_LABEL {
+                            return Err(RegistryError::ReservedLabelName {
+                                name: name.into(),
+                                ty: metric_type,
+                            });
+                        }
+                    },
+                    _ => {},
+                }
+            }
+        }
+
+        let metadata = Metadata::new(name.clone(), help, metric_type, unit);
         match self.metrics.entry(metadata) {
             hash_map::Entry::Vacant(entry) => {
                 entry.insert(Box::new(metric));
@@ -564,13 +602,18 @@ mod tests {
     }
 
     pub(crate) struct DummyCounter;
+
+    impl TypedMetric for DummyCounter {
+        const TYPE: MetricType = MetricType::Counter;
+    }
+
+    impl MetricLabelSet for DummyCounter {
+        type LabelSet = ();
+    }
+
     impl EncodeMetric for DummyCounter {
         fn encode(&self, _encoder: &mut dyn MetricEncoder) -> fmt::Result {
             Ok(())
-        }
-
-        fn metric_type(&self) -> MetricType {
-            MetricType::Counter
         }
 
         fn timestamp(&self) -> Option<Duration> {

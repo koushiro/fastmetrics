@@ -15,7 +15,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
-    raw::{MetricType, TypedMetric},
+    raw::{LabelSetSchema, MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// A trait for creating new metric instances.
@@ -63,20 +63,41 @@ cfg_if::cfg_if! {
 ///
 /// ```rust
 /// # use fastmetrics::{
-/// #    metrics::{counter::Counter, family::Family},
-/// #    registry::{Registry, RegistryError},
+/// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+/// #     metrics::{counter::Counter, family::Family},
+/// #     raw::LabelSetSchema,
+/// #     registry::{Registry, RegistryError},
 /// # };
 /// #
 /// # fn main() -> Result<(), RegistryError> {
 /// let mut registry = Registry::default();
 ///
-/// type LabelSet = Vec<(&'static str, &'static str)>;
-/// let http_requests = Family::<LabelSet, Counter>::default();
+/// #[derive(Clone, Eq, PartialEq, Hash)]
+/// struct HttpLabels {
+///     method: &'static str,
+///     status: &'static str,
+/// }
+///
+/// impl LabelSetSchema for HttpLabels {
+///     fn names() -> Option<&'static [&'static str]> {
+///         Some(&["method", "status"])
+///     }
+/// }
+///
+/// impl EncodeLabelSet for HttpLabels {
+///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+///         encoder.encode(&("method", self.method))?;
+///         encoder.encode(&("status", self.status))?;
+///         Ok(())
+///     }
+/// }
+///
+/// let http_requests = Family::<HttpLabels, Counter>::default();
 ///
 /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
 ///
 /// // Create metrics with different labels
-/// let labels = vec![("method", "GET"), ("status", "200")];
+/// let labels = HttpLabels { method: "GET", status: "200" };
 /// http_requests.with_or_new(&labels, |metric| metric.inc());
 ///
 /// # Ok(())
@@ -146,15 +167,38 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use fastmetrics::metrics::{
-    /// #     gauge::Gauge,
-    /// #     family::Family,
-    /// #     histogram::{Histogram, exponential_buckets},
+    /// # use fastmetrics::{
+    /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     metrics::{
+    /// #         gauge::Gauge,
+    /// #         family::Family,
+    /// #         histogram::{Histogram, exponential_buckets},
+    /// #     },
+    /// #     raw::LabelSetSchema,
     /// # };
     /// // Create a family with a custom factory function
-    /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let gauge_family: Family<LabelSet, Gauge> = Family::new(|| Gauge::new(100));
-    /// let histogram_family: Family<LabelSet, Histogram> = Family::new(|| {
+    /// #[derive(Clone, Eq, PartialEq, Hash)]
+    /// struct Labels {
+    ///     region: &'static str,
+    ///     status: &'static str,
+    /// }
+    ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["region", "status"])
+    ///     }
+    /// }
+    ///
+    /// impl EncodeLabelSet for Labels {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+    ///         encoder.encode(&("region", self.region))?;
+    ///         encoder.encode(&("status", self.status))?;
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// let gauge_family: Family<Labels, Gauge> = Family::new(|| Gauge::new(100));
+    /// let histogram_family: Family<Labels, Histogram> = Family::new(|| {
     ///     Histogram::new(exponential_buckets(1.0, 2.0, 10))
     /// });
     /// ```
@@ -181,19 +225,40 @@ where
     ///
     /// ```rust
     /// # use fastmetrics::{
-    /// #    metrics::{counter::Counter, family::Family},
-    /// #    registry::{Registry, RegistryError},
+    /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     raw::LabelSetSchema,
+    /// #     metrics::{counter::Counter, family::Family},
+    /// #     registry::{Registry, RegistryError},
     /// # };
     /// #
     /// # fn main() -> Result<(), RegistryError> {
     /// let mut registry = Registry::default();
     ///
-    /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let http_requests = Family::<LabelSet, Counter>::default();
+    /// #[derive(Clone, Eq, PartialEq, Hash)]
+    /// struct Labels {
+    ///     method: &'static str,
+    ///     status: &'static str,
+    /// }
+    ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["method", "status"])
+    ///     }
+    /// }
+    ///
+    /// impl EncodeLabelSet for Labels {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+    ///         encoder.encode(&("method", self.method))?;
+    ///         encoder.encode(&("status", self.status))?;
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// let http_requests = Family::<Labels, Counter>::default();
     ///
     /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
     ///
-    /// let labels = vec![("method", "GET"), ("status", "200")];
+    /// let labels = Labels { method: "GET", status: "200" };
     /// assert_eq!(http_requests.with(&labels, |req| req.total()), None);
     ///
     /// http_requests.with_or_new(&labels, |req| req.inc());
@@ -237,19 +302,40 @@ where
     ///
     /// ```rust
     /// # use fastmetrics::{
-    /// #    metrics::{counter::Counter, family::Family},
-    /// #    registry::{Registry, RegistryError},
+    /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     raw::LabelSetSchema,
+    /// #     metrics::{counter::Counter, family::Family},
+    /// #     registry::{Registry, RegistryError},
     /// # };
     /// #
     /// # fn main() -> Result<(), RegistryError> {
     /// let mut registry = Registry::default();
     ///
-    /// type LabelSet = Vec<(&'static str, &'static str)>;
-    /// let http_requests = Family::<LabelSet, Counter>::default();
+    /// #[derive(Clone, Eq, PartialEq, Hash)]
+    /// struct Labels {
+    ///     method: &'static str,
+    ///     status: &'static str,
+    /// }
+    ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["method", "status"])
+    ///     }
+    /// }
+    ///
+    /// impl EncodeLabelSet for Labels {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+    ///         encoder.encode(&("method", self.method))?;
+    ///         encoder.encode(&("status", self.status))?;
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// let http_requests = Family::<Labels, Counter>::default();
     ///
     /// registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
     ///
-    /// let labels = vec![("method", "GET"), ("status", "200")];
+    /// let labels = Labels { method: "GET", status: "200" };
     /// http_requests.with_or_new(&labels, |req| req.inc());
     /// assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
     /// # Ok(())
@@ -275,13 +361,16 @@ where
 
 impl<LS, M: TypedMetric, S> TypedMetric for Family<LS, M, S> {
     const TYPE: MetricType = <M as TypedMetric>::TYPE;
-    const WITH_TIMESTAMP: bool = <M as TypedMetric>::WITH_TIMESTAMP;
+}
+
+impl<LS: LabelSetSchema, M, S> MetricLabelSet for Family<LS, M, S> {
+    type LabelSet = LS;
 }
 
 impl<LS, M, MF, S> EncodeMetric for Family<LS, M, MF, S>
 where
     LS: EncodeLabelSet + Send + Sync,
-    M: EncodeMetric + TypedMetric,
+    M: EncodeMetric,
     MF: Send + Sync,
     S: Send + Sync,
 {
@@ -291,10 +380,6 @@ where
             encoder.encode(labels, metric)?;
         }
         Ok(())
-    }
-
-    fn metric_type(&self) -> MetricType {
-        <M as TypedMetric>::TYPE
     }
 
     fn is_empty(&self) -> bool {
@@ -325,6 +410,12 @@ mod tests {
     enum Method {
         Get,
         Put,
+    }
+
+    impl LabelSetSchema for Labels {
+        fn names() -> Option<&'static [&'static str]> {
+            Some(&["method", "status", "error"])
+        }
     }
 
     impl EncodeLabelSet for Labels {

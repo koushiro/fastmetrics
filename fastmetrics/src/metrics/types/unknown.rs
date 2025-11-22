@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::{
     encoder::{EncodeMetric, EncodeUnknownValue, MetricEncoder},
-    raw::{MetricType, Number, TypedMetric},
+    raw::{MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
 /// A marker trait for **unknown** metric value.
@@ -42,16 +42,15 @@ impl<T: UnknownValue> Unknown<T> {
 
 impl<T: UnknownValue> TypedMetric for Unknown<T> {
     const TYPE: MetricType = MetricType::Unknown;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<T: UnknownValue> MetricLabelSet for Unknown<T> {
+    type LabelSet = ();
 }
 
 impl<T: EncodeUnknownValue + UnknownValue> EncodeMetric for Unknown<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         encoder.encode_unknown(self.get())
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Unknown
     }
 }
 

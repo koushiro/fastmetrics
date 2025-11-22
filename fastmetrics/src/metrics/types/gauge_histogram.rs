@@ -12,7 +12,7 @@ use parking_lot::RwLock;
 pub use crate::raw::bucket::*;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
-    raw::{MetricType, TypedMetric},
+    raw::{MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// Open Metrics [`GaugeHistogram`] metric, which samples observations and counts them in
@@ -174,7 +174,10 @@ impl GaugeHistogram {
 
 impl TypedMetric for GaugeHistogram {
     const TYPE: MetricType = MetricType::GaugeHistogram;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl MetricLabelSet for GaugeHistogram {
+    type LabelSet = ();
 }
 
 impl EncodeMetric for GaugeHistogram {
@@ -184,10 +187,6 @@ impl EncodeMetric for GaugeHistogram {
             let exemplars = vec![None; buckets.len()];
             encoder.encode_gauge_histogram(s.buckets(), &exemplars, s.gcount(), s.gsum())
         })
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::GaugeHistogram
     }
 }
 

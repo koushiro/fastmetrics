@@ -7,6 +7,7 @@ use fastmetrics::{
         family::Family,
         histogram::{Histogram, exponential_buckets},
     },
+    raw::LabelSetSchema,
     registry::{Registry, Unit},
 };
 use rand::{
@@ -14,7 +15,7 @@ use rand::{
     distr::{Distribution, StandardUniform},
 };
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct Labels {
     #[label(rename = "op")]
     operation: Operation,
@@ -27,7 +28,7 @@ struct Labels {
     _skip: u64,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct ExtraLabels {
     region: &'static str,
 }

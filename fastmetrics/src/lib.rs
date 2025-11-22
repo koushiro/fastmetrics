@@ -28,6 +28,7 @@
 //!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
 //!     format::text,
 //!     metrics::{counter::Counter, family::Family},
+//!     raw::LabelSetSchema,
 //!     registry::Registry,
 //! };
 //!
@@ -37,7 +38,14 @@
 //!     status: u16,
 //! }
 //!
-//! // Can use `#[derive(EncodeLabelSet)]` to simplify the code, but need to enable `derive` feature
+//! // Can use `#[derive(EncodeLabelSet, LabelSetSchema)]` to simplify the code, but need to enable `derive` feature
+//!
+//! impl LabelSetSchema for Labels {
+//!     fn names() -> Option<&'static [&'static str]> {
+//!         Some(&["method", "status"])
+//!     }
+//! }
+//!
 //! impl EncodeLabelSet for Labels {
 //!     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
 //!         encoder.encode(&("method", &self.method))?;
