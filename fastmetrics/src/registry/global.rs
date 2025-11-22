@@ -2,10 +2,7 @@ use std::{borrow::Cow, error, fmt, sync::OnceLock};
 
 use parking_lot::RwLock;
 
-use crate::{
-    encoder::EncodeMetric,
-    registry::{Registry, RegistryError, Unit},
-};
+use crate::registry::{Metric, Registry, RegistryError, Unit};
 
 /// Error returned when trying to set a global registry when another has already been initialized.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -119,7 +116,7 @@ pub fn set_global_registry(registry: Registry) -> Result<(), SetRegistryError> {
 /// ```rust
 /// # use fastmetrics::registry::with_global_registry;
 /// let namespace = with_global_registry(|registry| {
-///     registry.namespace().map(|s| s.to_string())
+///     registry.namespace().map(|s| s.to_owned())
 /// });
 /// ```
 pub fn with_global_registry<F, R>(f: F) -> R
@@ -245,7 +242,7 @@ pub fn register<M>(
     metric: M,
 ) -> Result<M, RegistryError>
 where
-    M: EncodeMetric + Clone + 'static,
+    M: Metric + Clone + 'static,
 {
     register_metric(name, help, None::<Unit>, metric)
 }
@@ -361,7 +358,7 @@ pub fn register_with_unit<M>(
     metric: M,
 ) -> Result<M, RegistryError>
 where
-    M: EncodeMetric + Clone + 'static,
+    M: Metric + Clone + 'static,
 {
     register_metric(name, help, Some(unit), metric)
 }
@@ -513,7 +510,7 @@ pub fn register_metric<M>(
     metric: M,
 ) -> Result<M, RegistryError>
 where
-    M: EncodeMetric + Clone + 'static,
+    M: Metric + Clone + 'static,
 {
     with_global_registry_mut(|registry| {
         registry.register_metric(name, help, unit, metric.clone()).map(|_| metric)
@@ -609,14 +606,14 @@ mod tests {
                     std::thread::spawn(move || {
                         // use the provider directly instead of thread_local
                         let registry = test_provider.get().read();
-                        registry.namespace().map(|s| s.to_string())
+                        registry.namespace().map(|s| s.to_owned())
                     })
                 })
                 .collect();
 
             for handle in handles {
                 let namespace = handle.join().expect("Thread should not panic");
-                assert_eq!(namespace, Some("concurrent".to_string()));
+                assert_eq!(namespace, Some("concurrent".to_owned()));
             }
         });
     }

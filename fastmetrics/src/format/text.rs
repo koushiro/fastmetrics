@@ -176,7 +176,7 @@ where
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name,
-            metric_type: metric.metric_type(),
+            metric_type: metadata.metric_type(),
             timestamp: metric.timestamp(),
             const_labels: self.const_labels,
             family_labels: None,
@@ -219,10 +219,7 @@ where
         let mut common_labels = String::new();
 
         if has_const_labels {
-            self.const_labels.encode(&mut LabelSetEncoder::new(
-                &mut common_labels,
-                LabelNameCheck::Enable(self.metric_type),
-            ))?;
+            self.const_labels.encode(&mut LabelSetEncoder::new(&mut common_labels))?;
         }
 
         if let Some(family_labels) = self.family_labels {
@@ -230,10 +227,7 @@ where
                 if has_const_labels {
                     common_labels.push(',');
                 }
-                family_labels.encode(&mut LabelSetEncoder::new(
-                    &mut common_labels,
-                    LabelNameCheck::Enable(self.metric_type),
-                ))?;
+                family_labels.encode(&mut LabelSetEncoder::new(&mut common_labels))?;
             }
         }
 
@@ -267,8 +261,7 @@ where
                 if has_common_labels {
                     self.writer.write_str(",")?;
                 }
-                additional_labels
-                    .encode(&mut LabelSetEncoder::new(self.writer, LabelNameCheck::Disable))?;
+                additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
         }
         self.writer.write_str("} ")
@@ -550,21 +543,14 @@ where
     }
 }
 
-#[derive(Copy, Clone)]
-enum LabelNameCheck {
-    Enable(MetricType),
-    Disable,
-}
-
 struct LabelSetEncoder<'a, W> {
     writer: &'a mut W,
     first: bool,
-    label_name_check: LabelNameCheck,
 }
 
 impl<'a, W> LabelSetEncoder<'a, W> {
-    fn new(writer: &'a mut W, label_name_check: LabelNameCheck) -> LabelSetEncoder<'a, W> {
-        Self { writer, first: true, label_name_check }
+    fn new(writer: &'a mut W) -> LabelSetEncoder<'a, W> {
+        Self { writer, first: true }
     }
 }
 
@@ -575,18 +561,13 @@ where
     fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result {
         let first = self.first;
         self.first = false;
-        label.encode(&mut LabelEncoder {
-            writer: self.writer,
-            first,
-            label_name_check: self.label_name_check,
-        })
+        label.encode(&mut LabelEncoder { writer: self.writer, first })
     }
 }
 
 struct LabelEncoder<'a, W> {
     writer: &'a mut W,
     first: bool,
-    label_name_check: LabelNameCheck,
 }
 
 macro_rules! encode_integer_value_impls {
@@ -621,23 +602,6 @@ where
 {
     #[inline]
     fn encode_label_name(&mut self, name: &str) -> fmt::Result {
-        match self.label_name_check {
-            // check if the label name is valid
-            LabelNameCheck::Enable(metric_type) => match metric_type {
-                MetricType::Histogram if name == BUCKET_LABEL => {
-                    panic!("A Histogram's Metric's LabelSet MUST NOT have a \"le\" label name");
-                },
-                MetricType::GaugeHistogram if name == BUCKET_LABEL => {
-                    panic!("A GaugeHistogram's Metric's LabelSet MUST NOT have a \"le\" label name")
-                },
-                MetricType::Summary if name == QUANTILE_LABEL => {
-                    panic!("A Summary's Metric's LabelSet MUST NOT have a \"quantile\" label name")
-                },
-                _ => {},
-            },
-            LabelNameCheck::Disable => { /* do nothing */ },
-        }
-
         if !self.first {
             self.writer.write_str(",")?;
         }
@@ -755,7 +719,7 @@ where
     ) -> fmt::Result {
         // # { labels } value [timestamp]
         self.writer.write_str(" # {")?;
-        labels.encode(&mut LabelSetEncoder::new(self.writer, LabelNameCheck::Disable))?;
+        labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         self.writer.write_str("} ")?;
 
         self.writer.write_str(dtoa::Buffer::new().format(value))?;

@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::{
     encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
-    raw::{MetricType, TypedMetric},
+    raw::{MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// Open Metrics [`Info`] metric, which is used to expose textual information which SHOULD NOT
@@ -28,7 +28,10 @@ impl<LS> Info<LS> {
 
 impl<LS> TypedMetric for Info<LS> {
     const TYPE: MetricType = MetricType::Info;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<LS> MetricLabelSet for Info<LS> {
+    type LabelSet = ();
 }
 
 impl<LS> EncodeMetric for Info<LS>
@@ -37,10 +40,6 @@ where
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         encoder.encode_info(self.get())
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Info
     }
 }
 

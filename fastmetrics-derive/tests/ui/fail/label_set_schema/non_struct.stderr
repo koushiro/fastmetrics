@@ -1,0 +1,5 @@
+error: LabelSetSchema can only be derived for structs with named fields.
+ --> tests/ui/fail/label_set_schema/non_struct.rs:5:6
+  |
+5 | enum NotAStruct {
+  |      ^^^^^^^^^^

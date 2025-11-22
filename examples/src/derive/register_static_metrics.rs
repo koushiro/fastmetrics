@@ -10,11 +10,12 @@ use fastmetrics::{
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
+    raw::LabelSetSchema,
     registry::*,
 };
 use rand::Rng;
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct HttpLabels {
     method: HttpMethod,
     status: u16,

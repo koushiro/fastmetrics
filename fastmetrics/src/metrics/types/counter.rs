@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     encoder::{EncodeCounterValue, EncodeMetric, MetricEncoder},
-    raw::{Atomic, MetricType, Number, TypedMetric},
+    raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
 /// A marker trait for **counter** metric value.
@@ -139,7 +139,10 @@ impl<N: CounterValue> Counter<N> {
 
 impl<N: CounterValue> TypedMetric for Counter<N> {
     const TYPE: MetricType = MetricType::Counter;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<N: CounterValue> MetricLabelSet for Counter<N> {
+    type LabelSet = ();
 }
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
@@ -147,10 +150,6 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
         let total = self.total();
         let created = self.created();
         encoder.encode_counter(&total, None, created)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Counter
     }
 }
 
@@ -226,7 +225,10 @@ impl<N: CounterValue> ConstCounter<N> {
 
 impl<N: CounterValue> TypedMetric for ConstCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<N: CounterValue> MetricLabelSet for ConstCounter<N> {
+    type LabelSet = ();
 }
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
@@ -234,10 +236,6 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
         let total = self.total();
         let created = self.created();
         encoder.encode_counter(&total, None, created)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Counter
     }
 }
 

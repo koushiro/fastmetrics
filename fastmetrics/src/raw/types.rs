@@ -9,7 +9,6 @@ pub enum MetricType {
     Info,
     Histogram,
     GaugeHistogram,
-    /// Not implemented yet.
     Summary,
 }
 
@@ -33,7 +32,7 @@ impl MetricType {
 ///
 /// This trait is used to enforce type-safe relationships between types representing metrics and
 /// their corresponding `Open Metrics` types. Implementors must specify the metric type variant
-/// and timestamp behavior through associated constants.
+/// through associated constants.
 ///
 /// # Example
 ///
@@ -43,16 +42,9 @@ impl MetricType {
 ///
 /// impl TypedMetric for MyGauge {
 ///     const TYPE: MetricType = MetricType::Gauge;
-///     const WITH_TIMESTAMP: bool = true;
 /// }
 /// ```
 pub trait TypedMetric {
     /// The `Open Metrics` metric type associated with this type.
     const TYPE: MetricType;
-
-    /// Controls whether this metric includes timestamp information.
-    ///
-    /// When set to `true`, timestamps will be included when the metric is exported.
-    /// This is useful for metrics that need to track when values were recorded.
-    const WITH_TIMESTAMP: bool;
 }

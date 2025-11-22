@@ -7,6 +7,8 @@
 
 mod encode_label_set;
 mod encode_label_value;
+mod label_attributes;
+mod label_set_schema;
 mod register;
 mod state_set_value;
 mod utils;
@@ -64,7 +66,33 @@ pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
         .into()
 }
 
-// Derive the `EncodeLabelValue` trait for enums.
+/// Derive the `LabelSetSchema` trait for structs.
+///
+/// This macro generates an implementation of `fastmetrics::raw::LabelSetSchema`,
+/// allowing schema metadata to be derived separately from encoding logic.
+///
+/// # Example
+///
+/// ```rust
+/// # use fastmetrics_derive::LabelSetSchema;
+/// #[derive(LabelSetSchema)]
+/// struct HttpLabels {
+///     method: &'static str,
+///     #[label(rename = "status")]
+///     code: u16,
+/// }
+/// ```
+///
+/// Nested label sets can be composed with `#[label(flatten)]`.
+#[proc_macro_derive(LabelSetSchema, attributes(label))]
+pub fn derive_label_set_schema(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    label_set_schema::expand_derive(input)
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
+}
+
+/// Derive the `EncodeLabelValue` trait for enums.
 ///
 /// This macro generates an implementation of the `EncodeLabelValue` trait,
 /// which allows them to be used as values in metric labels.

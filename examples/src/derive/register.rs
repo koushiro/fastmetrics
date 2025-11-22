@@ -8,11 +8,12 @@ use fastmetrics::{
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
+    raw::LabelSetSchema,
     registry::{Register, Registry},
 };
 use rand::Rng;
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct Labels {
     number: Number,
 }

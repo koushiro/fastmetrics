@@ -1,29 +1,22 @@
 use std::{borrow::Cow, fmt};
 
+use crate::raw::MetricType;
+
 /// Represents errors that can occur when registering metrics.
 #[non_exhaustive]
+#[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum RegistryError {
     /// The registered metric already exists in the registry
-    AlreadyExists {
-        /// Metric name
-        name: Cow<'static, str>,
-    },
+    AlreadyExists { name: Cow<'static, str> },
     /// MetricFamilies of type StateSet and Info must have an empty Unit string
-    MustHaveAnEmptyUnitString {
-        /// Metric name
-        name: Cow<'static, str>,
-    },
+    MustHaveAnEmptyUnitString { name: Cow<'static, str> },
     /// Metric unit format must be lowercase
-    OtherUnitFormatMustBeLowercase {
-        /// Metric unit
-        unit: Cow<'static, str>,
-    },
-    /// Metric name format is invalid
-    InvalidNameFormat {
-        /// Metric name
-        name: Cow<'static, str>,
-    },
+    OtherUnitFormatMustBeLowercase { unit: Cow<'static, str> },
+    /// Name format is invalid
+    InvalidNameFormat { name: Cow<'static, str> },
+    /// Reserved label name
+    ReservedLabelName { name: Cow<'static, str>, ty: MetricType },
 }
 
 impl fmt::Display for RegistryError {
@@ -39,7 +32,10 @@ impl fmt::Display for RegistryError {
                 write!(f, "The format of unit '{unit}' must be lowercase")
             },
             Self::InvalidNameFormat { name } => {
-                write!(f, "The name of metric '{name}' should be snake_case")
+                write!(f, "The name '{name}' should be snake_case")
+            },
+            Self::ReservedLabelName { name, ty } => {
+                write!(f, "The label name '{name}' is reserved for '{ty:?}' type")
             },
         }
     }

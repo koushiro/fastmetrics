@@ -13,7 +13,7 @@ use parking_lot::RwLock;
 pub use crate::raw::bucket::*;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
-    raw::{MetricType, TypedMetric},
+    raw::{MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
@@ -200,7 +200,10 @@ impl Histogram {
 
 impl TypedMetric for Histogram {
     const TYPE: MetricType = MetricType::Histogram;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl MetricLabelSet for Histogram {
+    type LabelSet = ();
 }
 
 impl EncodeMetric for Histogram {
@@ -211,10 +214,6 @@ impl EncodeMetric for Histogram {
             let exemplars = vec![None; buckets.len()];
             encoder.encode_histogram(buckets, &exemplars, s.count(), s.sum(), created)
         })
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::Histogram
     }
 }
 

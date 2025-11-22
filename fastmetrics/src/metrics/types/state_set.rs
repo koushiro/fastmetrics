@@ -13,7 +13,7 @@ pub use fastmetrics_derive::StateSetValue;
 
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
-    raw::{MetricType, TypedMetric},
+    raw::{MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// A marker trait for **stateset** metric value.
@@ -124,17 +124,16 @@ impl<T: StateSetValue> StateSet<T> {
 
 impl<T: StateSetValue> TypedMetric for StateSet<T> {
     const TYPE: MetricType = MetricType::StateSet;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<T: StateSetValue> MetricLabelSet for StateSet<T> {
+    type LabelSet = ();
 }
 
 impl<T: StateSetValue> EncodeMetric for StateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let states = self.states();
         encoder.encode_stateset(states)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::StateSet
     }
 }
 
@@ -206,17 +205,16 @@ impl<T: StateSetValue> ConstStateSet<T> {
 
 impl<T: StateSetValue> TypedMetric for ConstStateSet<T> {
     const TYPE: MetricType = MetricType::StateSet;
-    const WITH_TIMESTAMP: bool = false;
+}
+
+impl<T: StateSetValue> MetricLabelSet for ConstStateSet<T> {
+    type LabelSet = ();
 }
 
 impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         let states = self.states();
         encoder.encode_stateset(states)
-    }
-
-    fn metric_type(&self) -> MetricType {
-        MetricType::StateSet
     }
 }
 
