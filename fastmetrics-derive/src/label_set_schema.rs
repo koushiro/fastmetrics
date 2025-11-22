@@ -2,8 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Error, Fields, FieldsNamed, Result};
 
-use crate::label_attributes::LabelAttributes;
-use crate::utils::wrap_in_const;
+use crate::{label_attributes::LabelAttributes, utils::wrap_in_const};
 
 /// Expands `#[derive(LabelSetSchema)]` for structs with named fields.
 pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {

@@ -107,7 +107,7 @@
 
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
-// #![deny(unused_crate_dependencies)]
+#![deny(unused_crate_dependencies)]
 
 pub mod encoder;
 pub mod format;
