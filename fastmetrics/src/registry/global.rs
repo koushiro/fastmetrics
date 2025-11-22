@@ -375,7 +375,7 @@ where
 ///
 /// * `name` - The name of the metric (must be in `snake_case` format)
 /// * `help` - A description of what the metric measures
-/// * `unit` - An optional unit of measurement (e.g., [`Some(Unit::Seconds)`], [`None::<Unit>`])
+/// * `unit` - An optional unit of measurement (e.g., `Some(Unit::Seconds)`, `None::<Unit>`)
 /// * `metric` - The metric instance to register (must implement [`Clone`])
 ///
 /// # Returns
