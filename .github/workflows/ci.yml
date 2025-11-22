@@ -13,7 +13,7 @@ on:
       - 'v[1-9]*.x' # v1.x or v20.x
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -51,20 +51,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "23.x"
+          version: '23.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run cargo clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -74,20 +68,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "23.x"
+          version: '23.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
         run: cargo build --workspace --all-targets
@@ -97,20 +85,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "23.x"
+          version: '23.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
         run: cargo build --workspace --all-targets --all-features
@@ -120,10 +102,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "23.x"
+          version: '23.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate docs
@@ -139,7 +124,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "23.x"
+          version: '23.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup MSRV
@@ -151,25 +136,22 @@ jobs:
   run-tests:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v5
 
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.os }}
+
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "23.x"
+          version: '23.x'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run tests
         run: cargo test --all --all-features
