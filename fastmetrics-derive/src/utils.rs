@@ -23,7 +23,6 @@ pub fn is_lint_attribute(attr: &Attribute) -> bool {
         || attr.path().is_ident("warn")
 }
 
-#[derive(Clone)]
 /// Represents either a string literal or an arbitrary expression that evaluates to a string.
 pub enum StringValue {
     /// String literal: "name"

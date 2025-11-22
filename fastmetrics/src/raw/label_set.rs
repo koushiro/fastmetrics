@@ -10,7 +10,7 @@
 #[cfg(feature = "derive")]
 pub use fastmetrics_derive::LabelSetSchema;
 
-/// Describes the schema (names and ordering) of a label set.
+/// Describes the schema (names) of a label set.
 ///
 /// Implement this trait for every label set structure. Types that do not carry
 /// any labels can simply rely on the unit type `()` implementation.

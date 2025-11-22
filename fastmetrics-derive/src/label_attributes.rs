@@ -3,7 +3,7 @@ use syn::{Attribute, Error, Field, Meta, Result, Token, punctuated::Punctuated};
 use crate::utils::StringValue;
 
 /// Aggregates all supported `#[label(...)]` attributes found on a field.
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct LabelAttributes {
     /// Metadata parsed from the `#[label(...)]` attribute group.
     pub label: LabelAttribute,
@@ -77,7 +77,7 @@ impl LabelAttributes {
 }
 
 /// Individual settings supported within a `#[label(...)]` attribute.
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct LabelAttribute {
     /// Skips the field entirely when encoding labels.
     pub skip: bool,

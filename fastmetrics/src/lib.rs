@@ -39,16 +39,18 @@
 //! }
 //!
 //! // Can use `#[derive(EncodeLabelSet, LabelSetSchema)]` to simplify the code, but need to enable `derive` feature
+//!
+//! impl LabelSetSchema for Labels {
+//!     fn names() -> Option<&'static [&'static str]> {
+//!         Some(&["method", "status"])
+//!     }
+//! }
+//!
 //! impl EncodeLabelSet for Labels {
 //!     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
 //!         encoder.encode(&("method", &self.method))?;
 //!         encoder.encode(&("status", &self.status))?;
 //!         Ok(())
-//!     }
-//! }
-//! impl LabelSetSchema for Labels {
-//!     fn names() -> Option<&'static [&'static str]> {
-//!         Some(&["method", "status"])
 //!     }
 //! }
 //!

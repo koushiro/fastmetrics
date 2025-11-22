@@ -14,12 +14,14 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
         Data::Struct(data) => match &data.fields {
             Fields::Named(FieldsNamed { named, .. }) => named,
             _ => {
-                let error = "LabelSetSchema can only be derived for structs with named fields.";
+                let error =
+                    "#[derive(LabelSetSchema)] can only be derived for structs with named fields.";
                 return Err(Error::new_spanned(name, error));
             },
         },
         _ => {
-            let error = "LabelSetSchema can only be derived for structs with named fields.";
+            let error =
+                "#[derive(LabelSetSchema)] can only be derived for structs with named fields.";
             return Err(Error::new_spanned(name, error));
         },
     };
@@ -33,9 +35,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
         let ident = field.ident.as_ref().expect("fields must be named");
 
         if attrs.label.skip {
-            quote! {
-                // skip
-            }
+            quote! { /*  skip */ }
         } else if attrs.label.flatten {
             let ty = &field.ty;
             quote! {

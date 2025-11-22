@@ -64,8 +64,8 @@ cfg_if::cfg_if! {
 /// ```rust
 /// # use fastmetrics::{
 /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
-/// #     raw::LabelSetSchema,
 /// #     metrics::{counter::Counter, family::Family},
+/// #     raw::LabelSetSchema,
 /// #     registry::{Registry, RegistryError},
 /// # };
 /// #
@@ -169,12 +169,12 @@ where
     /// ```rust
     /// # use fastmetrics::{
     /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
-    /// #     raw::LabelSetSchema,
     /// #     metrics::{
     /// #         gauge::Gauge,
     /// #         family::Family,
     /// #         histogram::{Histogram, exponential_buckets},
     /// #     },
+    /// #     raw::LabelSetSchema,
     /// # };
     /// // Create a family with a custom factory function
     /// #[derive(Clone, Eq, PartialEq, Hash)]
@@ -183,17 +183,17 @@ where
     ///     status: &'static str,
     /// }
     ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["region", "status"])
+    ///     }
+    /// }
+    ///
     /// impl EncodeLabelSet for Labels {
     ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
     ///         encoder.encode(&("region", self.region))?;
     ///         encoder.encode(&("status", self.status))?;
     ///         Ok(())
-    ///     }
-    /// }
-    ///
-    /// impl LabelSetSchema for Labels {
-    ///     fn names() -> Option<&'static [&'static str]> {
-    ///         Some(&["region", "status"])
     ///     }
     /// }
     ///
@@ -240,17 +240,17 @@ where
     ///     status: &'static str,
     /// }
     ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["method", "status"])
+    ///     }
+    /// }
+    ///
     /// impl EncodeLabelSet for Labels {
     ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
     ///         encoder.encode(&("method", self.method))?;
     ///         encoder.encode(&("status", self.status))?;
     ///         Ok(())
-    ///     }
-    /// }
-    ///
-    /// impl LabelSetSchema for Labels {
-    ///     fn names() -> Option<&'static [&'static str]> {
-    ///         Some(&["method", "status"])
     ///     }
     /// }
     ///
@@ -317,17 +317,17 @@ where
     ///     status: &'static str,
     /// }
     ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["method", "status"])
+    ///     }
+    /// }
+    ///
     /// impl EncodeLabelSet for Labels {
     ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
     ///         encoder.encode(&("method", self.method))?;
     ///         encoder.encode(&("status", self.status))?;
     ///         Ok(())
-    ///     }
-    /// }
-    ///
-    /// impl LabelSetSchema for Labels {
-    ///     fn names() -> Option<&'static [&'static str]> {
-    ///         Some(&["method", "status"])
     ///     }
     /// }
     ///

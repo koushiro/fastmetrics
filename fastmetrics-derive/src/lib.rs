@@ -68,22 +68,45 @@ pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
 
 /// Derive the `LabelSetSchema` trait for structs.
 ///
-/// This macro generates an implementation of `fastmetrics::raw::LabelSetSchema`,
-/// allowing schema metadata to be derived separately from encoding logic.
+/// This macro automatically implements the `LabelSetSchema` trait, which
+/// allows label set schema to be generated.
 ///
 /// # Example
 ///
 /// ```rust
 /// # use fastmetrics_derive::LabelSetSchema;
-/// #[derive(LabelSetSchema)]
+/// #[derive(Clone, Eq, PartialEq, Hash, LabelSetSchema)]
 /// struct HttpLabels {
-///     method: &'static str,
-///     #[label(rename = "status")]
-///     code: u16,
+///    #[label(rename = "op")]
+///    operation: Operation,
+///    error: Option<Error>,
+///
+///    #[label(flatten)]
+///    extra: ExtraLabels,
+///
+///    #[label(skip)]
+///    _skip: u64,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+/// struct ExtraLabels {
+///    region: &'static str,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// enum Operation {
+///    Read,
+///    Write,
+///    List,
+///    Delete,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// enum Error {
+///    NotFound,
+///    Fail,
 /// }
 /// ```
-///
-/// Nested label sets can be composed with `#[label(flatten)]`.
 #[proc_macro_derive(LabelSetSchema, attributes(label))]
 pub fn derive_label_set_schema(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
