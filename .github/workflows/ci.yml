@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - main
-      - 'v0.*.x' # v0.1.x or v0.20.x
+      - 'v0.*.x'    # v0.1.x or v0.20.x
       - 'v[1-9]*.x' # v1.x or v20.x
   pull_request:
     branches:
       - main
-      - 'v0.*.x' # v0.1.x or v0.20.x
+      - 'v0.*.x'    # v0.1.x or v0.20.x
       - 'v[1-9]*.x' # v1.x or v20.x
 
 concurrency:
