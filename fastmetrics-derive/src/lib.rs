@@ -88,12 +88,12 @@ pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
 ///    _skip: u64,
 /// }
 ///
-/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet)]
+/// #[derive(Clone, Eq, PartialEq, Hash, LabelSetSchema)]
 /// struct ExtraLabels {
 ///    region: &'static str,
 /// }
 ///
-/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// #[derive(Clone, Eq, PartialEq, Hash)]
 /// enum Operation {
 ///    Read,
 ///    Write,
@@ -101,7 +101,7 @@ pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
 ///    Delete,
 /// }
 ///
-/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// #[derive(Clone, Eq, PartialEq, Hash)]
 /// enum Error {
 ///    NotFound,
 ///    Fail,
