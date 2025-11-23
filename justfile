@@ -17,44 +17,44 @@ fmt:
     @taplo fmt
     @cargo +nightly fmt --all
 
-# Run rust clippy with debug profile
-clippy:
-    @cargo clippy --workspace --all-targets --all-features -- -D warnings
+# Run rust clippy
+clippy *args='':
+    @cargo clippy --workspace --all-targets --all-features {{args}} -- -D warnings
 
-# Check code with debug profile
-check:
-	@cargo check --workspace --all-targets --all-features
+# Check code
+check *args='':
+	@cargo check --workspace --all-targets --all-features {{args}}
 
-# Build with debug profile
-build:
-    @cargo build --workspace --all-targets --all-features
+# Build workspace
+build *args='':
+    @cargo build --workspace --all-targets --all-features {{args}}
 
-# Run all tests with debug profile
-test:
-    @cargo test --workspace --all-features
+# Run all tests
+test *args='':
+    @cargo test --workspace --all-features {{args}}
 
 # Generate docs
-gen-docs:
-	@cargo doc --no-deps --workspace --lib --all-features
+gen-docs *args='':
+	@cargo doc --no-deps --workspace --lib --all-features {{args}}
 
-# Run examples: `just example [NAME] <ARGS>`
+# Run examples: `just example [name] <args>`
 [working-directory: 'examples']
 [positional-arguments]
-@example NAME *ARGS:
+@example name *args:
     #!/usr/bin/env bash
     set -eo pipefail
-    if [ -n "{{ARGS}}" ]; then
-        echo "Running example \"{{NAME}}\" with: {{ARGS}}"
-        cargo run --example {{NAME}} -- {{ARGS}}
+    if [ -n "{{args}}" ]; then
+        echo "Running example \"{{name}}\" with: {{args}}"
+        cargo run --example {{name}} -- {{args}}
     else
-        echo "Running example \"{{NAME}}\""
-        cargo run --example {{NAME}}
+        echo "Running example \"{{name}}\""
+        cargo run --example {{name}}
     fi
 
-# Run benchmarks: `just bench <ARGS>` or `just bench [NAME] <ARGS>`
+# Run benchmarks: `just bench <args>` or `just bench [name] <args>`
 [working-directory: 'benchmarks']
 [positional-arguments]
-@bench *ARGS:
+@bench *args:
     #!/usr/bin/env bash
     set -eo pipefail
     # Array-safe split: names before `--`, extra args after
