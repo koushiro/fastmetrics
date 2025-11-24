@@ -277,12 +277,9 @@ where
         buckets: &[Bucket],
         exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
     ) -> fmt::Result {
-        let exemplars = if let Some(exemplars) = exemplars {
+        let exemplars = exemplars.inspect(|exemplars| {
             assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
-            Some(exemplars)
-        } else {
-            None
-        };
+        });
 
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
