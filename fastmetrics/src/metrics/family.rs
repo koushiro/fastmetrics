@@ -5,7 +5,7 @@
 //! See [`Family`] for more details.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Entry},
     fmt::{self, Debug},
     hash::{BuildHasher, Hash},
     sync::Arc,
@@ -353,9 +353,32 @@ where
         }
         drop(read_guard);
 
-        let mut write_guard = self.write();
-        let metric = write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
-        func(metric)
+        // Previously we constructed new metrics while holding the write lock, e.g.:
+        // let mut write_guard = self.write();
+        // let metric = write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
+        // func(metric)
+
+        // That approach kept potentially expensive constructors inside the critical section,
+        // blocking readers and other writers. We now stage the value in `new_metric` so heavy
+        // work happens outside the lock and we can reuse the constructed metric if another
+        // thread races to insert the same labels.
+        let mut new_metric = None;
+        loop {
+            // Build the metric outside of the write lock so constructors cannot stall other threads.
+            let mut write_guard = self.write();
+            match write_guard.entry(labels.clone()) {
+                Entry::Occupied(entry) => return func(entry.get()),
+                Entry::Vacant(entry) => {
+                    if let Some(metric) = new_metric.take() {
+                        return func(entry.insert(metric));
+                    } else {
+                        // Release the lock before constructing to keep the critical section minimal.
+                        drop(write_guard);
+                        new_metric = Some(self.metric_factory.new_metric());
+                    }
+                },
+            }
+        }
     }
 }
 
