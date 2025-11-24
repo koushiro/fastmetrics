@@ -40,7 +40,7 @@ gen-docs *args='':
 # Run examples: `just example [name] <args>`
 [working-directory: 'examples']
 [positional-arguments]
-@example name *args:
+example name *args:
     #!/usr/bin/env bash
     set -eo pipefail
     if [ -n "{{args}}" ]; then
@@ -54,7 +54,7 @@ gen-docs *args='':
 # Run benchmarks: `just bench <args>` or `just bench [name] <args>`
 [working-directory: 'benchmarks']
 [positional-arguments]
-@bench *args:
+bench *args:
     #!/usr/bin/env bash
     set -eo pipefail
     # Array-safe split: names before `--`, extra args after

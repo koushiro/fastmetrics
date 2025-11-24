@@ -319,9 +319,69 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_family_concurrent_metric_creation(c: &mut Criterion) {
+    #[derive(Clone, PartialEq, Eq, Hash)]
+    #[derive(prometheus_client::encoding::EncodeLabelSet)]
+    #[derive(fastmetrics::encoder::EncodeLabelSet, fastmetrics::raw::LabelSetSchema)]
+    struct WorkerLabels {
+        worker: String,
+    }
+
+    impl WorkerLabels {
+        fn new(index: usize) -> Self {
+            Self { worker: format!("worker-{index}") }
+        }
+    }
+
+    const THREADS: usize = 4;
+    const LABELS_PER_THREAD: usize = 512;
+
+    let total_labels = THREADS * LABELS_PER_THREAD;
+    let label_pool: Vec<WorkerLabels> = (0..total_labels).map(WorkerLabels::new).collect();
+    let chunk_size = std::cmp::max(label_pool.len() / THREADS, 1);
+
+    let mut group = c.benchmark_group("family concurrent new metric creation");
+    group.bench_function("prometheus_client", |b| {
+        let label_pool = &label_pool;
+        b.iter(|| {
+            let families = prometheus_client_setup::setup_families::<WorkerLabels>();
+            std::thread::scope(|scope| {
+                for chunk in label_pool.chunks(chunk_size) {
+                    let histogram = families.histogram.clone();
+                    scope.spawn(move || {
+                        for labels in chunk {
+                            let labels = black_box(labels);
+                            histogram.get_or_create(labels).observe(black_box(1.0));
+                        }
+                    });
+                }
+            });
+        });
+    });
+
+    group.bench_function("fastmetrics", |b| {
+        let label_pool = &label_pool;
+        b.iter(|| {
+            let families = fastmetrics_setup::setup_families::<WorkerLabels>();
+            std::thread::scope(|scope| {
+                for chunk in label_pool.chunks(chunk_size) {
+                    let histogram = families.histogram.clone();
+                    scope.spawn(move || {
+                        for labels in chunk {
+                            let labels = black_box(labels);
+                            histogram.with_or_new(labels, |hist| hist.observe(black_box(1.0)));
+                        }
+                    });
+                }
+            });
+        });
+    });
+    group.finish();
+}
+
 criterion_group!(
     name = benches;
     config = Criterion::default()/*.with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))*/;
-    targets = bench_family_without_labels, bench_family_with_string_labels, bench_family_with_custom_labels
+    targets = bench_family_without_labels, bench_family_with_string_labels, bench_family_with_custom_labels, bench_family_concurrent_metric_creation
 );
 criterion_main!(benches);
