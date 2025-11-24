@@ -2,10 +2,7 @@ use std::sync::atomic::*;
 
 use crate::raw::number::Number;
 
-/// Atomic operations for the [Counter] or [Gauge] value.
-///
-/// [Counter]: crate::metrics::counter::Counter
-/// [Gauge]: crate::metrics::gauge::Gauge
+/// Atomic operations for the integer or float value.
 pub trait Atomic<N: Number>: Default + Send + Sync {
     /// Increase the value by `1`.
     #[inline]

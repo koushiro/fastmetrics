@@ -4,16 +4,17 @@
 
 use std::{
     fmt::{self, Debug},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Duration,
 };
-
-use parking_lot::RwLock;
 
 pub use crate::raw::bucket::*;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
-    raw::{MetricLabelSet, MetricType, TypedMetric},
+    raw::{Atomic, MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// Open Metrics [`Histogram`] metric, which samples observations and counts them in configurable
@@ -59,9 +60,68 @@ use crate::{
 /// ```
 #[derive(Clone)]
 pub struct Histogram {
-    inner: Arc<RwLock<HistogramSnapshot>>,
+    inner: Arc<HistogramInner>,
     // UNIX timestamp
     created: Option<Duration>,
+}
+
+struct HistogramInner {
+    buckets: Vec<BucketCell>,
+    count: AtomicU64,
+    sum: AtomicU64,
+}
+
+struct BucketCell {
+    upper_bound: f64,
+    count: AtomicU64,
+}
+
+impl BucketCell {
+    fn new(upper_bound: f64) -> Self {
+        Self { upper_bound, count: AtomicU64::new(0) }
+    }
+
+    fn inc(&self) {
+        self.count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn load(&self) -> Bucket {
+        Bucket::new(self.upper_bound, self.count.load(Ordering::Relaxed))
+    }
+}
+
+impl HistogramInner {
+    fn from_bounds(buckets: impl IntoIterator<Item = f64>) -> Self {
+        // filter the NaN and negative bound
+        let mut upper_bounds = buckets
+            .into_iter()
+            .filter(|upper_bound| !upper_bound.is_nan() && upper_bound.is_sign_positive())
+            .collect::<Vec<_>>();
+        // sort and dedup the bounds
+        upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
+        upper_bounds.dedup();
+
+        // ensure +Inf bucket is included
+        match upper_bounds.last() {
+            Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
+            None => upper_bounds.push(f64::INFINITY),
+            _ => { /* do nothing */ },
+        }
+        let buckets = upper_bounds.into_iter().map(BucketCell::new).collect::<Vec<_>>();
+
+        Self { buckets, count: AtomicU64::new(0), sum: AtomicU64::new(0f64.to_bits()) }
+    }
+
+    fn bucket_index(&self, value: f64) -> usize {
+        self.buckets.partition_point(|bucket| bucket.upper_bound < value)
+    }
+
+    fn snapshot(&self) -> HistogramSnapshot {
+        let buckets = self.buckets.iter().map(BucketCell::load).collect();
+        let count = self.count.load(Ordering::Relaxed);
+        let sum = self.sum.get();
+        HistogramSnapshot { buckets, count, sum }
+    }
 }
 
 /// A snapshot of a [`Histogram`] at a point in time.
@@ -91,15 +151,15 @@ impl HistogramSnapshot {
 
 impl Debug for Histogram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let snapshot = self.inner.read();
         let created = self.created();
-
-        f.debug_struct("Histogram")
-            .field("buckets", &snapshot.buckets())
-            .field("sum", &snapshot.sum())
-            .field("count", &snapshot.count())
-            .field("created", &created)
-            .finish()
+        self.with_snapshot(|snapshot| {
+            f.debug_struct("Histogram")
+                .field("buckets", &snapshot.buckets())
+                .field("sum", &snapshot.sum())
+                .field("count", &snapshot.count())
+                .field("created", &created)
+                .finish()
+        })
     }
 }
 
@@ -112,37 +172,12 @@ impl Default for Histogram {
 impl Histogram {
     /// Creates a new [`Histogram`] with the given bucket boundaries.
     pub fn new(buckets: impl IntoIterator<Item = f64>) -> Self {
-        // filter the NaN and negative bound
-        let mut upper_bounds = buckets
-            .into_iter()
-            .filter(|upper_bound| !upper_bound.is_nan() && upper_bound.is_sign_positive())
-            .collect::<Vec<_>>();
-        // sort and dedup the bounds
-        upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
-        upper_bounds.dedup();
-
-        // ensure +Inf bucket is included
-        match upper_bounds.last() {
-            Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
-            None => upper_bounds.push(f64::INFINITY),
-            _ => { /* do nothing */ },
-        }
-        let buckets = upper_bounds
-            .into_iter()
-            .map(|upper_bound| Bucket::new(upper_bound, 0))
-            .collect::<Vec<_>>();
-
-        Self {
-            inner: Arc::new(RwLock::new(HistogramSnapshot { buckets, sum: 0f64, count: 0 })),
-            created: None,
-        }
+        Self { inner: Arc::new(HistogramInner::from_bounds(buckets)), created: None }
     }
 
     /// Creates a [`Histogram`] with a `created` timestamp.
     pub fn with_created(buckets: impl IntoIterator<Item = f64>, created: Duration) -> Self {
-        let mut this = Self::new(buckets);
-        this.created = Some(created);
-        this
+        Self { inner: Arc::new(HistogramInner::from_bounds(buckets)), created: Some(created) }
     }
 
     /// Observes a value, incrementing the appropriate buckets.
@@ -152,14 +187,13 @@ impl Histogram {
             return;
         }
 
-        let mut inner = self.inner.write();
         // increment the count and add the value into the sum
-        inner.count += 1;
-        inner.sum += value;
+        self.inner.count.fetch_add(1, Ordering::Relaxed);
+        self.inner.sum.inc_by(value);
 
         // only increment the count of the found bucket
-        let idx = inner.buckets.partition_point(|bucket| bucket.upper_bound() < value);
-        inner.buckets[idx].inc();
+        let idx = self.inner.bucket_index(value);
+        self.inner.buckets[idx].inc();
     }
 
     /// Provides temporary access to a snapshot of the histogram's current state.
@@ -188,7 +222,7 @@ impl Histogram {
     where
         F: FnOnce(&HistogramSnapshot) -> R,
     {
-        let snapshot = self.inner.read();
+        let snapshot = self.inner.snapshot();
         func(&snapshot)
     }
 

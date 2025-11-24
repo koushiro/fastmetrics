@@ -67,11 +67,11 @@ gauge(f64)::dec_by/fastmetrics
                         time:   [6.4818 ns 6.5158 ns 6.5485 ns]
 
 histogram::observe/prometheus
-                        time:   [11.221 ns 11.281 ns 11.352 ns]
+                        time:   [11.180 ns 11.227 ns 11.280 ns]
 histogram::observe/prometheus_client
-                        time:   [9.1990 ns 9.2314 ns 9.2667 ns]
+                        time:   [9.0995 ns 9.1258 ns 9.1508 ns]
 histogram::observe/fastmetrics
-                        time:   [9.4195 ns 9.4576 ns 9.4981 ns]
+                        time:   [5.9017 ns 5.9294 ns 5.9554 ns]
 ```
 
 ## Metric Family

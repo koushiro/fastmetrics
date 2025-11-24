@@ -4,15 +4,16 @@
 
 use std::{
     fmt::{self, Debug},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
 };
-
-use parking_lot::RwLock;
 
 pub use crate::raw::bucket::*;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
-    raw::{MetricLabelSet, MetricType, TypedMetric},
+    raw::{Atomic, MetricLabelSet, MetricType, TypedMetric},
 };
 
 /// Open Metrics [`GaugeHistogram`] metric, which samples observations and counts them in
@@ -50,7 +51,66 @@ use crate::{
 /// ```
 #[derive(Clone)]
 pub struct GaugeHistogram {
-    inner: Arc<RwLock<GaugeHistogramSnapshot>>,
+    inner: Arc<GaugeHistogramInner>,
+}
+
+struct GaugeHistogramInner {
+    buckets: Vec<BucketCell>,
+    gsum: AtomicU64,
+    gcount: AtomicU64,
+}
+
+struct BucketCell {
+    upper_bound: f64,
+    count: AtomicU64,
+}
+
+impl BucketCell {
+    fn new(upper_bound: f64) -> Self {
+        Self { upper_bound, count: AtomicU64::new(0) }
+    }
+
+    fn inc(&self) {
+        self.count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn load(&self) -> Bucket {
+        Bucket::new(self.upper_bound, self.count.load(Ordering::Relaxed))
+    }
+}
+
+impl GaugeHistogramInner {
+    fn from_bounds(buckets: impl IntoIterator<Item = f64>) -> Self {
+        // filter the NaN bound
+        let mut upper_bounds = buckets
+            .into_iter()
+            .filter(|upper_bound| !upper_bound.is_nan())
+            .collect::<Vec<_>>();
+        // sort and dedup the bounds
+        upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
+        upper_bounds.dedup();
+
+        // ensure +Inf bucket is included
+        match upper_bounds.last() {
+            Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
+            None => upper_bounds.push(f64::INFINITY),
+            _ => { /* do nothing */ },
+        }
+        let buckets = upper_bounds.into_iter().map(BucketCell::new).collect::<Vec<_>>();
+
+        Self { buckets, gcount: AtomicU64::new(0), gsum: AtomicU64::new(0f64.to_bits()) }
+    }
+
+    fn bucket_index(&self, value: f64) -> usize {
+        self.buckets.partition_point(|bucket| bucket.upper_bound < value)
+    }
+
+    fn snapshot(&self) -> GaugeHistogramSnapshot {
+        let buckets = self.buckets.iter().map(BucketCell::load).collect();
+        let gcount = self.gcount.load(Ordering::Relaxed);
+        let gsum = self.gsum.get();
+        GaugeHistogramSnapshot { buckets, gcount, gsum }
+    }
 }
 
 /// A snapshot of a [`GaugeHistogram`] at a point in time.
@@ -80,13 +140,13 @@ impl GaugeHistogramSnapshot {
 
 impl Debug for GaugeHistogram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let snapshot = self.inner.read();
-
-        f.debug_struct("GaugeHistogram")
-            .field("buckets", &snapshot.buckets())
-            .field("gcount", &snapshot.gcount())
-            .field("gsum", &snapshot.gsum())
-            .finish()
+        self.with_snapshot(|snapshot| {
+            f.debug_struct("GaugeHistogram")
+                .field("buckets", &snapshot.buckets())
+                .field("gcount", &snapshot.gcount())
+                .field("gsum", &snapshot.gsum())
+                .finish()
+        })
     }
 }
 
@@ -99,29 +159,7 @@ impl Default for GaugeHistogram {
 impl GaugeHistogram {
     /// Creates a new [`GaugeHistogram`] with the given bucket boundaries.
     pub fn new(buckets: impl IntoIterator<Item = f64>) -> Self {
-        // filter the NaN bound
-        let mut upper_bounds = buckets
-            .into_iter()
-            .filter(|upper_bound| !upper_bound.is_nan())
-            .collect::<Vec<_>>();
-        // sort and dedup the bounds
-        upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
-        upper_bounds.dedup();
-
-        // ensure +Inf bucket is included
-        match upper_bounds.last() {
-            Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
-            None => upper_bounds.push(f64::INFINITY),
-            _ => { /* do nothing */ },
-        }
-        let buckets = upper_bounds
-            .into_iter()
-            .map(|upper_bound| Bucket::new(upper_bound, 0))
-            .collect::<Vec<_>>();
-
-        Self {
-            inner: Arc::new(RwLock::new(GaugeHistogramSnapshot { buckets, gsum: 0f64, gcount: 0 })),
-        }
+        Self { inner: Arc::new(GaugeHistogramInner::from_bounds(buckets)) }
     }
 
     /// Observes a value, incrementing the appropriate buckets.
@@ -131,14 +169,13 @@ impl GaugeHistogram {
             return;
         }
 
-        let mut inner = self.inner.write();
         // increment the gcount and add the value into the gsum
-        inner.gcount += 1;
-        inner.gsum += value;
+        self.inner.gcount.fetch_add(1, Ordering::Relaxed);
+        self.inner.gsum.inc_by(value);
 
         // only increment the count of the found bucket
-        let idx = inner.buckets.partition_point(|bucket| bucket.upper_bound() < value);
-        inner.buckets[idx].inc();
+        let idx = self.inner.bucket_index(value);
+        self.inner.buckets[idx].inc();
     }
 
     /// Provides temporary access to a snapshot of the gauge histogram's current state.
@@ -167,7 +204,7 @@ impl GaugeHistogram {
     where
         F: FnOnce(&GaugeHistogramSnapshot) -> R,
     {
-        let snapshot = self.inner.read();
+        let snapshot = self.inner.snapshot();
         func(&snapshot)
     }
 }
