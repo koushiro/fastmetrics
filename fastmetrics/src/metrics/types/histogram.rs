@@ -211,8 +211,8 @@ impl EncodeMetric for Histogram {
         let created = self.created();
         self.with_snapshot(|s| {
             let buckets = s.buckets();
-            let exemplars = vec![None; buckets.len()];
-            encoder.encode_histogram(buckets, &exemplars, s.count(), s.sum(), created)
+            let exemplars = None;
+            encoder.encode_histogram(buckets, exemplars, s.count(), s.sum(), created)
         })
     }
 }

@@ -56,11 +56,11 @@ pub trait MetricEncoder {
 
     /// Encodes a histogram metric.
     ///
-    /// **NOTE**: the slice length of `buckets` and `exemplars` should be the same.
+    /// **NOTE**: when `exemplars` is provided, its slice length must match `buckets`.
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
         created: Option<Duration>,
@@ -68,11 +68,11 @@ pub trait MetricEncoder {
 
     /// Encodes a gauge histogram metric.
     ///
-    /// **NOTE**: the slice length of `buckets` and `exemplars` should be the same.
+    /// **NOTE**: when `exemplars` is provided, its slice length must match `buckets`.
     fn encode_gauge_histogram(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
     ) -> fmt::Result;

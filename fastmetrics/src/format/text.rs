@@ -275,15 +275,20 @@ where
     fn encode_buckets(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
     ) -> fmt::Result {
-        assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
+        let exemplars = if let Some(exemplars) = exemplars {
+            assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
+            Some(exemplars)
+        } else {
+            None
+        };
 
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
         let mut cumulative_count = 0;
-        for (bucket, exemplar) in buckets.iter().zip(exemplars) {
+        for (idx, bucket) in buckets.iter().enumerate() {
             self.encode_metric_name()?;
             self.writer.write_str("_bucket")?;
 
@@ -306,8 +311,10 @@ where
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_timestamp()?;
-            if let Some(exemplar) = exemplar {
-                exemplar.encode(&mut ExemplarEncoder { writer: self.writer })?;
+            if let Some(exemplars) = exemplars {
+                if let Some(exemplar) = exemplars[idx] {
+                    exemplar.encode(&mut ExemplarEncoder { writer: self.writer })?;
+                }
             }
             self.encode_newline()?;
         }
@@ -460,7 +467,7 @@ where
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
         created: Option<Duration>,
@@ -483,7 +490,7 @@ where
     fn encode_gauge_histogram(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
     ) -> fmt::Result {
