@@ -184,8 +184,8 @@ impl EncodeMetric for GaugeHistogram {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         self.with_snapshot(|s| {
             let buckets = s.buckets();
-            let exemplars = vec![None; buckets.len()];
-            encoder.encode_gauge_histogram(s.buckets(), &exemplars, s.gcount(), s.gsum())
+            let exemplars = None;
+            encoder.encode_gauge_histogram(buckets, exemplars, s.gcount(), s.gsum())
         })
     }
 }

@@ -291,24 +291,30 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
     fn encode_histogram(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
         created: Option<Duration>,
     ) -> fmt::Result {
-        assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
+        let exemplars = exemplars.inspect(|exemplars| {
+            assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
+        });
 
         let buckets = buckets
             .iter()
-            .zip(exemplars.iter())
-            .map(|(b, e)| {
+            .enumerate()
+            .map(|(idx, b)| {
                 Ok(openmetrics_data_model::histogram_value::Bucket {
                     count: b.count(),
                     upper_bound: b.upper_bound(),
-                    exemplar: if let Some(exemplar) = e {
-                        let mut e = openmetrics_data_model::Exemplar::default();
-                        exemplar.encode(&mut ExemplarEncoder { exemplar: &mut e })?;
-                        Some(e)
+                    exemplar: if let Some(exemplars) = exemplars {
+                        if let Some(exemplar) = exemplars[idx] {
+                            let mut e = openmetrics_data_model::Exemplar::default();
+                            exemplar.encode(&mut ExemplarEncoder { exemplar: &mut e })?;
+                            Some(e)
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     },
@@ -337,7 +343,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
     fn encode_gauge_histogram(
         &mut self,
         buckets: &[Bucket],
-        exemplars: &[Option<&dyn EncodeExemplar>],
+        exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
     ) -> fmt::Result {
