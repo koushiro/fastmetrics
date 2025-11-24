@@ -355,7 +355,8 @@ where
 
         // Previously we constructed new metrics while holding the write lock, e.g.:
         // let mut write_guard = self.write();
-        // let metric = write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
+        // let metric =
+        // write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
         // func(metric)
 
         // That approach kept potentially expensive constructors inside the critical section,
@@ -364,7 +365,8 @@ where
         // thread races to insert the same labels.
         let mut new_metric = None;
         loop {
-            // Build the metric outside of the write lock so constructors cannot stall other threads.
+            // Acquire the write lock only for entry inspection/insertion; construction happens
+            // after dropping it.
             let mut write_guard = self.write();
             match write_guard.entry(labels.clone()) {
                 Entry::Occupied(entry) => return func(entry.get()),
@@ -372,8 +374,9 @@ where
                     if let Some(metric) = new_metric.take() {
                         return func(entry.insert(metric));
                     } else {
-                        // Release the lock before constructing to keep the critical section minimal.
                         drop(write_guard);
+                        // Construct the metric outside the lock so expensive constructors cannot
+                        // stall other threads.
                         new_metric = Some(self.metric_factory.new_metric());
                     }
                 },
