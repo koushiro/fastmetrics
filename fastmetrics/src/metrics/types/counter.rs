@@ -4,6 +4,7 @@
 
 use std::{
     fmt::{self, Debug},
+    marker::PhantomData,
     ops::AddAssign,
     sync::{Arc, atomic::*},
     time::Duration,
@@ -153,7 +154,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
     }
 }
 
-/// A **constant** [`Counter`], meaning it cannot be changed once created.
+/// A **constant** `Counter`, meaning it cannot be changed once created.
 ///
 /// # Example
 ///
@@ -236,6 +237,63 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
         let total = self.total();
         let created = self.created();
         encoder.encode_counter(&total, None, created)
+    }
+}
+
+/// A `Counter` whose value is produced lazily every time it is encoded.
+///
+/// Ideal for process or system metrics that should only consult the OS
+/// (e.g. `/proc`, cgroups) or other expensive sources when Prometheus scrapes
+/// the registry.
+pub struct LazyCounter<F, N> {
+    fetch: Arc<F>,
+    created: Option<Duration>,
+    _marker: PhantomData<N>,
+}
+
+impl<F, N> LazyCounter<F, N>
+where
+    F: Fn() -> N,
+{
+    /// Creates a `LazyCounter` without a creation timestamp.
+    pub fn new(fetch: F) -> Self {
+        Self { fetch: Arc::new(fetch), created: None, _marker: PhantomData }
+    }
+
+    /// Creates a `LazyCounter` with the provided `created` timestamp.
+    pub fn with_created(fetch: F, created: Duration) -> Self {
+        Self { fetch: Arc::new(fetch), created: Some(created), _marker: PhantomData }
+    }
+
+    /// Evaluates the underlying fetcher and returns the current total.
+    #[inline]
+    pub fn fetch(&self) -> N {
+        (self.fetch.as_ref())()
+    }
+}
+
+impl<F, N> Clone for LazyCounter<F, N> {
+    fn clone(&self) -> Self {
+        Self { fetch: Arc::clone(&self.fetch), created: self.created, _marker: PhantomData }
+    }
+}
+
+impl<F, N> TypedMetric for LazyCounter<F, N> {
+    const TYPE: MetricType = MetricType::Counter;
+}
+
+impl<F, N> MetricLabelSet for LazyCounter<F, N> {
+    type LabelSet = ();
+}
+
+impl<F, N> EncodeMetric for LazyCounter<F, N>
+where
+    F: Fn() -> N + Send + Sync,
+    N: EncodeCounterValue + Send + Sync,
+{
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let total = self.fetch();
+        encoder.encode_counter(&total, None, self.created)
     }
 }
 
@@ -428,6 +486,53 @@ mod tests {
                     my_counter_total 42
                     # EOF
                 "#};
+                assert_eq!(expected, output);
+            },
+        );
+    }
+
+    #[test]
+    fn test_lazy_counter() {
+        check_text_encoding(
+            |registry| {
+                let total = Arc::new(AtomicU64::new(0));
+                let lazy = LazyCounter::new({
+                    let total = total.clone();
+                    move || total.load(Ordering::Relaxed)
+                });
+                registry.register("lazy_counter", "Lazy counter help", lazy).unwrap();
+                total.store(123, Ordering::Relaxed);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE lazy_counter counter
+                    # HELP lazy_counter Lazy counter help
+                    lazy_counter_total 123
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+
+        let created = Duration::from_secs(123);
+        check_text_encoding(
+            |registry| {
+                let lazy = LazyCounter::with_created(|| 42_u64, created);
+                registry
+                    .register("lazy_counter_created", "Lazy counter with created help", lazy)
+                    .unwrap();
+            },
+            |output| {
+                let expected = indoc::formatdoc! {r#"
+                    # TYPE lazy_counter_created counter
+                    # HELP lazy_counter_created Lazy counter with created help
+                    lazy_counter_created_total 42
+                    lazy_counter_created_created {}.{}
+                    # EOF
+                    "#,
+                    created.as_secs(),
+                    created.as_millis() % 1000
+                };
                 assert_eq!(expected, output);
             },
         );

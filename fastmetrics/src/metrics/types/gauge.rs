@@ -4,6 +4,7 @@
 
 use std::{
     fmt::{self, Debug},
+    marker::PhantomData,
     ops::{AddAssign, SubAssign},
     sync::{Arc, atomic::*},
 };
@@ -150,7 +151,7 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for Gauge<N> {
     }
 }
 
-/// A **constant** [`Gauge`], meaning it cannot be changed once created.
+/// A **constant** `Gauge`, meaning it cannot be changed once created.
 ///
 /// # Example
 ///
@@ -190,6 +191,56 @@ impl<N: GaugeValue> MetricLabelSet for ConstGauge<N> {
 impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
         encoder.encode_gauge(&self.get())
+    }
+}
+
+/// A `Gauge` whose value is produced lazily every time it is encoded.
+///
+/// This is ideal for process or system metrics that should only consult the OS
+/// (e.g. `/proc`, cgroups) or other expensive sources at scrape time.
+pub struct LazyGauge<F, N> {
+    fetch: Arc<F>,
+    _marker: PhantomData<N>,
+}
+
+impl<F, N> LazyGauge<F, N>
+where
+    F: Fn() -> N,
+{
+    /// Creates a new [`LazyGauge`] from the provided fetcher function or closure.
+    pub fn new(fetch: F) -> Self {
+        Self { fetch: Arc::new(fetch), _marker: PhantomData }
+    }
+
+    /// Evaluates the underlying fetcher and returns the current value.
+    #[inline]
+    pub fn fetch(&self) -> N {
+        (self.fetch.as_ref())()
+    }
+}
+
+impl<F, N> Clone for LazyGauge<F, N> {
+    fn clone(&self) -> Self {
+        Self { fetch: Arc::clone(&self.fetch), _marker: PhantomData }
+    }
+}
+
+impl<F, N> TypedMetric for LazyGauge<F, N> {
+    const TYPE: MetricType = MetricType::Gauge;
+}
+
+impl<F, N> MetricLabelSet for LazyGauge<F, N> {
+    type LabelSet = ();
+}
+
+impl<F, N> EncodeMetric for LazyGauge<F, N>
+where
+    F: Fn() -> N + Send + Sync,
+    N: EncodeGaugeValue + Send + Sync,
+{
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        let value = self.fetch();
+        encoder.encode_gauge(&value)
     }
 }
 
@@ -325,6 +376,30 @@ mod tests {
                     # TYPE my_gauge gauge
                     # HELP my_gauge My gauge help
                     my_gauge 42
+                    # EOF
+                "#};
+                assert_eq!(expected, output);
+            },
+        );
+    }
+
+    #[test]
+    fn test_lazy_gauge() {
+        check_text_encoding(
+            |registry| {
+                let value = Arc::new(AtomicI64::new(0));
+                let lazy = LazyGauge::new({
+                    let value = value.clone();
+                    move || value.load(Ordering::Relaxed)
+                });
+                registry.register("lazy_gauge", "Lazy gauge help", lazy).unwrap();
+                value.store(99, Ordering::Relaxed);
+            },
+            |output| {
+                let expected = indoc::indoc! {r#"
+                    # TYPE lazy_gauge gauge
+                    # HELP lazy_gauge Lazy gauge help
+                    lazy_gauge 99
                     # EOF
                 "#};
                 assert_eq!(expected, output);
