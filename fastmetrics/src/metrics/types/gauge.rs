@@ -1,6 +1,6 @@
 //! [Open Metrics Gauge](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge) metric type.
 //!
-//! See [`Gauge`] and [`ConstGauge`] for more details.
+//! See [`Gauge`], [`ConstGauge`] and [`LazyGauge`] for more details.
 
 use std::{
     fmt::{self, Debug},

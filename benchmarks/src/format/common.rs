@@ -5,7 +5,7 @@ use rand::{
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[derive(prometheus_client::encoding::EncodeLabelSet)]
-#[derive(fastmetrics::encoder::EncodeLabelSet, fastmetrics::raw::LabelSetSchema)]
+#[derive(fastmetrics::derive::EncodeLabelSet, fastmetrics::derive::LabelSetSchema)]
 pub struct Labels {
     method: Method,
     status: u16,
@@ -37,7 +37,7 @@ impl Labels {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[derive(prometheus_client::encoding::EncodeLabelValue)]
-#[derive(fastmetrics::encoder::EncodeLabelValue)]
+#[derive(fastmetrics::derive::EncodeLabelValue)]
 pub enum Method {
     Get,
     Put,

@@ -8,9 +8,6 @@ use std::{
     sync::{Arc, atomic::*},
 };
 
-#[cfg(feature = "derive")]
-pub use fastmetrics_derive::StateSetValue;
-
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
     raw::{MetricLabelSet, MetricType, TypedMetric},

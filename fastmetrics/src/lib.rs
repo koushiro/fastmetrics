@@ -111,6 +111,9 @@
 #![deny(unsafe_code)]
 #![deny(unused_crate_dependencies)]
 
+#[cfg(feature = "derive")]
+pub use fastmetrics_derive as derive;
+
 pub mod encoder;
 pub mod format;
 pub mod metrics;

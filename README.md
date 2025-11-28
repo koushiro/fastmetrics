@@ -26,11 +26,10 @@ and it's compatible with [Prometheus].
 
 ```rust
 use fastmetrics::{
-    encoder::{EncodeLabelSet, EncodeLabelValue},
+    derive::*,
     format::text,
     metrics::{counter::Counter, family::Family},
-    raw::LabelSetSchema,
-    registry::{Register, Registry},
+    registry::*,
 };
 
 // Define label types

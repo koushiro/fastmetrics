@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use anyhow::Result;
 use fastmetrics::{
-    encoder::{EncodeLabelSet, EncodeLabelValue},
+    derive::*,
     format::text,
     metrics::{
         counter::Counter,
@@ -10,7 +10,6 @@ use fastmetrics::{
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
-    raw::LabelSetSchema,
     registry::*,
 };
 use rand::Rng;
