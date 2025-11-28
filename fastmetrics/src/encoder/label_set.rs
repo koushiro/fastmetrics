@@ -6,9 +6,6 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "derive")]
-pub use fastmetrics_derive::{EncodeLabelSet, EncodeLabelValue};
-
 /// Trait for encoding a set of labels.
 pub trait LabelSetEncoder {
     /// Encodes a single label.

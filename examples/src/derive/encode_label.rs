@@ -1,14 +1,13 @@
 use anyhow::Result;
 use fastmetrics::{
-    encoder::{EncodeLabelSet, EncodeLabelValue},
+    derive::*,
     format::text,
     metrics::{
         counter::Counter,
         family::Family,
         histogram::{Histogram, exponential_buckets},
     },
-    raw::LabelSetSchema,
-    registry::{Registry, Unit},
+    registry::*,
 };
 use rand::{
     Rng,

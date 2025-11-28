@@ -7,9 +7,6 @@
 //! Together they form the foundation for reasoning about whether a metric
 //! supports labels, and if so, which label names it expects.
 
-#[cfg(feature = "derive")]
-pub use fastmetrics_derive::LabelSetSchema;
-
 /// Describes the schema (names) of a label set.
 ///
 /// Implement this trait for every label set structure. Types that do not carry

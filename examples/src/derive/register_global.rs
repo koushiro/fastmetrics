@@ -1,6 +1,6 @@
 use anyhow::Result;
 use fastmetrics::{
-    encoder::{EncodeLabelSet, EncodeLabelValue},
+    derive::*,
     format::text,
     metrics::{
         counter::Counter,
@@ -8,8 +8,7 @@ use fastmetrics::{
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
-    raw::LabelSetSchema,
-    registry::{Register, Registry, set_global_registry, with_global_registry},
+    registry::*,
 };
 use rand::Rng;
 

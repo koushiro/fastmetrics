@@ -6,15 +6,13 @@
 use std::time::Instant;
 
 use fastmetrics::{
-    encoder::EncodeLabelSet,
+    derive::*,
     metrics::{
         counter::Counter,
         family::Family,
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
-    raw::LabelSetSchema,
-    registry::Register,
 };
 
 /// Labels attached to HTTP request metrics.

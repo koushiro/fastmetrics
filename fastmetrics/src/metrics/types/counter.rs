@@ -1,6 +1,6 @@
 //! [Open Metrics Counter](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#counter) metric type.
 //!
-//! See [`Counter`] and [`ConstCounter`] for more details.
+//! See [`Counter`], [`ConstCounter`] and [`LazyCounter`] for more details.
 
 use std::{
     fmt::{self, Debug},

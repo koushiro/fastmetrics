@@ -322,7 +322,7 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
 fn bench_family_concurrent_metric_creation(c: &mut Criterion) {
     #[derive(Clone, PartialEq, Eq, Hash)]
     #[derive(prometheus_client::encoding::EncodeLabelSet)]
-    #[derive(fastmetrics::encoder::EncodeLabelSet, fastmetrics::raw::LabelSetSchema)]
+    #[derive(fastmetrics::derive::EncodeLabelSet, fastmetrics::derive::LabelSetSchema)]
     struct WorkerLabels {
         worker: String,
     }
