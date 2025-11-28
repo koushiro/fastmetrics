@@ -45,7 +45,6 @@ impl_gauge_value_for! {
 ///
 /// ```rust
 /// # use fastmetrics::metrics::gauge::Gauge;
-///
 /// // Create a default gauge
 /// let gauge = <Gauge>::default();
 /// assert_eq!(gauge.get(), 0);
@@ -157,7 +156,6 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for Gauge<N> {
 ///
 /// ```rust
 /// # use fastmetrics::metrics::gauge::ConstGauge;
-///
 /// // Create a constant gauge with initial value
 /// let gauge = ConstGauge::new(42);
 /// assert_eq!(gauge.get(), 42);
@@ -198,6 +196,17 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
 ///
 /// This is ideal for process or system metrics that should only consult the OS
 /// (e.g. `/proc`, cgroups) or other expensive sources at scrape time.
+///
+/// # Example
+/// ```rust
+/// # use std::sync::atomic::{AtomicI64, Ordering};
+/// # use fastmetrics::metrics::gauge::LazyGauge;
+/// let lazy = LazyGauge::new({
+///     let value = AtomicI64::new(42);
+///     move || value.load(Ordering::Relaxed)
+/// });
+/// assert_eq!(lazy.fetch(), 42);
+/// ```
 pub struct LazyGauge<F, N> {
     fetch: Arc<F>,
     _marker: PhantomData<N>,
@@ -213,6 +222,9 @@ where
     }
 
     /// Evaluates the underlying fetcher and returns the current value.
+    ///
+    /// Mainly intended for debugging or tests; regular metric collection should
+    /// let the encoder trigger the fetch during scrapes.
     #[inline]
     pub fn fetch(&self) -> N {
         (self.fetch.as_ref())()
