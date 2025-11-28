@@ -12,6 +12,7 @@ anyhow = "1.0"
 axum = "0.8"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "prost"] }
 futures = "0.3"
+libc = "0.2"
 pin-project = "1.1"
 poem = { version = "3.1", features = ["websocket", "tower-compat"] }
 rand = "0.9"
@@ -29,6 +30,10 @@ path = "src/metrics.rs"
 [[example]]
 name = "static_metrics"
 path = "src/static_metrics.rs"
+
+[[example]]
+name = "process_metrics"
+path = "src/process_metrics.rs"
 
 [[example]]
 name = "derive_encode_label"
