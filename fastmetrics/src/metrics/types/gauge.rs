@@ -99,34 +99,34 @@ impl<N: GaugeValue> Gauge<N> {
         this
     }
 
-    /// Increases the [`Gauge`] by 1, returning the previous value.
+    /// Increases the [`Gauge`] by 1.
     #[inline]
-    pub fn inc(&self) -> N {
-        self.value.inc()
+    pub fn inc(&self) {
+        self.value.inc();
     }
 
-    /// Increases the [`Gauge`] by `v`, returning the previous value.
+    /// Increases the [`Gauge`] by `v`.
     #[inline]
-    pub fn inc_by(&self, v: N) -> N {
-        self.value.inc_by(v)
+    pub fn inc_by(&self, v: N) {
+        self.value.inc_by(v);
     }
 
-    /// Decreases the [`Gauge`] by 1, returning the previous value.
+    /// Decreases the [`Gauge`] by 1.
     #[inline]
-    pub fn dec(&self) -> N {
-        self.value.dec()
+    pub fn dec(&self) {
+        self.value.dec();
     }
 
-    /// Decreases the [`Gauge`] by `v`, returning the previous value.
+    /// Decreases the [`Gauge`] by `v`.
     #[inline]
-    pub fn dec_by(&self, v: N) -> N {
-        self.value.dec_by(v)
+    pub fn dec_by(&self, v: N) {
+        self.value.dec_by(v);
     }
 
     /// Sets the [`Gauge`] to `v`.
     #[inline]
     pub fn set(&self, v: N) {
-        self.value.set(v)
+        self.value.set(v);
     }
 
     /// Gets the current value of the [`Gauge`].

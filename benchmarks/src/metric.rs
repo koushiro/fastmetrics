@@ -21,13 +21,13 @@ fn bench_counter_u64(c: &mut Criterion) {
         use prometheus_client::metrics::counter::Counter;
         let counter = <Counter>::default();
 
-        b.iter(|| black_box(counter.inc()));
+        b.iter(|| counter.inc());
     });
     group.bench_function("fastmetrics", |b| {
         use fastmetrics::metrics::counter::Counter;
         let counter = <Counter>::default();
 
-        b.iter(|| black_box(counter.inc()));
+        b.iter(|| counter.inc());
     });
     group.finish();
 }
@@ -44,13 +44,13 @@ fn bench_counter_f64(c: &mut Criterion) {
         use prometheus_client::metrics::counter::Counter;
         let counter = Counter::<f64, AtomicU64>::default();
 
-        b.iter(|| black_box(counter.inc()));
+        b.iter(|| counter.inc());
     });
     group.bench_function("fastmetrics", |b| {
         use fastmetrics::metrics::counter::Counter;
         let counter = Counter::<f64>::default();
 
-        b.iter(|| black_box(counter.inc()));
+        b.iter(|| counter.inc());
     });
     group.finish();
 }
@@ -78,7 +78,7 @@ fn bench_gauge_i64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.set(black_box(input))),
+            |input| gauge.set(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -111,7 +111,7 @@ fn bench_gauge_i64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.inc_by(black_box(input))),
+            |input| gauge.inc_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -121,7 +121,7 @@ fn bench_gauge_i64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.inc_by(black_box(input))),
+            |input| gauge.inc_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -144,7 +144,7 @@ fn bench_gauge_i64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.dec_by(black_box(input))),
+            |input| gauge.dec_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -154,7 +154,7 @@ fn bench_gauge_i64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<i64>(),
-            |input| black_box(gauge.dec_by(black_box(input))),
+            |input| gauge.dec_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -179,7 +179,7 @@ fn bench_gauge_f64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<f64>(),
-            |input| black_box(gauge.set(black_box(input))),
+            |input| gauge.set(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -212,7 +212,7 @@ fn bench_gauge_f64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<f64>(),
-            |input| black_box(gauge.inc_by(black_box(input))),
+            |input| gauge.inc_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -222,7 +222,7 @@ fn bench_gauge_f64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<f64>(),
-            |input| black_box(gauge.inc_by(black_box(input))),
+            |input| gauge.inc_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -245,7 +245,7 @@ fn bench_gauge_f64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<f64>(),
-            |input| black_box(gauge.dec_by(black_box(input))),
+            |input| gauge.dec_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -255,7 +255,7 @@ fn bench_gauge_f64(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random::<f64>(),
-            |input| black_box(gauge.dec_by(black_box(input))),
+            |input| gauge.dec_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });
@@ -311,9 +311,7 @@ fn bench_gauge_histogram(c: &mut Criterion) {
 
         b.iter_batched(
             || rand::rng().random_range(-100f64..200f64),
-            |input| {
-                black_box(histogram.observe(black_box(input)));
-            },
+            |input| histogram.observe(black_box(input)),
             BatchSize::SmallInput,
         );
     });
