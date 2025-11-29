@@ -110,10 +110,10 @@ impl<N: CounterValue> Counter<N> {
     ///
     /// # Panics
     ///
-    /// This function will panic if the new value `v` is not zero or positive value.
+    /// This function will panic if the increment `v` is negative (i.e, not zero or positive).
     #[inline]
     pub fn inc_by(&self, v: N) {
-        assert!(v >= N::ZERO, "`v` must be zero or positive value");
+        assert!(v >= N::ZERO, "increment must be zero or positive");
         self.total.inc_by(v);
     }
 
