@@ -100,17 +100,21 @@ impl<N: CounterValue> Counter<N> {
         Self { total: Default::default(), created: Some(created) }
     }
 
-    /// Increases the [`Counter`] by 1, returning the previous value.
+    /// Increases the [`Counter`] by 1.
     #[inline]
-    pub fn inc(&self) -> N {
-        self.total.inc()
+    pub fn inc(&self) {
+        self.total.inc();
     }
 
-    /// Increases the [`Counter`] by `v`, returning the previous value.
+    /// Increases the [`Counter`] by `v`.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the new value `v` is not zero or positive value.
     #[inline]
-    pub fn inc_by(&self, v: N) -> N {
-        assert!(v >= N::ZERO);
-        self.total.inc_by(v)
+    pub fn inc_by(&self, v: N) {
+        assert!(v >= N::ZERO, "`v` must be zero or positive value");
+        self.total.inc_by(v);
     }
 
     /// Sets the [`Counter`] to `v`.
@@ -122,7 +126,7 @@ impl<N: CounterValue> Counter<N> {
     #[inline]
     pub fn set(&self, v: N) {
         assert!(v >= self.total.get(), "counter must be monotonically increasing");
-        self.total.set(v)
+        self.total.set(v);
     }
 
     /// Gets the current `total` value of the [`Counter`].

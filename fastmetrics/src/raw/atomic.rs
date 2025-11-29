@@ -6,21 +6,21 @@ use crate::raw::number::Number;
 pub trait Atomic<N: Number>: Default + Send + Sync {
     /// Increase the value by `1`.
     #[inline]
-    fn inc(&self) -> N {
-        self.inc_by(N::ONE)
+    fn inc(&self) {
+        self.inc_by(N::ONE);
     }
 
     /// Increase the value by `v`.
-    fn inc_by(&self, v: N) -> N;
+    fn inc_by(&self, v: N);
 
     /// Decrease the value by `1`.
     #[inline]
-    fn dec(&self) -> N {
-        self.dec_by(N::ONE)
+    fn dec(&self) {
+        self.dec_by(N::ONE);
     }
 
     /// Decrease the value.
-    fn dec_by(&self, v: N) -> N;
+    fn dec_by(&self, v: N);
 
     /// Set the value.
     fn set(&self, v: N);
@@ -34,18 +34,18 @@ macro_rules! impl_atomic_for_integer {
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
             #[inline(always)]
-            fn inc_by(&self, v: $ty) -> $ty {
-                self.fetch_add(v, Ordering::Relaxed)
+            fn inc_by(&self, v: $ty) {
+                self.fetch_add(v, Ordering::Relaxed);
             }
 
             #[inline(always)]
-            fn dec_by(&self, v: $ty) -> $ty {
-                self.fetch_sub(v, Ordering::Relaxed)
+            fn dec_by(&self, v: $ty) {
+                self.fetch_sub(v, Ordering::Relaxed);
             }
 
             #[inline(always)]
             fn set(&self, v: $ty) {
-                self.store(v, Ordering::Relaxed)
+                self.store(v, Ordering::Relaxed);
             }
 
             #[inline(always)]
@@ -70,20 +70,17 @@ macro_rules! impl_atomic_for_float  {
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
             #[inline]
-            fn inc_by(&self, v: $ty) -> $ty {
-                let old_bits = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
-                    let old_f = $ty::from_bits(old_bits);
-                    let new_f = old_f + v;
-                    Some($ty::to_bits(new_f))
-                })
-                .unwrap_or_else(|_| self.load(Ordering::Relaxed));
-
-                $ty::from_bits(old_bits)
+            fn inc_by(&self, v: $ty) {
+                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                    let old_value = $ty::from_bits(old_bits);
+                    let new_value = old_value + v;
+                    Some($ty::to_bits(new_value))
+                });
             }
 
             #[inline(always)]
-            fn dec_by(&self, v: $ty) -> $ty {
-                self.inc_by(-v)
+            fn dec_by(&self, v: $ty) {
+                self.inc_by(-v);
             }
 
             #[inline]

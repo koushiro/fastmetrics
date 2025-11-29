@@ -17,7 +17,9 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
         for times in observe_times {
             let mut group = c.benchmark_group("protobuf::encode");
 
-            let id = format!("prometheus: {count} metrics * {times} observe times");
+            let metric_id = format!("{count} metrics * {times} observe times");
+
+            let id = format!("prometheus(protobuf/prometheus): {metric_id}");
             group.bench_function(id, |b| {
                 let registry = setup_prometheus_registry(count, times);
 
@@ -35,7 +37,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("prometheus_client: {count} metrics * {times} observe times");
+            let id = format!("prometheus_client(prost/openmetrics): {metric_id}");
             group.bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
 
@@ -48,7 +50,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics(prost): {count} metrics * {times} observe times");
+            let id = format!("fastmetrics(prost/openmetrics): {metric_id}");
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
 
@@ -60,7 +62,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics(protobuf): {count} metrics * {times} observe times");
+            let id = format!("fastmetrics(protobuf/openmetrics): {metric_id}");
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
 
