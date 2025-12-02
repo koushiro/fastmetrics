@@ -609,7 +609,7 @@ mod tests {
         let subsystem = registry.subsystem("123cache");
         assert_eq!(subsystem.namespace(), Some("myapp_123cache"));
 
-        subsystem.register("hits_total", "Total hits", DummyCounter).unwrap();
+        assert!(subsystem.register("hits_total", "Total hits", DummyCounter).is_ok());
     }
 
     pub(crate) struct DummyCounter;
@@ -648,13 +648,15 @@ mod tests {
     fn test_custom_unit_accepts_metricname_chars() {
         let mut registry = Registry::default();
 
-        registry
-            .register_metric(
-                "custom_unit_metricname_chars",
-                "help",
-                Some(Unit::Other("foo:bar_123".into())),
-                DummyCounter,
-            )
-            .unwrap();
+        assert!(
+            registry
+                .register_metric(
+                    "custom_unit_metricname_chars",
+                    "help",
+                    Some(Unit::Other("foo:bar_123".into())),
+                    DummyCounter,
+                )
+                .is_ok()
+        );
     }
 }
