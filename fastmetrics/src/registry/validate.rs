@@ -82,18 +82,26 @@ impl fmt::Display for HelpTextViolation {
 pub enum UnitViolation {
     /// Unit strings must not be empty.
     Empty,
-    /// Unit strings may only contain characters allowed by `metricname-char`.
-    InvalidChar(char),
+    /// The first character violates `metricname-initial-char` for unit strings.
+    InvalidFirstChar(char),
+    /// Any subsequent character violates `metricname-char` for unit strings.
+    InvalidSubsequentChar(char),
 }
 
 impl fmt::Display for UnitViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Empty => f.write_str("unit strings must not be empty"),
-            Self::InvalidChar(ch) => {
+            Self::InvalidFirstChar(ch) => {
                 write!(
                     f,
-                    "the character '{ch}' is invalid for unit strings; expected [A-Za-z0-9_:]"
+                    "the first character '{ch}' is invalid for unit strings; expected [A-Za-z_:]"
+                )
+            },
+            Self::InvalidSubsequentChar(ch) => {
+                write!(
+                    f,
+                    "the subsequent character '{ch}' is invalid for unit strings; expected [A-Za-z0-9_:]"
                 )
             },
         }
@@ -191,12 +199,12 @@ pub fn validate_unit(unit: &str) -> Result<(), UnitViolation> {
     let mut chars = unit.chars();
     let first = chars.next().expect("non-empty string has a first char");
     if !is_metricname_initial_char(first) {
-        return Err(UnitViolation::InvalidChar(first));
+        return Err(UnitViolation::InvalidFirstChar(first));
     }
 
     for ch in chars {
         if !is_metricname_char(ch) {
-            return Err(UnitViolation::InvalidChar(ch));
+            return Err(UnitViolation::InvalidSubsequentChar(ch));
         }
     }
 
@@ -289,6 +297,7 @@ mod tests {
     fn test_validate_unit() {
         assert!(validate_unit("seconds").is_ok());
         assert!(matches!(validate_unit(""), Err(UnitViolation::Empty)));
-        assert!(matches!(validate_unit("-bad"), Err(UnitViolation::InvalidChar('-'))));
+        assert!(matches!(validate_unit("-bad"), Err(UnitViolation::InvalidFirstChar('-'))));
+        assert!(matches!(validate_unit("bad-"), Err(UnitViolation::InvalidSubsequentChar('-'))));
     }
 }
