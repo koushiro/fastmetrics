@@ -343,38 +343,46 @@ fn bench_family_concurrent_metric_creation(c: &mut Criterion) {
     let mut group = c.benchmark_group("family concurrent new metric creation");
     group.bench_function("prometheus_client", |b| {
         let label_pool = &label_pool;
-        b.iter(|| {
-            let families = prometheus_client_setup::setup_families::<WorkerLabels>();
-            std::thread::scope(|scope| {
-                for chunk in label_pool.chunks(chunk_size) {
-                    let histogram = families.histogram.clone();
-                    scope.spawn(move || {
-                        for labels in chunk {
-                            let labels = black_box(labels);
-                            histogram.get_or_create(labels).observe(black_box(1.0));
-                        }
-                    });
-                }
-            });
-        });
+        b.iter_batched(
+            prometheus_client_setup::setup_families::<WorkerLabels>,
+            |families| {
+                std::thread::scope(|scope| {
+                    for chunk in label_pool.chunks(chunk_size) {
+                        let histogram = families.histogram.clone();
+                        scope.spawn(move || {
+                            for labels in chunk {
+                                let labels = black_box(labels);
+                                let _ = black_box(histogram.get_or_create(labels));
+                            }
+                        });
+                    }
+                });
+            },
+            BatchSize::SmallInput,
+        );
     });
 
     group.bench_function("fastmetrics", |b| {
         let label_pool = &label_pool;
-        b.iter(|| {
-            let families = fastmetrics_setup::setup_families::<WorkerLabels>();
-            std::thread::scope(|scope| {
-                for chunk in label_pool.chunks(chunk_size) {
-                    let histogram = families.histogram.clone();
-                    scope.spawn(move || {
-                        for labels in chunk {
-                            let labels = black_box(labels);
-                            histogram.with_or_new(labels, |hist| hist.observe(black_box(1.0)));
-                        }
-                    });
-                }
-            });
-        });
+        b.iter_batched(
+            fastmetrics_setup::setup_families::<WorkerLabels>,
+            |families| {
+                std::thread::scope(|scope| {
+                    for chunk in label_pool.chunks(chunk_size) {
+                        let histogram = families.histogram.clone();
+                        scope.spawn(move || {
+                            for labels in chunk {
+                                let labels = black_box(labels);
+                                histogram.with_or_new(labels, |metric| {
+                                    black_box(metric as *const _);
+                                });
+                            }
+                        });
+                    }
+                });
+            },
+            BatchSize::SmallInput,
+        );
     });
     group.finish();
 }

@@ -111,9 +111,9 @@ family with custom labels/fastmetrics
                         time:   [19.921 ns 19.955 ns 19.992 ns]
 
 family concurrent new metric creation/prometheus_client
-                        time:   [778.88 µs 790.68 µs 807.20 µs]
+                        time:   [803.34 µs 813.33 µs 824.71 µs]
 family concurrent new metric creation/fastmetrics
-                        time:   [711.61 µs 715.47 µs 719.56 µs]
+                        time:   [725.61 µs 735.99 µs 746.70 µs]
 ```
 
 ## Text Encoding

@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// [Open Metrics metric types](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types).
 #[allow(missing_docs)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -25,6 +27,12 @@ impl MetricType {
             Self::GaugeHistogram => "gaugehistogram",
             Self::Summary => "summary",
         }
+    }
+}
+
+impl fmt::Display for MetricType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
