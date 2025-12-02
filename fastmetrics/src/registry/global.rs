@@ -172,7 +172,7 @@ where
 ///
 /// # Arguments
 ///
-/// * `name` - The name of the metric (must be in `snake_case` format)
+/// * `name` - The name of the metric (it must satisfy the OpenMetrics metric name rules)
 /// * `help` - A description of what the metric measures
 /// * `metric` - The metric instance to register (must implement [`Clone`])
 ///
@@ -180,7 +180,8 @@ where
 ///
 /// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
 /// - A same metric already exists
-/// - The metric name is not in `snake_case` format
+/// - The metric name violates the OpenMetrics metric name rules
+/// - The help text violates the OpenMetrics escaped-string rules
 ///
 /// # Examples
 ///
@@ -254,7 +255,7 @@ where
 ///
 /// # Arguments
 ///
-/// * `name` - The name of the metric (must be in `snake_case` format)
+/// * `name` - The name of the metric (it must satisfy the OpenMetrics metric name rules)
 /// * `help` - A description of what the metric measures
 /// * `unit` - The unit of measurement (e.g., [`Unit::Seconds`], [`Unit::Bytes`])
 /// * `metric` - The metric instance to register (must implement [`Clone`])
@@ -263,8 +264,9 @@ where
 ///
 /// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
 /// - A same metric already exists
-/// - The metric name is not in `snake_case` format
-/// - The unit format is invalid (custom units must be in `lowercase` format)
+/// - The metric name violates the OpenMetrics metric name rules
+/// - The help text violates the OpenMetrics escaped-string rules
+/// - The unit format is invalid (custom units must use characters allowed by the metric name ABNF)
 /// - The metric type doesn't support units (StateSet, Info, Unknown types must have empty units)
 ///
 /// # Examples
@@ -340,14 +342,14 @@ where
 /// #     registry::{register_with_unit, RegistryError},
 /// # };
 /// # fn main() -> Result<(), RegistryError> {
-/// // Invalid unit format (must be in lowercase format)
+/// // Invalid unit format (contains characters disallowed by OpenMetrics)
 /// let result = register_with_unit(
 ///     "invalid_metric",
 ///     "Invalid metric",
-///     "UPPERCASE",
+///     "invalid-unit",
 ///     <Gauge>::default(),
 /// );
-/// assert!(matches!(result, Err(RegistryError::OtherUnitFormatMustBeLowercase { .. })));
+/// assert!(matches!(result, Err(RegistryError::InvalidUnit { .. })));
 /// # Ok(())
 /// # }
 /// ```
@@ -373,7 +375,7 @@ where
 ///
 /// # Arguments
 ///
-/// * `name` - The name of the metric (must be in `snake_case` format)
+/// * `name` - The name of the metric (it must satisfy the OpenMetrics metric name rules)
 /// * `help` - A description of what the metric measures
 /// * `unit` - An optional unit of measurement (e.g., `Some(Unit::Seconds)`, `None::<Unit>`)
 /// * `metric` - The metric instance to register (must implement [`Clone`])
@@ -382,8 +384,9 @@ where
 ///
 /// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
 /// - A same metric already exists
-/// - The metric name is not in `snake_case` format
-/// - The unit format is invalid (custom units must be in `lowercase` format)
+/// - The metric name violates the OpenMetrics metric name rules
+/// - The help text violates the OpenMetrics escaped-string rules
+/// - The unit format is invalid (custom units must use characters allowed by the metric name ABNF)
 /// - The metric type doesn't support units (StateSet, Info, Unknown types must have empty units)
 ///
 /// # Examples
@@ -487,14 +490,14 @@ where
 /// #     registry::{register_metric, RegistryError, Unit},
 /// # };
 /// # fn main() -> Result<(), RegistryError> {
-/// // Invalid unit format (must be lowercase)
+/// // Invalid unit format (contains characters disallowed by OpenMetrics)
 /// let result = register_metric(
 ///     "invalid_metric",
 ///     "Invalid metric",
-///     Some("UPPERCASE"),
+///     Some("invalid-unit"),
 ///     <Gauge>::default(),
 /// );
-/// assert!(matches!(result, Err(RegistryError::OtherUnitFormatMustBeLowercase { .. })));
+/// assert!(matches!(result, Err(RegistryError::InvalidUnit { .. })));
 ///
 /// // Duplicate registration
 /// let counter1 = register_metric("my_counter", "A counter", None::<Unit>, <Counter>::default())?;

@@ -9,12 +9,14 @@
 mod errors;
 mod global;
 mod register;
+mod validate;
 
 use std::{
     borrow::Cow,
     collections::hash_map::{self, HashMap},
 };
 
+use self::validate::*;
 pub use self::{errors::*, global::*, register::*};
 pub use crate::raw::Unit;
 use crate::{
@@ -109,12 +111,12 @@ impl RegistryBuilder {
     ///
     /// # Note
     ///
-    /// The namespace cannot be an empty string and must be in `snake_case` format,
-    /// otherwise it will throw a panic.
+    /// The namespace cannot be an empty string and must satisfy the OpenMetrics metric name rules.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         let namespace = namespace.into();
         assert!(!namespace.is_empty(), "namespace cannot be an empty string");
-        assert!(is_snake_case(&namespace), "namespace must be in snake_case format");
+        validate_metric_name_prefix(&namespace)
+            .expect("namespace must satisfy the OpenMetrics metric name rules");
         self.namespace = Some(namespace);
         self
     }
@@ -267,52 +269,81 @@ impl Registry {
     ) -> Result<&mut Self, RegistryError> {
         // Check the metric name
         let name = name.into();
-        if !is_snake_case(&name) {
-            return Err(RegistryError::InvalidNameFormat { name: name.clone() });
-        }
+        validate_metric_name(&name).map_err(|err| RegistryError::InvalidMetricName {
+            name: name.clone(),
+            reason: err.to_string(),
+        })?;
 
-        let unit = unit.map(Into::into);
-
-        // Check if metric type requires empty unit
-        let metric_type = <M as TypedMetric>::TYPE;
-        match metric_type {
-            MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
-                if unit.is_some() {
-                    return Err(RegistryError::MustHaveAnEmptyUnitString { name: name.clone() });
-                }
-            },
-            _ => {},
-        }
+        // Check metric help text
+        let help = help.into();
+        validate_help_text(&help).map_err(|err| RegistryError::InvalidHelpText {
+            name: name.clone(),
+            help: help.clone(),
+            reason: err.to_string(),
+        })?;
 
         // Check the unit format
-        match unit {
-            Some(Unit::Other(unit)) if !is_lowercase(unit.as_ref()) => {
-                return Err(RegistryError::OtherUnitFormatMustBeLowercase { unit: unit.clone() });
-            },
-            _ => {},
+        let unit = unit.map(Into::into);
+        let metric_type = <M as TypedMetric>::TYPE;
+        if let Some(Unit::Other(unit)) = unit.as_ref() {
+            validate_unit(unit.as_ref()).map_err(|err| RegistryError::InvalidUnit {
+                name: name.clone(),
+                unit: unit.clone(),
+                reason: err.to_string(),
+            })?;
+
+            // Check if metric type requires empty unit
+            match metric_type {
+                MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
+                    return Err(RegistryError::InvalidUnit {
+                        name: name.clone(),
+                        unit: unit.clone(),
+                        reason: format!(
+                            "metric '{name}' (type: '{metric_type}') must have an empty unit string"
+                        ),
+                    });
+                },
+                _ => {},
+            }
         }
 
+        // Check the metric constant labels
+        for (name, _) in &self.const_labels {
+            if let Err(err) = validate_label_name(name.as_ref()) {
+                return Err(RegistryError::InvalidLabelName {
+                    name: name.clone(),
+                    reason: err.to_string(),
+                });
+            }
+        }
+        // Check the metric labels
         if let Some(names) = <M::LabelSet as LabelSetSchema>::names() {
-            // Check the label names
             for name in names.iter().copied() {
-                if !is_snake_case(name) {
-                    return Err(RegistryError::InvalidNameFormat { name: name.into() });
+                if let Err(err) = validate_label_name(name) {
+                    return Err(RegistryError::InvalidLabelName {
+                        name: name.into(),
+                        reason: err.to_string(),
+                    });
                 }
 
                 match metric_type {
                     MetricType::Histogram | MetricType::GaugeHistogram => {
                         if name == BUCKET_LABEL {
-                            return Err(RegistryError::ReservedLabelName {
+                            return Err(RegistryError::InvalidLabelName {
                                 name: name.into(),
-                                ty: metric_type,
+                                reason: format!(
+                                    "label name '{name}' is reserved for '{metric_type}' type"
+                                ),
                             });
                         }
                     },
                     MetricType::Summary => {
                         if name == QUANTILE_LABEL {
-                            return Err(RegistryError::ReservedLabelName {
+                            return Err(RegistryError::InvalidLabelName {
                                 name: name.into(),
-                                ty: metric_type,
+                                reason: format!(
+                                    "label name '{name}' is reserved for '{metric_type}' type"
+                                ),
                             });
                         }
                     },
@@ -321,7 +352,7 @@ impl Registry {
             }
         }
 
-        let metadata = Metadata::new(name.clone(), help, metric_type, unit);
+        let metadata = Metadata::new(name.clone(), help.clone(), metric_type, unit);
         match self.metrics.entry(metadata) {
             hash_map::Entry::Vacant(entry) => {
                 entry.insert(Box::new(metric));
@@ -339,8 +370,7 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The name of subsystem cannot be an empty string and must be in `snake_case` format,
-    /// otherwise it will throw a panic.
+    /// The subsystem name cannot be an empty string and must satisfy the OpenMetrics metric name rules.
     ///
     /// # Example
     ///
@@ -376,8 +406,7 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The name of subsystem cannot be an empty string and must be in `snake_case` format,
-    /// otherwise it will throw a panic.
+    /// The subsystem name cannot be an empty string and must satisfy the OpenMetrics metric name rules.
     ///
     /// # Example
     ///
@@ -407,7 +436,8 @@ impl Registry {
     ) -> RegistrySubsystemBuilder<'_> {
         let name = name.into();
         assert!(!name.is_empty(), "subsystem name cannot be an empty string");
-        assert!(is_snake_case(&name), "subsystem name must be in snake_case format");
+        validate_metric_name_component(&name)
+            .expect("subsystem name must satisfy the OpenMetrics metric name rules");
         RegistrySubsystemBuilder::new(self, name)
     }
 }
@@ -501,35 +531,6 @@ impl<'a> RegistrySubsystemBuilder<'a> {
     }
 }
 
-fn is_snake_case(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
-    }
-
-    match name.chars().next() {
-        // first char shouldn't be ascii digit or '_'
-        Some(first) if first.is_ascii_digit() || first == '_' => return false,
-        _ => {},
-    }
-
-    // name shouldn't contain "__" and the suffix of name shouldn't be '_'
-    if name.contains("__") || name.ends_with('_') {
-        return false;
-    }
-
-    // all chars of name should match 'a'..='z' | '0'..='9' | '_'
-    name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-}
-
-fn is_lowercase(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
-    }
-
-    // all chars of name should match 'a'..='z' | '0'..='9'
-    name.chars().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit())
-}
-
 #[cfg(test)]
 mod tests {
     use std::{fmt, time::Duration};
@@ -601,6 +602,16 @@ mod tests {
         assert!(labels.iter().any(|(k, v)| k == "type" && v == "redis"));
     }
 
+    #[test]
+    fn test_subsystem_accepts_numeric_segment() {
+        let mut registry = Registry::builder().with_namespace("myapp").build();
+
+        let subsystem = registry.subsystem("123cache");
+        assert_eq!(subsystem.namespace(), Some("myapp_123cache"));
+
+        subsystem.register("hits_total", "Total hits", DummyCounter).unwrap();
+    }
+
     pub(crate) struct DummyCounter;
 
     impl TypedMetric for DummyCounter {
@@ -634,28 +645,16 @@ mod tests {
     }
 
     #[test]
-    fn test_is_snake_case() {
-        let cases = vec!["name1", "name_1", "name_1_2"];
-        for case in cases {
-            assert!(is_snake_case(case));
-        }
+    fn test_custom_unit_accepts_metricname_chars() {
+        let mut registry = Registry::default();
 
-        let invalid_cases = vec!["_", "1name", "name__1", "name_", "name!"];
-        for invalid_case in invalid_cases {
-            assert!(!is_snake_case(invalid_case));
-        }
-    }
-
-    #[test]
-    fn test_is_lowercase() {
-        let cases = vec!["name1", "1name", "na1me"];
-        for case in cases {
-            assert!(is_lowercase(case));
-        }
-
-        let invalid_cases = vec!["_", "name_", "name!"];
-        for invalid_case in invalid_cases {
-            assert!(!is_lowercase(invalid_case));
-        }
+        registry
+            .register_metric(
+                "custom_unit_metricname_chars",
+                "help",
+                Some(Unit::Other("foo:bar_123".into())),
+                DummyCounter,
+            )
+            .unwrap();
     }
 }

@@ -1,41 +1,39 @@
 use std::{borrow::Cow, fmt};
 
-use crate::raw::MetricType;
-
 /// Represents errors that can occur when registering metrics.
 #[non_exhaustive]
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum RegistryError {
-    /// The registered metric already exists in the registry
+    /// Metric name is invalid.
+    InvalidMetricName { name: Cow<'static, str>, reason: String },
+    /// Help text is invalid.
+    InvalidHelpText { name: Cow<'static, str>, help: Cow<'static, str>, reason: String },
+    /// Unit is invalid.
+    InvalidUnit { name: Cow<'static, str>, unit: Cow<'static, str>, reason: String },
+    /// Label name is invalid.
+    InvalidLabelName { name: Cow<'static, str>, reason: String },
+    /// The registered metric already exists in the registry.
     AlreadyExists { name: Cow<'static, str> },
-    /// MetricFamilies of type StateSet and Info must have an empty Unit string
-    MustHaveAnEmptyUnitString { name: Cow<'static, str> },
-    /// Metric unit format must be lowercase
-    OtherUnitFormatMustBeLowercase { unit: Cow<'static, str> },
-    /// Name format is invalid
-    InvalidNameFormat { name: Cow<'static, str> },
-    /// Reserved label name
-    ReservedLabelName { name: Cow<'static, str>, ty: MetricType },
 }
 
 impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidMetricName { name, reason } => {
+                write!(f, "metric name '{name}' is invalid: {reason}")
+            },
+            Self::InvalidHelpText { name, help, reason } => {
+                write!(f, "help text '{help}' for metric '{name}' is invalid: {reason}")
+            },
+            Self::InvalidUnit { name, unit, reason } => {
+                write!(f, "unit '{unit}' for metric '{name}' is invalid: {reason}")
+            },
+            Self::InvalidLabelName { name, reason } => {
+                write!(f, "label name '{name}' is invalid: {reason}")
+            },
             Self::AlreadyExists { name } => {
-                write!(f, "The metric '{name}' to be registered already exists in the registry")
-            },
-            Self::MustHaveAnEmptyUnitString { name } => {
-                write!(f, "The type of metric '{name}' must have an empty unit string")
-            },
-            Self::OtherUnitFormatMustBeLowercase { unit } => {
-                write!(f, "The format of unit '{unit}' must be lowercase")
-            },
-            Self::InvalidNameFormat { name } => {
-                write!(f, "The name '{name}' should be snake_case")
-            },
-            Self::ReservedLabelName { name, ty } => {
-                write!(f, "The label name '{name}' is reserved for '{}' type", ty.as_str())
+                write!(f, "metric '{name}' to be registered already exists in the registry")
             },
         }
     }
