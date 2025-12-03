@@ -370,7 +370,8 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The subsystem name cannot be an empty string and must satisfy the OpenMetrics metric name rules.
+    /// The subsystem name cannot be an empty string and must satisfy the OpenMetrics metric name
+    /// rules.
     ///
     /// # Example
     ///
@@ -406,7 +407,8 @@ impl Registry {
     ///
     /// # Note
     ///
-    /// The subsystem name cannot be an empty string and must satisfy the OpenMetrics metric name rules.
+    /// The subsystem name cannot be an empty string and must satisfy the OpenMetrics metric name
+    /// rules.
     ///
     /// # Example
     ///

@@ -146,7 +146,7 @@ async fn main() -> Result<()> {
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 
-    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3004);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3000);
     println!("✅ Warp metrics exporter listening on {addr}");
     println!("   GET /metrics");
     println!("   GET /metrics/text");
