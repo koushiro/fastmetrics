@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 
-    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3002);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 3000);
     println!("✅ Poem metrics exporter listening on {addr}");
     println!("   GET /metrics");
     println!("   GET /metrics/text");

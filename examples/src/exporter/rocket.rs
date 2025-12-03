@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
     metrics.register(&mut registry)?;
 
     let ip_addr = Ipv4Addr::UNSPECIFIED.into();
-    let port = 3003;
+    let port = 3000;
     println!("✅ Rocket metrics exporter listening on {ip_addr}:{port}");
     println!("   GET /metrics");
     println!("   GET /metrics/text");
