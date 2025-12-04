@@ -28,7 +28,9 @@ mod unix {
         F1: Fn() -> f64 + Send + Sync + 'static,
         F2: Fn() -> i64 + Send + Sync + 'static,
     {
+        /// Total CPU time (user + system) consumed by the current process.
         cpu_seconds: LazyCounter<F1, f64>,
+        /// Resident Set Size (RSS) of the current process in bytes.
         #[register(unit(Bytes))]
         resident_memory: LazyGauge<F2, i64>,
     }
