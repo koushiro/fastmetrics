@@ -56,25 +56,25 @@ name = "derive_register_static_metrics"
 path = "src/derive/register_static_metrics.rs"
 
 [[example]]
-name = "actix-exporter"
+name = "actix_exporter"
 path = "src/exporter/actix.rs"
 
 [[example]]
-name = "axum-exporter"
+name = "axum_exporter"
 path = "src/exporter/axum.rs"
 
 [[example]]
-name = "hyper-exporter"
+name = "hyper_exporter"
 path = "src/exporter/hyper.rs"
 
 [[example]]
-name = "poem-exporter"
+name = "poem_exporter"
 path = "src/exporter/poem.rs"
 
 [[example]]
-name = "rocket-exporter"
+name = "rocket_exporter"
 path = "src/exporter/rocket.rs"
 
 [[example]]
-name = "warp-exporter"
+name = "warp_exporter"
 path = "src/exporter/warp.rs"

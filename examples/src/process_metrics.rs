@@ -16,32 +16,62 @@ mod unix {
     use std::{io, mem::MaybeUninit};
 
     use fastmetrics::{
+        derive::*,
         format::text,
         metrics::{counter::LazyCounter, gauge::LazyGauge},
-        registry::Registry,
+        registry::{Register, Registry},
     };
+
+    #[derive(Register)]
+    pub struct ProcessMetrics<F1, F2>
+    where
+        F1: Fn() -> f64 + Send + Sync + 'static,
+        F2: Fn() -> i64 + Send + Sync + 'static,
+    {
+        /// Total CPU time (user + system) consumed by the current process.
+        cpu_seconds: LazyCounter<F1, f64>,
+        /// Resident Set Size (RSS) of the current process in bytes.
+        #[register(unit(Bytes))]
+        resident_memory: LazyGauge<F2, i64>,
+    }
+
+    impl<F1, F2> ProcessMetrics<F1, F2>
+    where
+        F1: Fn() -> f64 + Send + Sync + 'static,
+        F2: Fn() -> i64 + Send + Sync + 'static,
+    {
+        pub fn new(cpu_seconds_fn: F1, resident_memory_fn: F2) -> Self {
+            Self {
+                cpu_seconds: LazyCounter::new(cpu_seconds_fn),
+                resident_memory: LazyGauge::new(resident_memory_fn),
+            }
+        }
+    }
 
     pub fn run() -> anyhow::Result<()> {
         let mut registry = Registry::builder().with_namespace("process").build();
 
-        let cpu_seconds = LazyCounter::new(read_cpu_seconds_total);
-        let resident_memory_bytes = LazyGauge::new(read_resident_memory_bytes);
+        let metrics = ProcessMetrics::new(read_cpu_seconds_total, read_resident_memory_bytes);
+        metrics.register(&mut registry)?;
 
-        registry.register(
-            "cpu_seconds",
-            "Total CPU time (user + system) consumed by the current process.",
-            cpu_seconds.clone(),
-        )?;
-        registry.register(
-            "resident_memory_bytes",
-            "Resident Set Size (RSS) of the current process in bytes.",
-            resident_memory_bytes.clone(),
-        )?;
+        // let cpu_seconds = LazyCounter::new(read_cpu_seconds_total);
+        // let resident_memory = LazyGauge::new(read_resident_memory_bytes);
+        // registry.register(
+        //     "cpu_seconds",
+        //     "Total CPU time (user + system) consumed by the current process.",
+        //     cpu_seconds.clone(),
+        // )?;
+        // registry.register_with_unit(
+        //     "resident_memory",
+        //     "Resident Set Size (RSS) of the current process in bytes.",
+        //     Unit::Bytes,
+        //     resident_memory.clone(),
+        // )?;
 
         // println!(
         //     "Debug snapshot → cpu={:.3}s rss={}B",
-        //     cpu_seconds_total.fetch(),
-        //     resident_memory_bytes.fetch()
+        //     cpu_seconds.fetch(),
+        //     resident_memory.fetch()
         // );
 
         let mut encoded = String::new();
