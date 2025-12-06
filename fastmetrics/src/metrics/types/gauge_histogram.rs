@@ -4,10 +4,7 @@
 
 use std::{
     fmt::{self, Debug},
-    sync::{
-        Arc,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, atomic::*},
 };
 
 pub use crate::raw::bucket::*;

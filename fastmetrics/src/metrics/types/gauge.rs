@@ -39,39 +39,53 @@ impl_gauge_value_for! {
     f64 => AtomicU64, "64";
 }
 
-/// Open Metrics [`Gauge`] metric, which is used to record current measurements,
-/// such as bytes of memory currently used or the number of items in a queue.
-///
-/// # Example
-///
-/// ```rust
-/// # use fastmetrics::metrics::gauge::Gauge;
-/// // Create a default gauge
-/// let gauge = <Gauge>::default();
-/// assert_eq!(gauge.get(), 0);
-///
-/// // Create a gauge with initial value
-/// let gauge = <Gauge>::new(42);
-/// assert_eq!(gauge.get(), 42);
-///
-/// // Increment and decrement
-/// gauge.inc();
-/// assert_eq!(gauge.get(), 43);
-/// gauge.dec();
-/// assert_eq!(gauge.get(), 42);
-///
-/// // Increment and decrement by custom values
-/// gauge.inc_by(10);
-/// assert_eq!(gauge.get(), 52);
-/// gauge.dec_by(5);
-/// assert_eq!(gauge.get(), 47);
-///
-/// // Set to specific value
-/// gauge.set(-10);
-/// assert_eq!(gauge.get(), -10);
-/// ```
-pub struct Gauge<N: GaugeValue = i64> {
-    value: Arc<N::Atomic>,
+macro_rules! define_gauge {
+    ($($generics:tt)*) => {
+        /// Open Metrics [`Gauge`] metric, which is used to record current measurements,
+        /// such as bytes of memory currently used or the number of items in a queue.
+        ///
+        /// # Example
+        ///
+        /// ```rust
+        /// # use fastmetrics::metrics::gauge::Gauge;
+        /// // Create a default gauge
+        /// let gauge = <Gauge>::default();
+        /// assert_eq!(gauge.get(), 0);
+        ///
+        /// // Create a gauge with initial value
+        /// let gauge = <Gauge>::new(42);
+        /// assert_eq!(gauge.get(), 42);
+        ///
+        /// // Increment and decrement
+        /// gauge.inc();
+        /// assert_eq!(gauge.get(), 43);
+        /// gauge.dec();
+        /// assert_eq!(gauge.get(), 42);
+        ///
+        /// // Increment and decrement by custom values
+        /// gauge.inc_by(10);
+        /// assert_eq!(gauge.get(), 52);
+        /// gauge.dec_by(5);
+        /// assert_eq!(gauge.get(), 47);
+        ///
+        /// // Set to specific value
+        /// gauge.set(-10);
+        /// assert_eq!(gauge.get(), -10);
+        /// ```
+        pub struct Gauge<$($generics)*> {
+            value: Arc<N::Atomic>,
+        }
+    };
+}
+
+cfg_if::cfg_if! {
+    if #[cfg(target_has_atomic = "64")] {
+        define_gauge!(N: GaugeValue = i64);
+    } else if #[cfg(target_has_atomic = "32")] {
+        define_gauge!(N: GaugeValue = i32);
+    } else {
+        define_gauge!(N: GaugeValue = isize);
+    }
 }
 
 impl<N: GaugeValue> Clone for Gauge<N> {

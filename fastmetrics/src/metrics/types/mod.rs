@@ -1,8 +1,11 @@
 pub mod counter;
 pub mod gauge;
+#[cfg(target_has_atomic = "64")]
 pub mod gauge_histogram;
+#[cfg(target_has_atomic = "64")]
 pub mod histogram;
 pub mod info;
+#[cfg(target_has_atomic = "8")]
 pub mod state_set;
 pub mod summary;
 pub mod unknown;
