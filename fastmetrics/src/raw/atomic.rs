@@ -30,7 +30,7 @@ pub trait Atomic<N: Number>: Default + Send + Sync {
 }
 
 macro_rules! impl_atomic_for_integer {
-    ($($ty:ident, $atomic:ident, $size:expr)*) => ($(
+    ($($ty:ident => $atomic:ident, $size:expr);* $(;)?) => ($(
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
             #[inline(always)]
@@ -57,16 +57,16 @@ macro_rules! impl_atomic_for_integer {
 }
 
 impl_atomic_for_integer! {
-    i32, AtomicI32, "32"
-    i64, AtomicI64, "64"
-    isize, AtomicIsize, "ptr"
-    u32, AtomicU32, "32"
-    u64, AtomicU64, "64"
-    usize, AtomicUsize, "ptr"
+    i32 => AtomicI32, "32";
+    i64 => AtomicI64, "64";
+    isize => AtomicIsize, "ptr";
+    u32 => AtomicU32, "32";
+    u64 => AtomicU64, "64";
+    usize => AtomicUsize, "ptr";
 }
 
 macro_rules! impl_atomic_for_float  {
-    ($($ty:ident, $atomic:ident, $size:expr)*) => ($(
+    ($($ty:ident => $atomic:ident, $size:expr);* $(;)?) => ($(
         #[cfg(target_has_atomic = $size)]
         impl Atomic<$ty> for $atomic {
             #[inline]
@@ -98,8 +98,8 @@ macro_rules! impl_atomic_for_float  {
 }
 
 impl_atomic_for_float! {
-    f32, AtomicU32, "32"
-    f64, AtomicU64, "64"
+    f32 => AtomicU32, "32";
+    f64 => AtomicU64, "64";
 }
 
 #[cfg(test)]

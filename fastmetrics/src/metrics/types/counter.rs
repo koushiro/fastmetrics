@@ -22,7 +22,8 @@ pub trait CounterValue<Rhs = Self>: Number + AddAssign<Rhs> {
 }
 
 macro_rules! impl_counter_value_for {
-    ($($num:ident => $atomic:ident),*) => ($(
+    ($($num:ident => $atomic:ident, $size:expr);* $(;)?) => ($(
+        #[cfg(target_has_atomic = $size)]
         impl CounterValue for $num {
             type Atomic = $atomic;
         }
@@ -30,11 +31,11 @@ macro_rules! impl_counter_value_for {
 }
 
 impl_counter_value_for! {
-    u32 => AtomicU32,
-    u64 => AtomicU64,
-    usize => AtomicUsize,
-    f32 => AtomicU32,
-    f64 => AtomicU64
+    u32 => AtomicU32, "32";
+    u64 => AtomicU64, "64";
+    usize => AtomicUsize, "ptr";
+    f32 => AtomicU32, "32";
+    f64 => AtomicU64, "64";
 }
 
 /// Open Metrics [`Counter`] metric, which is used to measure discrete events.
