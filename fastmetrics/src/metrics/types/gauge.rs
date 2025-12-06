@@ -21,7 +21,8 @@ pub trait GaugeValue<Rhs = Self>: Number + AddAssign<Rhs> + SubAssign<Rhs> {
 }
 
 macro_rules! impl_gauge_value_for {
-    ($($num:ident => $atomic:ident),*) => ($(
+    ($($num:ident => $atomic:ident, $size:expr);* $(;)?) => ($(
+        #[cfg(target_has_atomic = $size)]
         impl GaugeValue for $num {
             type Atomic = $atomic;
         }
@@ -29,13 +30,13 @@ macro_rules! impl_gauge_value_for {
 }
 
 impl_gauge_value_for! {
-    i32 => AtomicI32,
-    i64 => AtomicI64,
-    isize => AtomicIsize,
-    u32 => AtomicU32,
-    u64 => AtomicU64,
-    f32 => AtomicU32,
-    f64 => AtomicU64
+    i32 => AtomicI32, "32";
+    i64 => AtomicI64, "64";
+    isize => AtomicIsize, "ptr";
+    u32 => AtomicU32, "32";
+    u64 => AtomicU64, "64";
+    f32 => AtomicU32, "32";
+    f64 => AtomicU64, "64";
 }
 
 /// Open Metrics [`Gauge`] metric, which is used to record current measurements,

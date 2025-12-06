@@ -9,7 +9,7 @@ pub trait Number: Copy + PartialOrd + Debug + Send + Sync {
 }
 
 macro_rules! impl_number {
-    ($($num:ty => $zero:expr, $one:expr)*) => ($(
+    ($($num:ty => $zero:expr, $one:expr);* $(;)?) => ($(
         impl Number for $num {
             const ZERO: Self = $zero;
             const ONE: Self = $one;
@@ -18,12 +18,12 @@ macro_rules! impl_number {
 }
 
 impl_number! {
-    i32 => 0i32, 1i32
-    i64 => 0i64, 1i64
-    isize => 0isize, 1isize
-    u32 => 0u32, 1u32
-    u64 => 0u64, 1u64
-    usize => 0usize, 1usize
-    f32 => 0.0f32, 1.0f32
-    f64 => 0.0f64, 1.0f64
+    i32 => 0i32, 1i32;
+    i64 => 0i64, 1i64;
+    isize => 0isize, 1isize;
+    u32 => 0u32, 1u32;
+    u64 => 0u64, 1u64;
+    usize => 0usize, 1usize;
+    f32 => 0.0f32, 1.0f32;
+    f64 => 0.0f64, 1.0f64;
 }
