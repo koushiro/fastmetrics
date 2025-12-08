@@ -73,6 +73,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("fastmetrics(protobuf/openmetrics): {metric_id}");
+            group.sample_size(100);
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = Vec::new();

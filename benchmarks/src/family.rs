@@ -426,6 +426,6 @@ fn bench_family_concurrent_metric_creation(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default()/*.with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))*/;
-    targets = bench_family_without_labels,bench_family_with_custom_labels,  bench_family_with_string_labels, bench_family_concurrent_metric_creation
+    targets = bench_family_without_labels, bench_family_with_custom_labels, bench_family_with_string_labels, bench_family_concurrent_metric_creation
 );
 criterion_main!(benches);
