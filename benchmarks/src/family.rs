@@ -125,8 +125,8 @@ fn bench_family_without_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family without labels");
     group.bench_function("metrics", |b| {
         with_metrics_recorder(|| {
-            let counter = metrics::counter!("family_without_labels_counter");
-            let histogram = metrics::histogram!("family_without_labels_histogram");
+            let counter = metrics::counter!("without_labels");
+            let histogram = metrics::histogram!("without_labels");
 
             b.iter_batched(
                 || {
@@ -194,6 +194,10 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family with custom labels");
     group.bench_function("metrics", |b| {
         with_metrics_recorder(|| {
+            // The metric handles should be created outside the batched iteration to only measure
+            // the label lookup and operation overhead, matching the pattern used by other libraries.
+            // But the metrics-rs API doesn't provide this pattern due to its design.
+
             b.iter_batched(
                 setup_input,
                 |input| {

@@ -58,14 +58,14 @@ pub fn setup_prometheus_registry(metric_count: u32, observe_time: u32) -> promet
 
     for i in 0..metric_count {
         let counter_vec = register_int_counter_vec_with_registry!(
-            format!("my_counter_{}", i),
+            format!("my_counter_{i}"),
             "My counter",
             label_names,
             registry
         )
         .unwrap();
         let histogram_vec = register_histogram_vec_with_registry!(
-            format!("my_histogram_{}", i),
+            format!("my_histogram_{i}"),
             "My histogram",
             label_names,
             buckets.clone(),
