@@ -1,12 +1,12 @@
-mod common;
-
 use std::hint::black_box;
 
+// use pprof::criterion::{Output, PProfProfiler};
 use criterion::{Criterion, criterion_group, criterion_main};
 
-// use pprof::criterion::{Output, PProfProfiler};
-use crate::common::{
-    setup_fastmetrics_registry, setup_prometheus_client_registry, setup_prometheus_registry,
+mod common;
+use self::common::{
+    setup_fastmetrics_registry, setup_metrics_exporter_prometheus_handle,
+    setup_prometheus_client_registry, setup_prometheus_registry,
 };
 
 fn bench_protobuf_encoding(c: &mut Criterion) {
@@ -19,13 +19,23 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
 
             let metric_id = format!("{count} metrics * {times} observe times");
 
+            let id = format!("metrics_exporter_prometheus(prost/prometheus): {metric_id}");
+            group.sample_size(20);
+            group.bench_function(id, |b| {
+                let handle = setup_metrics_exporter_prometheus_handle(count, times);
+                b.iter(|| {
+                    let payload = handle.render_protobuf();
+                    black_box(payload);
+                });
+            });
+
             let id = format!("prometheus(protobuf/prometheus): {metric_id}");
+            group.sample_size(100);
             group.bench_function(id, |b| {
                 let registry = setup_prometheus_registry(count, times);
-
                 let mut buffer = Vec::new();
-
                 b.iter(|| {
+                    buffer.clear();
                     let metric_families = registry.gather();
                     prometheus::Encoder::encode(
                         &prometheus::ProtobufEncoder::new(),
@@ -38,12 +48,12 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("prometheus_client(prost/openmetrics): {metric_id}");
+            group.sample_size(100);
             group.bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
-
                 let mut buffer = Vec::new();
-
                 b.iter(|| {
+                    buffer.clear();
                     let set = prometheus_client::encoding::protobuf::encode(&registry).unwrap();
                     prost_0_12::Message::encode(&set, &mut buffer).unwrap();
                     black_box(&mut buffer);
@@ -51,12 +61,12 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("fastmetrics(prost/openmetrics): {metric_id}");
+            group.sample_size(100);
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
-
                 let mut buffer = Vec::new();
-
                 b.iter(|| {
+                    buffer.clear();
                     fastmetrics::format::prost::encode(&mut buffer, &registry).unwrap();
                     black_box(&mut buffer);
                 });
@@ -65,10 +75,9 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             let id = format!("fastmetrics(protobuf/openmetrics): {metric_id}");
             group.bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
-
                 let mut buffer = Vec::new();
-
                 b.iter(|| {
+                    buffer.clear();
                     fastmetrics::format::protobuf::encode(&mut buffer, &registry).unwrap();
                     black_box(&mut buffer);
                 });
