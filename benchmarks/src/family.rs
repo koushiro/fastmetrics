@@ -7,6 +7,9 @@ use rand::{
     distr::{Distribution, StandardUniform},
 };
 
+mod common;
+use self::common::with_metrics_recorder;
+
 mod prometheus_setup {
     use prometheus::{HistogramVec, IntCounterVec, exponential_buckets, histogram_opts, opts};
 
@@ -120,6 +123,24 @@ fn setup_input() -> Input {
 
 fn bench_family_without_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family without labels");
+    group.bench_function("metrics", |b| {
+        with_metrics_recorder(|| {
+            let counter = metrics::counter!("without_labels");
+            let histogram = metrics::histogram!("without_labels");
+
+            b.iter_batched(
+                || {
+                    let mut rng = rand::rng();
+                    rng.random_range(0f64..100f64)
+                },
+                |input| {
+                    counter.increment(1);
+                    histogram.record(black_box(input));
+                },
+                BatchSize::SmallInput,
+            );
+        });
+    });
     group.bench_function("prometheus", |b| {
         let empty_labels: &[&str] = &[];
         let families = prometheus_setup::set_families(empty_labels);
@@ -162,6 +183,71 @@ fn bench_family_without_labels(c: &mut Criterion) {
             |input| {
                 families.counter.with_or_new(black_box(&()), |counter| counter.inc());
                 families.histogram.with_or_new(black_box(&()), |hist| hist.observe(input));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+}
+
+fn bench_family_with_custom_labels(c: &mut Criterion) {
+    let mut group = c.benchmark_group("family with custom labels");
+    group.bench_function("metrics", |b| {
+        with_metrics_recorder(|| {
+            // The metric handles should be created outside the batched iteration to only measure
+            // the label lookup and operation overhead, matching the pattern used by other libraries.
+            // But the metrics-rs API doesn't provide this pattern due to its design.
+
+            b.iter_batched(
+                setup_input,
+                |input| {
+                    let method = black_box(input.labels.method());
+                    metrics::counter!("family_custom_labels_counter", "method" => method)
+                        .increment(1);
+                    metrics::histogram!("family_custom_labels_histogram", "method" => method)
+                        .record(input.value);
+                },
+                BatchSize::SmallInput,
+            );
+        });
+    });
+    group.bench_function("prometheus", |b| {
+        let families = prometheus_setup::set_families(&["method"]);
+
+        b.iter_batched(
+            || {
+                let input = setup_input();
+                ([input.labels.method()], input.value)
+            },
+            |(labels, value)| {
+                families.counter.with_label_values(black_box(&labels)).inc();
+                families.histogram.with_label_values(black_box(&labels)).observe(value);
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("prometheus_client", |b| {
+        let families = prometheus_client_setup::setup_families::<Labels>();
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                families.counter.get_or_create(black_box(&input.labels)).inc();
+                families.histogram.get_or_create(black_box(&input.labels)).observe(input.value);
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics", |b| {
+        let families = fastmetrics_setup::setup_families::<Labels>();
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                families.counter.with_or_new(black_box(&input.labels), |counter| counter.inc());
+                families
+                    .histogram
+                    .with_or_new(black_box(&input.labels), |hist| hist.observe(input.value));
             },
             BatchSize::SmallInput,
         );
@@ -273,52 +359,6 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_family_with_custom_labels(c: &mut Criterion) {
-    let mut group = c.benchmark_group("family with custom labels");
-    group.bench_function("prometheus", |b| {
-        let families = prometheus_setup::set_families(&["method"]);
-
-        b.iter_batched(
-            || {
-                let input = setup_input();
-                ([input.labels.method()], input.value)
-            },
-            |(labels, value)| {
-                families.counter.with_label_values(black_box(&labels)).inc();
-                families.histogram.with_label_values(black_box(&labels)).observe(value);
-            },
-            BatchSize::SmallInput,
-        );
-    });
-    group.bench_function("prometheus_client", |b| {
-        let families = prometheus_client_setup::setup_families::<Labels>();
-
-        b.iter_batched(
-            setup_input,
-            |input| {
-                families.counter.get_or_create(black_box(&input.labels)).inc();
-                families.histogram.get_or_create(black_box(&input.labels)).observe(input.value);
-            },
-            BatchSize::SmallInput,
-        );
-    });
-    group.bench_function("fastmetrics", |b| {
-        let families = fastmetrics_setup::setup_families::<Labels>();
-
-        b.iter_batched(
-            setup_input,
-            |input| {
-                families.counter.with_or_new(black_box(&input.labels), |counter| counter.inc());
-                families
-                    .histogram
-                    .with_or_new(black_box(&input.labels), |hist| hist.observe(input.value));
-            },
-            BatchSize::SmallInput,
-        );
-    });
-    group.finish();
-}
-
 fn bench_family_concurrent_metric_creation(c: &mut Criterion) {
     #[derive(Clone, PartialEq, Eq, Hash)]
     #[derive(prometheus_client::encoding::EncodeLabelSet)]
@@ -390,6 +430,6 @@ fn bench_family_concurrent_metric_creation(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default()/*.with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))*/;
-    targets = bench_family_without_labels, bench_family_with_string_labels, bench_family_with_custom_labels, bench_family_concurrent_metric_creation
+    targets = bench_family_without_labels, bench_family_with_custom_labels, bench_family_with_string_labels, bench_family_concurrent_metric_creation
 );
 criterion_main!(benches);

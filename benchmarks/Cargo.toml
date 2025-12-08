@@ -9,6 +9,11 @@ publish = false
 [dev-dependencies]
 criterion = "0.8"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "prost", "protobuf"] }
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.18", default-features = false, features = [
+    "protobuf",
+] }
+metrics-util = { version = "0.20", default-features = false, features = ["registry"] }
 pprof = { version = "0.15.0", default-features = false, features = [
     "criterion",
     "flamegraph",

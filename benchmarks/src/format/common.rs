@@ -3,6 +3,89 @@ use rand::{
     distr::{Distribution, StandardUniform},
 };
 
+pub fn setup_metrics_exporter_prometheus_handle(
+    metric_count: u32,
+    observe_time: u32,
+) -> metrics_exporter_prometheus::PrometheusHandle {
+    let recorder = metrics_exporter_prometheus::PrometheusBuilder::new().build_recorder();
+    let handle = recorder.handle();
+
+    metrics::with_local_recorder(&recorder, || {
+        let mut rng = rand::rng();
+
+        for i in 0..metric_count {
+            let counter_name = format!("my_counter_{i}");
+            let histogram_name = format!("my_histogram_{i}");
+
+            for _ in 0..observe_time {
+                let labels = rng.random::<Labels>();
+                let method = labels.method();
+                let status = labels.status();
+
+                metrics::counter!(
+                    counter_name.clone(),
+                    "method" => method,
+                    "status" => status
+                )
+                .increment(1);
+
+                let observed_value = rng.random_range(0f64..100f64);
+                metrics::histogram!(
+                    histogram_name.clone(),
+                    "method" => method,
+                    "status" => status
+                )
+                .record(observed_value);
+            }
+        }
+    });
+
+    handle.run_upkeep();
+    handle
+}
+
+pub fn setup_prometheus_registry(metric_count: u32, observe_time: u32) -> prometheus::Registry {
+    use prometheus::{
+        exponential_buckets, register_histogram_vec_with_registry,
+        register_int_counter_vec_with_registry,
+    };
+
+    let mut rng = rand::rng();
+
+    let registry = prometheus::Registry::default();
+    let label_names = &["method", "status"];
+    let buckets = exponential_buckets(0.005, 2.0, 10).unwrap();
+
+    for i in 0..metric_count {
+        let counter_vec = register_int_counter_vec_with_registry!(
+            format!("my_counter_{i}"),
+            "My counter",
+            label_names,
+            registry
+        )
+        .unwrap();
+        let histogram_vec = register_histogram_vec_with_registry!(
+            format!("my_histogram_{i}"),
+            "My histogram",
+            label_names,
+            buckets.clone(),
+            registry
+        )
+        .unwrap();
+
+        for _ in 0..observe_time {
+            let labels = rng.random::<Labels>();
+            let label_values = [labels.method(), labels.status()];
+
+            counter_vec.with_label_values(&label_values).inc();
+            let observed_value = rng.random_range(0f64..100f64);
+            histogram_vec.with_label_values(&label_values).observe(observed_value);
+        }
+    }
+
+    registry
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[derive(prometheus_client::encoding::EncodeLabelSet)]
 #[derive(fastmetrics::derive::EncodeLabelSet, fastmetrics::derive::LabelSetSchema)]
@@ -52,48 +135,6 @@ impl Distribution<Labels> for StandardUniform {
         let status = rng.random_range(1..=10);
         Labels { method, status }
     }
-}
-
-pub fn setup_prometheus_registry(metric_count: u32, observe_time: u32) -> prometheus::Registry {
-    use prometheus::{
-        exponential_buckets, register_histogram_vec_with_registry,
-        register_int_counter_vec_with_registry,
-    };
-
-    let mut rng = rand::rng();
-
-    let registry = prometheus::Registry::default();
-    let label_names = &["method", "status"];
-    let buckets = exponential_buckets(0.005, 2.0, 10).unwrap();
-
-    for i in 0..metric_count {
-        let counter_vec = register_int_counter_vec_with_registry!(
-            format!("my_counter_{}", i),
-            "My counter",
-            label_names,
-            registry
-        )
-        .unwrap();
-        let histogram_vec = register_histogram_vec_with_registry!(
-            format!("my_histogram_{}", i),
-            "My histogram",
-            label_names,
-            buckets.clone(),
-            registry
-        )
-        .unwrap();
-
-        for _ in 0..observe_time {
-            let labels = rng.random::<Labels>();
-            let label_values = [labels.method(), labels.status()];
-
-            counter_vec.with_label_values(&label_values).inc();
-            let observed_value = rng.random_range(0f64..100f64);
-            histogram_vec.with_label_values(&label_values).observe(observed_value);
-        }
-    }
-
-    registry
 }
 
 pub fn setup_prometheus_client_registry(
