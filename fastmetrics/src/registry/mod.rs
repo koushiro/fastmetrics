@@ -13,7 +13,10 @@ mod validate;
 
 use std::{
     borrow::Cow,
-    collections::hash_map::{self, HashMap},
+    collections::{
+        HashSet,
+        hash_map::{self, HashMap},
+    },
 };
 
 use self::validate::*;
@@ -282,7 +285,7 @@ impl Registry {
             reason: err.to_string(),
         })?;
 
-        // Check the unit format
+        // Check the metric unit format
         let unit = unit.map(Into::into);
         let metric_type = <M as TypedMetric>::TYPE;
         if let Some(Unit::Other(unit)) = unit.as_ref() {
@@ -307,16 +310,39 @@ impl Registry {
             }
         }
 
-        // Check the metric constant labels
-        for (name, _) in &self.const_labels {
+        let reserved_label_reason = |name: &str| -> Option<String> {
+            match metric_type {
+                MetricType::Histogram | MetricType::GaugeHistogram if name == BUCKET_LABEL => {
+                    Some(format!("label name '{name}' is reserved for '{metric_type}' type"))
+                },
+                MetricType::Summary if name == QUANTILE_LABEL => {
+                    Some(format!("label name '{name}' is reserved for '{metric_type}' type"))
+                },
+                _ => None,
+            }
+        };
+
+        // Check the constant metric labels
+        let mut const_label_names = HashSet::new();
+        for (name, _) in self.const_labels.iter().cloned() {
             if let Err(err) = validate_label_name(name.as_ref()) {
+                return Err(RegistryError::InvalidLabelName { name, reason: err.to_string() });
+            }
+
+            if let Some(reason) = reserved_label_reason(name.as_ref()) {
+                return Err(RegistryError::InvalidLabelName { name, reason });
+            }
+
+            if !const_label_names.insert(name.clone()) {
                 return Err(RegistryError::InvalidLabelName {
                     name: name.clone(),
-                    reason: err.to_string(),
+                    reason: format!("duplicate label name '{name}' in constant labels"),
                 });
             }
         }
-        // Check the metric labels
+
+        // Check the variable metric labels
+        let mut variable_label_names = HashSet::new();
         if let Some(names) = <M::LabelSet as LabelSetSchema>::names() {
             for name in names.iter().copied() {
                 if let Err(err) = validate_label_name(name) {
@@ -326,28 +352,22 @@ impl Registry {
                     });
                 }
 
-                match metric_type {
-                    MetricType::Histogram | MetricType::GaugeHistogram => {
-                        if name == BUCKET_LABEL {
-                            return Err(RegistryError::InvalidLabelName {
-                                name: name.into(),
-                                reason: format!(
-                                    "label name '{name}' is reserved for '{metric_type}' type"
-                                ),
-                            });
-                        }
-                    },
-                    MetricType::Summary => {
-                        if name == QUANTILE_LABEL {
-                            return Err(RegistryError::InvalidLabelName {
-                                name: name.into(),
-                                reason: format!(
-                                    "label name '{name}' is reserved for '{metric_type}' type"
-                                ),
-                            });
-                        }
-                    },
-                    _ => {},
+                if let Some(reason) = reserved_label_reason(name) {
+                    return Err(RegistryError::InvalidLabelName { name: name.into(), reason });
+                }
+
+                if const_label_names.contains(name) {
+                    return Err(RegistryError::InvalidLabelName {
+                        name: name.into(),
+                        reason: format!("label name '{name}' conflicts with a constant label"),
+                    });
+                }
+
+                if !variable_label_names.insert(name) {
+                    return Err(RegistryError::InvalidLabelName {
+                        name: name.into(),
+                        reason: format!("duplicate label name '{name}' in variable labels"),
+                    });
                 }
             }
         }
