@@ -14,12 +14,18 @@ pub enum MetricNameViolation {
 impl fmt::Display for MetricNameViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Empty => f.write_str("metric names must not be empty"),
+            Self::Empty => f.write_str("metric name must not be empty"),
             Self::InvalidFirstChar(ch) => {
-                write!(f, "the first character '{ch}' is invalid; expected [A-Za-z_:]")
+                write!(
+                    f,
+                    "the first character '{ch}' is invalid for metric name; expected [A-Za-z_:]"
+                )
             },
             Self::InvalidSubsequentChar(ch) => {
-                write!(f, "the subsequent character '{ch}' is invalid; expected [A-Za-z0-9_:]")
+                write!(
+                    f,
+                    "the subsequent character '{ch}' is invalid for metric name; expected [A-Za-z0-9_:]"
+                )
             },
         }
     }
@@ -39,12 +45,18 @@ pub enum LabelNameViolation {
 impl fmt::Display for LabelNameViolation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Empty => f.write_str("label names must not be empty"),
+            Self::Empty => f.write_str("label name must not be empty"),
             Self::InvalidFirstChar(ch) => {
-                write!(f, "the first character '{ch}' is invalid; expected [A-Za-z_]")
+                write!(
+                    f,
+                    "the first character '{ch}' is invalid for label name; expected [A-Za-z_]"
+                )
             },
             Self::InvalidSubsequentChar(ch) => {
-                write!(f, "the subsequent character '{ch}' is invalid; expected [A-Za-z0-9_]")
+                write!(
+                    f,
+                    "the subsequent character '{ch}' is invalid for label name; expected [A-Za-z0-9_]"
+                )
             },
         }
     }
