@@ -1,9 +1,8 @@
 //! [Open Metrics Info](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#info) metric type.
 
-use std::fmt;
-
 use crate::{
     encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
+    error::Result,
     raw::{MetricLabelSet, MetricType, TypedMetric},
 };
 
@@ -38,7 +37,7 @@ impl<LS> EncodeMetric for Info<LS>
 where
     LS: EncodeLabelSet + Send + Sync,
 {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         encoder.encode_info(self.get())
     }
 }

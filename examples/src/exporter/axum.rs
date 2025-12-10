@@ -1,6 +1,5 @@
 use std::{
     future::Future,
-    io,
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::Arc,
@@ -129,10 +128,8 @@ struct AppState {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 enum AppError {
-    #[error("prometheus encode error: {0}")]
-    WriteFmt(#[from] std::fmt::Error),
-    #[error("protobuf encode error: {0}")]
-    ProtobufEncode(#[from] io::Error),
+    #[error("metrics encode error: {0}")]
+    Encode(#[from] fastmetrics::error::Error),
     #[error("{0}")]
     Http(#[from] axum::http::Error),
 }

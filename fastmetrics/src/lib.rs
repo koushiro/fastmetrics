@@ -26,6 +26,7 @@
 //! ```rust
 //! use fastmetrics::{
 //!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
+//!     error::Result,
 //!     format::text,
 //!     metrics::{counter::Counter, family::Family},
 //!     raw::LabelSetSchema,
@@ -47,7 +48,7 @@
 //! }
 //!
 //! impl EncodeLabelSet for Labels {
-//!     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+//!     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
 //!         encoder.encode(&("method", &self.method))?;
 //!         encoder.encode(&("status", &self.status))?;
 //!         Ok(())
@@ -62,7 +63,7 @@
 //!
 //! // Can use `#[derive(EncodeLabelValue)]` to simplify the code, but need to enable `derive` feature
 //! impl EncodeLabelValue for Method {
-//!     fn encode(&self, encoder: &mut dyn LabelEncoder) -> std::fmt::Result {
+//!     fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
 //!         match self {
 //!             Self::Get => encoder.encode_str_value("Get"),
 //!             Self::Put => encoder.encode_str_value("Put"),
@@ -115,6 +116,7 @@
 pub use fastmetrics_derive as derive;
 
 pub mod encoder;
+pub mod error;
 pub mod format;
 pub mod metrics;
 pub mod raw;

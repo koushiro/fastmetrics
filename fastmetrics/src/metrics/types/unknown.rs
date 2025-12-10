@@ -1,9 +1,8 @@
 //! [Open Metrics Unknown](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#unknown) metric type.
 
-use std::fmt;
-
 use crate::{
     encoder::{EncodeMetric, EncodeUnknownValue, MetricEncoder},
+    error::Result,
     raw::{MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -49,7 +48,7 @@ impl<T: UnknownValue> MetricLabelSet for Unknown<T> {
 }
 
 impl<T: EncodeUnknownValue + UnknownValue> EncodeMetric for Unknown<T> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         encoder.encode_unknown(self.get())
     }
 }

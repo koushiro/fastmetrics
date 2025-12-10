@@ -10,6 +10,7 @@ use std::{
 
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
+    error::Result,
     raw::{MetricLabelSet, MetricType, TypedMetric},
 };
 
@@ -128,7 +129,7 @@ impl<T: StateSetValue> MetricLabelSet for StateSet<T> {
 }
 
 impl<T: StateSetValue> EncodeMetric for StateSet<T> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let states = self.states();
         encoder.encode_stateset(states)
     }
@@ -209,7 +210,7 @@ impl<T: StateSetValue> MetricLabelSet for ConstStateSet<T> {
 }
 
 impl<T: StateSetValue> EncodeMetric for ConstStateSet<T> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let states = self.states();
         encoder.encode_stateset(states)
     }

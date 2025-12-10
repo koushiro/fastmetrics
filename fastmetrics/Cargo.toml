@@ -27,6 +27,7 @@ prost-build = { version = "0.14", optional = true }
 protobuf-codegen = { version = "3.7", optional = true }
 
 [dependencies]
+anyhow = "1.0"
 cfg-if = "1.0"
 dtoa = "1.0"
 itoa = "1.0"

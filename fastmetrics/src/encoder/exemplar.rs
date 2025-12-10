@@ -1,6 +1,6 @@
-use std::{fmt, time::Duration};
+use std::time::Duration;
 
-use crate::encoder::EncodeLabelSet;
+use crate::{encoder::EncodeLabelSet, error::Result};
 
 /// Trait for encoding an exemplar.
 pub trait ExemplarEncoder {
@@ -16,17 +16,17 @@ pub trait ExemplarEncoder {
         label_set: &dyn EncodeLabelSet,
         value: f64,
         timestamp: Option<Duration>,
-    ) -> fmt::Result;
+    ) -> Result<()>;
 }
 
 /// Trait for types that can be encoded as an exemplar.
 pub trait EncodeExemplar {
     /// Encodes this exemplar using the provided [`ExemplarEncoder`].
-    fn encode(&self, encoder: &mut dyn ExemplarEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn ExemplarEncoder) -> Result<()>;
 }
 
 impl EncodeExemplar for () {
-    fn encode(&self, _encoder: &mut dyn ExemplarEncoder) -> fmt::Result {
+    fn encode(&self, _encoder: &mut dyn ExemplarEncoder) -> Result<()> {
         Ok(())
     }
 }

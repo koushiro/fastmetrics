@@ -1,15 +1,16 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, LinkedList, VecDeque},
-    fmt,
     rc::Rc,
     sync::Arc,
 };
 
+use crate::error::Result;
+
 /// Trait for encoding a set of labels.
 pub trait LabelSetEncoder {
     /// Encodes a single label.
-    fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result;
+    fn encode(&mut self, label: &dyn EncodeLabel) -> Result<()>;
 }
 
 /// Trait for types that can be encoded as a set of labels.
@@ -30,7 +31,7 @@ pub trait EncodeLabelSet {
     ///
     /// This method should encode all labels in the set using the provided encoder,
     /// typically by getting individual label encoder for each label in the set.
-    fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()>;
 
     /// Returns whether the label set is empty.
     ///
@@ -41,7 +42,7 @@ pub trait EncodeLabelSet {
 }
 
 impl EncodeLabelSet for () {
-    fn encode(&self, _encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+    fn encode(&self, _encoder: &mut dyn LabelSetEncoder) -> Result<()> {
         Ok(())
     }
 
@@ -54,7 +55,7 @@ macro_rules! impl_encode_label_set_for_container {
     (<$($desc:tt)+) => (
         impl <$($desc)+ {
             #[inline]
-            fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+            fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
                 for label in self.iter() {
                     encoder.encode(label)?;
                 }
@@ -77,7 +78,7 @@ impl_encode_label_set_for_container! { <T: EncodeLabel> EncodeLabelSet for Linke
 impl_encode_label_set_for_container! { <T: EncodeLabel> EncodeLabelSet for BTreeSet<T> }
 
 impl<K: EncodeLabelName, V: EncodeLabelValue> EncodeLabelSet for BTreeMap<K, V> {
-    fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
         for label in self.iter() {
             encoder.encode(&label)?;
         }
@@ -93,7 +94,7 @@ macro_rules! impl_enable_label_set_for_deref {
     (<$($desc:tt)+) => (
         impl <$($desc)+ {
             #[inline]
-            fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+            fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
                 (**self).encode(encoder)
             }
 
@@ -117,40 +118,40 @@ impl_enable_label_set_for_deref! { <T> EncodeLabelSet for Arc<T> where T: ?Sized
 /// Trait for encoding an individual label.
 pub trait LabelEncoder {
     /// Encodes a label name.
-    fn encode_label_name(&mut self, name: &str) -> fmt::Result;
+    fn encode_label_name(&mut self, name: &str) -> Result<()>;
 
     /// Encodes a string as a label value.
-    fn encode_str_value(&mut self, value: &str) -> fmt::Result;
+    fn encode_str_value(&mut self, value: &str) -> Result<()>;
     /// Encodes a boolean as a label value.
-    fn encode_bool_value(&mut self, value: bool) -> fmt::Result;
+    fn encode_bool_value(&mut self, value: bool) -> Result<()>;
     /// Encodes an 8-bit signed integer as a label value.
-    fn encode_i8_value(&mut self, value: i8) -> fmt::Result;
+    fn encode_i8_value(&mut self, value: i8) -> Result<()>;
     /// Encodes a 16-bit signed integer as a label value.
-    fn encode_i16_value(&mut self, value: i16) -> fmt::Result;
+    fn encode_i16_value(&mut self, value: i16) -> Result<()>;
     /// Encodes a 32-bit signed integer as a label value.
-    fn encode_i32_value(&mut self, value: i32) -> fmt::Result;
+    fn encode_i32_value(&mut self, value: i32) -> Result<()>;
     /// Encodes a 64-bit signed integer as a label value.
-    fn encode_i64_value(&mut self, value: i64) -> fmt::Result;
+    fn encode_i64_value(&mut self, value: i64) -> Result<()>;
     /// Encodes a 128-bit signed integer as a label value.
-    fn encode_i128_value(&mut self, value: i128) -> fmt::Result;
+    fn encode_i128_value(&mut self, value: i128) -> Result<()>;
     /// Encodes a platform-specific signed integer as a label value.
-    fn encode_isize_value(&mut self, value: isize) -> fmt::Result;
+    fn encode_isize_value(&mut self, value: isize) -> Result<()>;
     /// Encodes an 8-bit unsigned integer as a label value.
-    fn encode_u8_value(&mut self, value: u8) -> fmt::Result;
+    fn encode_u8_value(&mut self, value: u8) -> Result<()>;
     /// Encodes a 16-bit unsigned integer as a label value.
-    fn encode_u16_value(&mut self, value: u16) -> fmt::Result;
+    fn encode_u16_value(&mut self, value: u16) -> Result<()>;
     /// Encodes a 32-bit unsigned integer as a label value.
-    fn encode_u32_value(&mut self, value: u32) -> fmt::Result;
+    fn encode_u32_value(&mut self, value: u32) -> Result<()>;
     /// Encodes a 64-bit unsigned integer as a label value.
-    fn encode_u64_value(&mut self, value: u64) -> fmt::Result;
+    fn encode_u64_value(&mut self, value: u64) -> Result<()>;
     /// Encodes a 128-bit unsigned integer as a label value.
-    fn encode_u128_value(&mut self, value: u128) -> fmt::Result;
+    fn encode_u128_value(&mut self, value: u128) -> Result<()>;
     /// Encodes a platform-specific unsigned integer as a label value.
-    fn encode_usize_value(&mut self, value: usize) -> fmt::Result;
+    fn encode_usize_value(&mut self, value: usize) -> Result<()>;
     /// Encodes a 32-bit floating point as a label value.
-    fn encode_f32_value(&mut self, value: f32) -> fmt::Result;
+    fn encode_f32_value(&mut self, value: f32) -> Result<()>;
     /// Encodes a 64-bit floating point as a label value.
-    fn encode_f64_value(&mut self, value: f64) -> fmt::Result;
+    fn encode_f64_value(&mut self, value: f64) -> Result<()>;
 }
 
 /// Trait for types that represent complete labels (name-value pairs).
@@ -168,7 +169,7 @@ pub trait EncodeLabel {
     /// Encodes this label using the provided [`LabelEncoder`].
     ///
     /// This should encode both the name and value components of the label.
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()>;
 }
 
 impl<N, V> EncodeLabel for (N, V)
@@ -176,7 +177,7 @@ where
     N: EncodeLabelName,
     V: EncodeLabelValue,
 {
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
         let (name, value) = self;
         // Skip encoding this label if the value indicates it should not be encoded.
         if value.skip_encoding() {
@@ -201,17 +202,17 @@ where
 /// ```
 pub trait EncodeLabelName {
     /// Encodes this type as a label name using the provided [`LabelEncoder`].
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()>;
 }
 
 impl EncodeLabelName for str {
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
         encoder.encode_label_name(self)
     }
 }
 
 impl EncodeLabelName for String {
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
         encoder.encode_label_name(self)
     }
 }
@@ -220,7 +221,7 @@ macro_rules! impl_encode_label_name_for_deref {
     (<$($desc:tt)+) => (
         impl <$($desc)+ {
             #[inline]
-            fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+            fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
                 (**self).encode(encoder)
             }
         }
@@ -248,7 +249,7 @@ impl_encode_label_name_for_deref! { <T> EncodeLabelName for Arc<T> where T: ?Siz
 /// ```
 pub trait EncodeLabelValue {
     /// Encodes this type as a label value using the provided [`LabelEncoder`].
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()>;
 
     /// Returns whether this label value should be skipped during encoding.
     ///
@@ -262,14 +263,14 @@ pub trait EncodeLabelValue {
 
 impl EncodeLabelValue for str {
     #[inline]
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
         encoder.encode_str_value(self)
     }
 }
 
 impl EncodeLabelValue for String {
     #[inline]
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
         encoder.encode_str_value(self)
     }
 }
@@ -279,7 +280,7 @@ macro_rules! impl_encode_label_value_for {
         paste::paste! { $(
             impl EncodeLabelValue for $ty {
                 #[inline]
-                fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+                fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
                     encoder.[<encode_ $ty _value>](*self)
                 }
             }
@@ -299,7 +300,7 @@ where
     T: EncodeLabelValue,
 {
     #[inline]
-    fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
         match self {
             Some(value) => value.encode(encoder),
             None => Ok(()),
@@ -316,7 +317,7 @@ macro_rules! impl_encode_label_value_for_deref {
     (<$($desc:tt)+) => (
         impl <$($desc)+ {
             #[inline]
-            fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+            fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
                 (**self).encode(encoder)
             }
 

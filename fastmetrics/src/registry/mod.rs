@@ -555,10 +555,10 @@ impl<'a> RegistrySubsystemBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{fmt, time::Duration};
+    use std::time::Duration;
 
     use super::*;
-    use crate::encoder::MetricEncoder;
+    use crate::{encoder::MetricEncoder, error::Result};
 
     #[test]
     fn test_registry_subsystem() {
@@ -645,7 +645,7 @@ mod tests {
     }
 
     impl EncodeMetric for DummyCounter {
-        fn encode(&self, _encoder: &mut dyn MetricEncoder) -> fmt::Result {
+        fn encode(&self, _encoder: &mut dyn MetricEncoder) -> Result<()> {
             Ok(())
         }
 
