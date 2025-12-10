@@ -1,33 +1,33 @@
-use std::fmt;
+use crate::error::Result;
 
 /// Trait for encoding unknown numeric values in metrics.
 pub trait UnknownValueEncoder {
     /// Encodes a 32-bit signed integer value.
-    fn encode_i32(&mut self, value: i32) -> fmt::Result;
+    fn encode_i32(&mut self, value: i32) -> Result<()>;
     /// Encodes a 64-bit signed integer value.
-    fn encode_i64(&mut self, value: i64) -> fmt::Result;
+    fn encode_i64(&mut self, value: i64) -> Result<()>;
     /// Encodes a platform-specific signed integer value.
-    fn encode_isize(&mut self, value: isize) -> fmt::Result;
+    fn encode_isize(&mut self, value: isize) -> Result<()>;
     /// Encodes a 32-bit unsigned integer value.
-    fn encode_u32(&mut self, value: u32) -> fmt::Result;
+    fn encode_u32(&mut self, value: u32) -> Result<()>;
 
     /// Encodes a 32-bit floating point value.
-    fn encode_f32(&mut self, value: f32) -> fmt::Result;
+    fn encode_f32(&mut self, value: f32) -> Result<()>;
     /// Encodes a 64-bit floating point value.
-    fn encode_f64(&mut self, value: f64) -> fmt::Result;
+    fn encode_f64(&mut self, value: f64) -> Result<()>;
 }
 
 /// Trait for encoding unknown metric values.
 pub trait EncodeUnknownValue {
     /// Encodes the value using the provided [`UnknownValueEncoder`].
-    fn encode(&self, encoder: &mut dyn UnknownValueEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn UnknownValueEncoder) -> Result<()>;
 }
 
 macro_rules! impl_encode_unknown_value {
     ($($value:ty),*) => (
         paste::paste! { $(
             impl EncodeUnknownValue for $value {
-                fn encode(&self, encoder: &mut dyn UnknownValueEncoder) -> fmt::Result {
+                fn encode(&self, encoder: &mut dyn UnknownValueEncoder) -> Result<()> {
                     encoder.[<encode_ $value>](*self)
                 }
             }
@@ -40,33 +40,33 @@ impl_encode_unknown_value! { i32, i64, isize, u32, f32, f64 }
 /// Trait for encoding gauge numeric values in metrics.
 pub trait GaugeValueEncoder {
     /// Encodes a 32-bit signed integer value.
-    fn encode_i32(&mut self, value: i32) -> fmt::Result;
+    fn encode_i32(&mut self, value: i32) -> Result<()>;
     /// Encodes a 64-bit signed integer value.
-    fn encode_i64(&mut self, value: i64) -> fmt::Result;
+    fn encode_i64(&mut self, value: i64) -> Result<()>;
     /// Encodes a platform-specific signed integer value.
-    fn encode_isize(&mut self, value: isize) -> fmt::Result;
+    fn encode_isize(&mut self, value: isize) -> Result<()>;
     /// Encodes a 32-bit unsigned integer value.
-    fn encode_u32(&mut self, value: u32) -> fmt::Result;
+    fn encode_u32(&mut self, value: u32) -> Result<()>;
     /// Encodes a 64-bit unsigned integer value.
-    fn encode_u64(&mut self, value: u64) -> fmt::Result;
+    fn encode_u64(&mut self, value: u64) -> Result<()>;
 
     /// Encodes a 32-bit floating point value.
-    fn encode_f32(&mut self, value: f32) -> fmt::Result;
+    fn encode_f32(&mut self, value: f32) -> Result<()>;
     /// Encodes a 64-bit floating point value.
-    fn encode_f64(&mut self, value: f64) -> fmt::Result;
+    fn encode_f64(&mut self, value: f64) -> Result<()>;
 }
 
 /// Trait for encoding gauge metric values.
 pub trait EncodeGaugeValue {
     /// Encodes the gauge value using the provided [`GaugeValueEncoder`].
-    fn encode(&self, encoder: &mut dyn GaugeValueEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn GaugeValueEncoder) -> Result<()>;
 }
 
 macro_rules! impl_encode_gauge_value {
     ($($value:ty),*) => (
         paste::paste! { $(
             impl EncodeGaugeValue for $value {
-                fn encode(&self, encoder: &mut dyn GaugeValueEncoder) -> fmt::Result {
+                fn encode(&self, encoder: &mut dyn GaugeValueEncoder) -> Result<()> {
                     encoder.[<encode_ $value>](*self)
                 }
             }
@@ -79,29 +79,29 @@ impl_encode_gauge_value! { i32, i64, isize, u32, u64, f32, f64 }
 /// Trait for encoding counter numeric values in metrics.
 pub trait CounterValueEncoder {
     /// Encodes a 32-bit unsigned integer value.
-    fn encode_u32(&mut self, value: u32) -> fmt::Result;
+    fn encode_u32(&mut self, value: u32) -> Result<()>;
     /// Encodes a 64-bit unsigned integer value.
-    fn encode_u64(&mut self, value: u64) -> fmt::Result;
+    fn encode_u64(&mut self, value: u64) -> Result<()>;
     /// Encodes a platform-specific unsigned integer value.
-    fn encode_usize(&mut self, value: usize) -> fmt::Result;
+    fn encode_usize(&mut self, value: usize) -> Result<()>;
 
     /// Encodes a 32-bit floating point value.
-    fn encode_f32(&mut self, value: f32) -> fmt::Result;
+    fn encode_f32(&mut self, value: f32) -> Result<()>;
     /// Encodes a 64-bit floating point value.
-    fn encode_f64(&mut self, value: f64) -> fmt::Result;
+    fn encode_f64(&mut self, value: f64) -> Result<()>;
 }
 
 /// Trait for encoding counter metric values.
 pub trait EncodeCounterValue {
     /// Encodes the counter value using the provided [`CounterValueEncoder`].
-    fn encode(&self, encoder: &mut dyn CounterValueEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn CounterValueEncoder) -> Result<()>;
 }
 
 macro_rules! impl_encode_counter_value {
     ($($value:ty),*) => (
         paste::paste! { $(
             impl EncodeCounterValue for $value {
-                fn encode(&self, encoder: &mut dyn CounterValueEncoder) -> fmt::Result {
+                fn encode(&self, encoder: &mut dyn CounterValueEncoder) -> Result<()> {
                     encoder.[<encode_ $value>](*self)
                 }
             }

@@ -194,8 +194,9 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family with custom labels");
     group.bench_function("metrics", |b| {
         with_metrics_recorder(|| {
-            // The metric handles should be created outside the batched iteration to only measure
-            // the label lookup and operation overhead, matching the pattern used by other libraries.
+            // The metric handles should be created outside the batched iteration to only
+            // measure the label lookup and operation overhead, matching the pattern used
+            // by other libraries.
             // But the metrics-rs API doesn't provide this pattern due to its design.
 
             b.iter_batched(

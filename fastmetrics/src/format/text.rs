@@ -7,6 +7,7 @@ use crate::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
         EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
+    error::Result,
     raw::{
         Metadata, MetricType, Unit,
         bucket::{BUCKET_LABEL, Bucket},
@@ -33,8 +34,8 @@ use crate::{
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`fmt::Error`] if there was an error writing
-/// to the output.
+/// Returns `Ok(())` if encoding was successful, or a [`crate::error::Error`] if there was an error
+/// writing to the output.
 ///
 /// # Example
 ///
@@ -65,7 +66,7 @@ use crate::{
 /// # Ok(())
 /// # }
 /// ```
-pub fn encode(writer: &mut impl fmt::Write, registry: &Registry) -> fmt::Result {
+pub fn encode(writer: &mut impl fmt::Write, registry: &Registry) -> Result<()> {
     Encoder::new(writer, registry).encode()
 }
 
@@ -82,12 +83,12 @@ where
         Self { writer, registry }
     }
 
-    fn encode(&mut self) -> fmt::Result {
+    fn encode(&mut self) -> Result<()> {
         self.encode_registry(self.registry)?;
         self.encode_eof()
     }
 
-    fn encode_registry(&mut self, registry: &Registry) -> fmt::Result {
+    fn encode_registry(&mut self, registry: &Registry) -> Result<()> {
         for (metadata, metric) in &registry.metrics {
             MetricFamilyEncoder {
                 writer: self.writer,
@@ -102,8 +103,9 @@ where
         Ok(())
     }
 
-    fn encode_eof(&mut self) -> fmt::Result {
-        self.writer.write_str("# EOF\n")
+    fn encode_eof(&mut self) -> Result<()> {
+        self.writer.write_str("# EOF\n")?;
+        Ok(())
     }
 }
 
@@ -118,20 +120,20 @@ where
     W: fmt::Write,
 {
     #[inline]
-    fn encode_type(&mut self, metric_name: &str, ty: MetricType) -> fmt::Result {
+    fn encode_type(&mut self, metric_name: &str, ty: MetricType) -> Result<()> {
         let ty = ty.as_str();
         self.writer.write_fmt(format_args!("# TYPE {metric_name} {ty}"))?;
         self.encode_newline()
     }
 
     #[inline]
-    fn encode_help(&mut self, metric_name: &str, help: &str) -> fmt::Result {
+    fn encode_help(&mut self, metric_name: &str, help: &str) -> Result<()> {
         self.writer.write_fmt(format_args!("# HELP {metric_name} {help}"))?;
         self.encode_newline()
     }
 
     #[inline]
-    fn encode_unit(&mut self, metric_name: &str, unit: Option<&Unit>) -> fmt::Result {
+    fn encode_unit(&mut self, metric_name: &str, unit: Option<&Unit>) -> Result<()> {
         if let Some(unit) = unit {
             let unit = unit.as_str();
             self.writer.write_fmt(format_args!("# UNIT {metric_name} {unit}"))?;
@@ -141,8 +143,9 @@ where
     }
 
     #[inline]
-    fn encode_newline(&mut self) -> fmt::Result {
-        self.writer.write_str("\n")
+    fn encode_newline(&mut self) -> Result<()> {
+        self.writer.write_str("\n")?;
+        Ok(())
     }
 }
 
@@ -161,7 +164,7 @@ impl<W> encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
+    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> Result<()> {
         if metric.is_empty() {
             // skip empty metric family
             return Ok(());
@@ -199,12 +202,14 @@ where
     W: fmt::Write,
 {
     #[inline]
-    fn encode_metric_name(&mut self) -> fmt::Result {
-        self.writer.write_str(self.metric_name.as_ref())
+    fn encode_metric_name(&mut self) -> Result<()> {
+        let metric_name = self.metric_name.as_ref();
+        self.writer.write_str(metric_name)?;
+        Ok(())
     }
 
     /// Pre-encode common labels (const_labels + family_labels) to a string buffer
-    fn encode_common_labels_to_string(&self) -> Result<Option<String>, fmt::Error> {
+    fn encode_common_labels_to_string(&self) -> Result<Option<String>> {
         let has_const_labels = !self.const_labels.is_empty();
         let has_family_labels = match self.family_labels {
             None => false,
@@ -239,7 +244,7 @@ where
         &mut self,
         common_labels: Option<&str>,
         additional_labels: Option<&dyn EncodeLabelSet>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let has_common_labels = common_labels.is_some();
         let has_additional_labels = match additional_labels {
             None => false,
@@ -264,10 +269,11 @@ where
                 additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
         }
-        self.writer.write_str("} ")
+        self.writer.write_str("} ")?;
+        Ok(())
     }
 
-    fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> fmt::Result {
+    fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> Result<()> {
         let common_labels = self.encode_common_labels_to_string()?;
         self.encode_label_set_with_common(common_labels.as_deref(), additional_labels)
     }
@@ -276,7 +282,7 @@ where
         &mut self,
         buckets: &[Bucket],
         exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let exemplars = exemplars.inspect(|exemplars| {
             assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
         });
@@ -318,7 +324,7 @@ where
         Ok(())
     }
 
-    fn encode_count(&mut self, count: u64) -> fmt::Result {
+    fn encode_count(&mut self, count: u64) -> Result<()> {
         self.encode_metric_name()?;
         self.writer.write_str("_count")?;
         self.encode_label_set(None)?;
@@ -327,7 +333,7 @@ where
         self.encode_newline()
     }
 
-    fn encode_sum(&mut self, sum: f64) -> fmt::Result {
+    fn encode_sum(&mut self, sum: f64) -> Result<()> {
         self.encode_metric_name()?;
         self.writer.write_str("_sum")?;
         self.encode_label_set(None)?;
@@ -336,7 +342,7 @@ where
         self.encode_newline()
     }
 
-    fn encode_gcount(&mut self, gcount: u64) -> fmt::Result {
+    fn encode_gcount(&mut self, gcount: u64) -> Result<()> {
         self.encode_metric_name()?;
         self.writer.write_str("_gcount")?;
         self.encode_label_set(None)?;
@@ -345,7 +351,7 @@ where
         self.encode_newline()
     }
 
-    fn encode_gsum(&mut self, gsum: f64) -> fmt::Result {
+    fn encode_gsum(&mut self, gsum: f64) -> Result<()> {
         self.encode_metric_name()?;
         self.writer.write_str("_gsum")?;
         self.encode_label_set(None)?;
@@ -354,7 +360,7 @@ where
         self.encode_newline()
     }
 
-    fn encode_created(&mut self, created: Duration) -> fmt::Result {
+    fn encode_created(&mut self, created: Duration) -> Result<()> {
         self.encode_metric_name()?;
         self.writer.write_str("_created")?;
         self.encode_label_set(None)?;
@@ -368,7 +374,7 @@ where
     }
 
     #[inline]
-    fn encode_timestamp(&mut self) -> fmt::Result {
+    fn encode_timestamp(&mut self) -> Result<()> {
         if let Some(timestamp) = self.timestamp {
             self.writer.write_fmt(format_args!(
                 " {}.{}",
@@ -380,8 +386,9 @@ where
     }
 
     #[inline]
-    fn encode_newline(&mut self) -> fmt::Result {
-        self.writer.write_str("\n")
+    fn encode_newline(&mut self) -> Result<()> {
+        self.writer.write_str("\n")?;
+        Ok(())
     }
 }
 
@@ -389,7 +396,7 @@ impl<W> encoder::MetricEncoder for MetricEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result {
+    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> Result<()> {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
         value.encode(&mut UnknownValueEncoder { writer: self.writer })?;
@@ -397,7 +404,7 @@ where
         self.encode_newline()
     }
 
-    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
+    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> Result<()> {
         self.encode_metric_name()?;
         self.encode_label_set(None)?;
         value.encode(&mut GaugeValueEncoder { writer: self.writer })?;
@@ -410,7 +417,7 @@ where
         total: &dyn EncodeCounterValue,
         exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         // encode `*_total` metric
         self.encode_metric_name()?;
         self.writer.write_str("_total")?;
@@ -430,7 +437,7 @@ where
         Ok(())
     }
 
-    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
+    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> Result<()> {
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
@@ -452,7 +459,7 @@ where
         Ok(())
     }
 
-    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result {
+    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> Result<()> {
         self.encode_metric_name()?;
         self.writer.write_str("_info")?;
         self.encode_label_set(Some(label_set))?;
@@ -468,7 +475,7 @@ where
         count: u64,
         sum: f64,
         created: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         // encode `*_bucket` metrics
         self.encode_buckets(buckets, exemplars)?;
         // encode `*_count` metric
@@ -490,7 +497,7 @@ where
         exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         // encode `*_bucket` metrics
         self.encode_buckets(buckets, exemplars)?;
         // encode `*_gcount` metric
@@ -505,7 +512,7 @@ where
         sum: f64,
         count: u64,
         created: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
@@ -534,8 +541,8 @@ where
         Ok(())
     }
 
-    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
-        assert!(self.family_labels.is_none());
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> Result<()> {
+        debug_assert!(self.family_labels.is_none(), "family labels already set");
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name: self.metric_name.clone(),
@@ -562,7 +569,7 @@ impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, W>
 where
     W: fmt::Write,
 {
-    fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result {
+    fn encode(&mut self, label: &dyn EncodeLabel) -> Result<()> {
         let first = self.first;
         self.first = false;
         label.encode(&mut LabelEncoder { writer: self.writer, first })
@@ -578,10 +585,11 @@ macro_rules! encode_integer_value_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
             #[inline]
-            fn [<encode_ $integer _value>](&mut self, value: $integer) -> fmt::Result {
+            fn [<encode_ $integer _value>](&mut self, value: $integer) -> Result<()> {
                 self.writer.write_str("=\"")?;
                 self.writer.write_str(itoa::Buffer::new().format(value))?;
-                self.writer.write_str("\"")
+                self.writer.write_str("\"")?;
+                Ok(())
             }
         )* }
     )
@@ -591,10 +599,11 @@ macro_rules! encode_float_value_impls {
     ($($float:ty),*) => (
         paste::paste! { $(
             #[inline]
-            fn [<encode_ $float _value>](&mut self, value: $float) -> fmt::Result {
+            fn [<encode_ $float _value>](&mut self, value: $float) -> Result<()> {
                 self.writer.write_str("=\"")?;
                 self.writer.write_str(dtoa::Buffer::new().format(value))?;
-                self.writer.write_str("\"")
+                self.writer.write_str("\"")?;
+                Ok(())
             }
         )* }
     )
@@ -605,25 +614,28 @@ where
     W: fmt::Write,
 {
     #[inline]
-    fn encode_label_name(&mut self, name: &str) -> fmt::Result {
+    fn encode_label_name(&mut self, name: &str) -> Result<()> {
         if !self.first {
             self.writer.write_str(",")?;
         }
-        self.writer.write_str(name)
+        self.writer.write_str(name)?;
+        Ok(())
     }
 
     #[inline]
-    fn encode_str_value(&mut self, value: &str) -> fmt::Result {
+    fn encode_str_value(&mut self, value: &str) -> Result<()> {
         self.writer.write_str("=\"")?;
         self.writer.write_str(value)?;
-        self.writer.write_str("\"")
+        self.writer.write_str("\"")?;
+        Ok(())
     }
 
     #[inline]
-    fn encode_bool_value(&mut self, value: bool) -> fmt::Result {
+    fn encode_bool_value(&mut self, value: bool) -> Result<()> {
         self.writer.write_str("=\"")?;
         self.writer.write_str(if value { "true" } else { "false" })?;
-        self.writer.write_str("\"")
+        self.writer.write_str("\"")?;
+        Ok(())
     }
 
     encode_integer_value_impls! {
@@ -638,8 +650,9 @@ macro_rules! encode_integer_number_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
             #[inline]
-            fn [<encode_ $integer>](&mut self, value: $integer) -> fmt::Result {
-                self.writer.write_str(itoa::Buffer::new().format(value))
+            fn [<encode_ $integer>](&mut self, value: $integer) -> Result<()> {
+                self.writer.write_str(itoa::Buffer::new().format(value))?;
+                Ok(())
             }
         )* }
     )
@@ -649,8 +662,9 @@ macro_rules! encode_float_number_impls {
     ($($float:ty),*) => (
         paste::paste! { $(
             #[inline]
-            fn [<encode_ $float>](&mut self, value: $float) -> fmt::Result {
-                self.writer.write_str(dtoa::Buffer::new().format(value))
+            fn [<encode_ $float>](&mut self, value: $float) -> Result<()> {
+                self.writer.write_str(dtoa::Buffer::new().format(value))?;
+                Ok(())
             }
         )* }
     )
@@ -720,7 +734,7 @@ where
         labels: &dyn EncodeLabelSet,
         value: f64,
         timestamp: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         // # { labels } value [timestamp]
         self.writer.write_str(" # {")?;
         labels.encode(&mut LabelSetEncoder::new(self.writer))?;
