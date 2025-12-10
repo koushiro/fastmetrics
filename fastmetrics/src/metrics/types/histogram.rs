@@ -11,6 +11,7 @@ use std::{
 pub use crate::raw::bucket::*;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
+    error::Result,
     raw::{Atomic, MetricLabelSet, MetricType, TypedMetric},
 };
 
@@ -238,7 +239,7 @@ impl MetricLabelSet for Histogram {
 }
 
 impl EncodeMetric for Histogram {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let created = self.created();
         self.with_snapshot(|s| {
             let buckets = s.buckets();

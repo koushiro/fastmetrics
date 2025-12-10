@@ -4,10 +4,13 @@ mod exemplar;
 mod label_set;
 mod value;
 
-use std::{fmt, time::Duration};
+use std::time::Duration;
 
 pub use self::{exemplar::*, label_set::*, value::*};
-use crate::raw::{Metadata, bucket::Bucket, quantile::Quantile};
+use crate::{
+    error::Result,
+    raw::{Metadata, bucket::Bucket, quantile::Quantile},
+};
 
 /// Trait for encoding metric with metadata.
 ///
@@ -24,7 +27,7 @@ pub trait MetricFamilyEncoder {
     ///
     /// * `metadata` - The metadata to encode, containing name, type, help and unit
     /// * `metric` - The metric to encode
-    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result;
+    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> Result<()>;
 }
 
 /// Trait for encoding different types of metrics.
@@ -35,10 +38,10 @@ pub trait MetricFamilyEncoder {
 /// [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types
 pub trait MetricEncoder {
     /// Encodes an unknown metric.
-    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result;
+    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> Result<()>;
 
     /// Encodes a gauge metric.
-    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result;
+    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> Result<()>;
 
     /// Encodes a counter metric.
     fn encode_counter(
@@ -46,13 +49,13 @@ pub trait MetricEncoder {
         total: &dyn EncodeCounterValue,
         exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
-    ) -> fmt::Result;
+    ) -> Result<()>;
 
     /// Encodes a stateset metric.
-    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result;
+    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> Result<()>;
 
     /// Encodes an info metric.
-    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result;
+    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> Result<()>;
 
     /// Encodes a histogram metric.
     ///
@@ -64,7 +67,7 @@ pub trait MetricEncoder {
         count: u64,
         sum: f64,
         created: Option<Duration>,
-    ) -> fmt::Result;
+    ) -> Result<()>;
 
     /// Encodes a gauge histogram metric.
     ///
@@ -75,7 +78,7 @@ pub trait MetricEncoder {
         exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
-    ) -> fmt::Result;
+    ) -> Result<()>;
 
     /// Encodes a summary metric.
     fn encode_summary(
@@ -84,10 +87,10 @@ pub trait MetricEncoder {
         sum: f64,
         count: u64,
         created: Option<Duration>,
-    ) -> fmt::Result;
+    ) -> Result<()>;
 
     /// Encodes a metric with the specified label set.
-    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result;
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> Result<()>;
 }
 
 /// Trait for types that can be encoded as metrics.
@@ -96,7 +99,7 @@ pub trait MetricEncoder {
 /// the metric's value and collecting its type information.
 pub trait EncodeMetric: Send + Sync {
     /// Encodes this metric using the provided [`MetricEncoder`].
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result;
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()>;
 
     /// Returns the unix timestamp of this metric.
     fn timestamp(&self) -> Option<Duration> {
@@ -126,7 +129,7 @@ pub trait EncodeMetric: Send + Sync {
 }
 
 impl EncodeMetric for Box<dyn EncodeMetric> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         (**self).encode(encoder)
     }
 

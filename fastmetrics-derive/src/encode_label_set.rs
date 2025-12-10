@@ -86,7 +86,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let impl_block = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::encoder::EncodeLabelSet for #name #ty_generics #where_clause {
-            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelSetEncoder) -> ::core::fmt::Result {
+            fn encode(&self, encoder: &mut dyn ::fastmetrics::encoder::LabelSetEncoder) -> ::fastmetrics::error::Result<()> {
                 use ::fastmetrics::encoder::EncodeLabel;
 
                 #(#encode_stmts;)*

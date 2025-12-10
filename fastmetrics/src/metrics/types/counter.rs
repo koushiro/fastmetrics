@@ -12,6 +12,7 @@ use std::{
 
 use crate::{
     encoder::{EncodeCounterValue, EncodeMetric, MetricEncoder},
+    error::Result,
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -165,7 +166,7 @@ impl<N: CounterValue> MetricLabelSet for Counter<N> {
 }
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let total = self.total();
         let created = self.created();
         encoder.encode_counter(&total, None, created)
@@ -250,7 +251,7 @@ impl<N: CounterValue> MetricLabelSet for ConstCounter<N> {
 }
 
 impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let total = self.total();
         let created = self.created();
         encoder.encode_counter(&total, None, created)
@@ -322,7 +323,7 @@ where
     F: Fn() -> N + Send + Sync,
     N: EncodeCounterValue + Send + Sync,
 {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let total = self.fetch();
         encoder.encode_counter(&total, None, self.created)
     }

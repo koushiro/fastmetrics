@@ -15,6 +15,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
     encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
+    error::Result,
     raw::{LabelSetSchema, MetricLabelSet, MetricType, TypedMetric},
 };
 
@@ -64,6 +65,7 @@ cfg_if::cfg_if! {
 /// ```rust
 /// # use fastmetrics::{
 /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+/// #     error::Result,
 /// #     metrics::{counter::Counter, family::Family},
 /// #     raw::LabelSetSchema,
 /// #     registry::{Registry, RegistryError},
@@ -85,7 +87,7 @@ cfg_if::cfg_if! {
 /// }
 ///
 /// impl EncodeLabelSet for HttpLabels {
-///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
 ///         encoder.encode(&("method", self.method))?;
 ///         encoder.encode(&("status", self.status))?;
 ///         Ok(())
@@ -169,6 +171,7 @@ where
     /// ```rust
     /// # use fastmetrics::{
     /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     error::Result,
     /// #     metrics::{
     /// #         gauge::Gauge,
     /// #         family::Family,
@@ -190,7 +193,7 @@ where
     /// }
     ///
     /// impl EncodeLabelSet for Labels {
-    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
     ///         encoder.encode(&("region", self.region))?;
     ///         encoder.encode(&("status", self.status))?;
     ///         Ok(())
@@ -226,6 +229,7 @@ where
     /// ```rust
     /// # use fastmetrics::{
     /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     error::Result,
     /// #     raw::LabelSetSchema,
     /// #     metrics::{counter::Counter, family::Family},
     /// #     registry::{Registry, RegistryError},
@@ -247,7 +251,7 @@ where
     /// }
     ///
     /// impl EncodeLabelSet for Labels {
-    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
     ///         encoder.encode(&("method", self.method))?;
     ///         encoder.encode(&("status", self.status))?;
     ///         Ok(())
@@ -303,6 +307,7 @@ where
     /// ```rust
     /// # use fastmetrics::{
     /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     error::Result,
     /// #     raw::LabelSetSchema,
     /// #     metrics::{counter::Counter, family::Family},
     /// #     registry::{Registry, RegistryError},
@@ -324,7 +329,7 @@ where
     /// }
     ///
     /// impl EncodeLabelSet for Labels {
-    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> std::fmt::Result {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
     ///         encoder.encode(&("method", self.method))?;
     ///         encoder.encode(&("status", self.status))?;
     ///         Ok(())
@@ -400,7 +405,7 @@ where
     MF: Send + Sync,
     S: Send + Sync,
 {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let guard = self.read();
         for (labels, metric) in guard.iter() {
             encoder.encode(labels, metric)?;
@@ -445,7 +450,7 @@ mod tests {
     }
 
     impl EncodeLabelSet for Labels {
-        fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> fmt::Result {
+        fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
             encoder.encode(&("method", &self.method))?;
             encoder.encode(&("status", self.status))?;
             encoder.encode(&("error", self.error))?;
@@ -454,7 +459,7 @@ mod tests {
     }
 
     impl EncodeLabelValue for Method {
-        fn encode(&self, encoder: &mut dyn LabelEncoder) -> fmt::Result {
+        fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
             match self {
                 Self::Get => encoder.encode_str_value("GET"),
                 Self::Put => encoder.encode_str_value("PUT"),

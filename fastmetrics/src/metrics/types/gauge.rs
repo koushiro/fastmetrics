@@ -11,6 +11,7 @@ use std::{
 
 use crate::{
     encoder::{EncodeGaugeValue, EncodeMetric, MetricEncoder},
+    error::Result,
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -160,7 +161,7 @@ impl<N: GaugeValue> MetricLabelSet for Gauge<N> {
 }
 
 impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for Gauge<N> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         encoder.encode_gauge(&self.get())
     }
 }
@@ -202,7 +203,7 @@ impl<N: GaugeValue> MetricLabelSet for ConstGauge<N> {
 }
 
 impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         encoder.encode_gauge(&self.get())
     }
 }
@@ -265,7 +266,7 @@ where
     F: Fn() -> N + Send + Sync,
     N: EncodeGaugeValue + Send + Sync,
 {
-    fn encode(&self, encoder: &mut dyn MetricEncoder) -> fmt::Result {
+    fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let value = self.fetch();
         encoder.encode_gauge(&value)
     }

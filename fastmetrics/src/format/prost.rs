@@ -1,12 +1,13 @@
 //! Protobuf exposition format using [prost](https://github.com/tokio-rs/prost) crate.
 
-use std::{borrow::Cow, fmt, io, time::Duration};
+use std::{borrow::Cow, time::Duration};
 
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
         EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
+    error::{Error, Result},
     raw::{Metadata, MetricType, bucket::Bucket, quantile::Quantile},
     registry::Registry,
 };
@@ -30,8 +31,8 @@ mod openmetrics_data_model {
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`io::Error`] if there was an error during
-/// protobuf encoding.
+/// Returns `Ok(())` if encoding was successful, or a [`Error`] if there was an error
+/// during protobuf encoding.
 ///
 /// # Example
 ///
@@ -62,11 +63,11 @@ mod openmetrics_data_model {
 /// # Ok(())
 /// # }
 /// ```
-pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> io::Result<()> {
+pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
-    let mut encoder = Encoder::new(&mut metric_set, registry);
-    encoder.encode().expect("fmt::Error should not be encountered");
-    prost::Message::encode(&metric_set, buffer)?;
+    Encoder::new(&mut metric_set, registry).encode()?;
+    prost::Message::encode(&metric_set, buffer)
+        .map_err(|err| Error::unexpected(err.to_string()).set_source(err))?;
     Ok(())
 }
 
@@ -83,11 +84,11 @@ impl<'a> Encoder<'a> {
         Self { metric_set, registry }
     }
 
-    fn encode(&mut self) -> fmt::Result {
+    fn encode(&mut self) -> Result<()> {
         self.encode_registry(self.registry)
     }
 
-    fn encode_registry(&mut self, registry: &Registry) -> fmt::Result {
+    fn encode_registry(&mut self, registry: &Registry) -> Result<()> {
         for (metadata, metric) in &registry.metrics {
             let metric_families = &mut self.metric_set.metric_families;
             MetricFamilyEncoder {
@@ -126,7 +127,7 @@ impl From<MetricType> for openmetrics_data_model::MetricType {
 }
 
 impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
-    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> fmt::Result {
+    fn encode(&mut self, metadata: &Metadata, metric: &dyn EncodeMetric) -> Result<()> {
         if metric.is_empty() {
             // skip empty metric family
             return Ok(());
@@ -181,7 +182,7 @@ fn into_prost_timestamp(duration: Duration) -> prost_types::Timestamp {
 }
 
 impl encoder::MetricEncoder for MetricEncoder<'_> {
-    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> fmt::Result {
+    fn encode_unknown(&mut self, value: &dyn EncodeUnknownValue) -> Result<()> {
         let mut v = openmetrics_data_model::unknown_value::Value::IntValue(0);
         value.encode(&mut UnknownValueEncoder { value: &mut v })?;
 
@@ -198,7 +199,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> fmt::Result {
+    fn encode_gauge(&mut self, value: &dyn EncodeGaugeValue) -> Result<()> {
         let mut v = openmetrics_data_model::gauge_value::Value::IntValue(0);
         value.encode(&mut GaugeValueEncoder { value: &mut v })?;
 
@@ -220,7 +221,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         total: &dyn EncodeCounterValue,
         exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let mut t = openmetrics_data_model::counter_value::Total::IntValue(0);
         total.encode(&mut CounterValueEncoder { total: &mut t })?;
 
@@ -249,7 +250,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> fmt::Result {
+    fn encode_stateset(&mut self, states: Vec<(&str, bool)>) -> Result<()> {
         let states = states
             .into_iter()
             .map(|(state, enabled)| openmetrics_data_model::state_set_value::State {
@@ -271,7 +272,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> fmt::Result {
+    fn encode_info(&mut self, label_set: &dyn EncodeLabelSet) -> Result<()> {
         let mut info_labels = vec![];
         label_set.encode(&mut LabelSetEncoder { labels: &mut info_labels })?;
 
@@ -295,7 +296,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         count: u64,
         sum: f64,
         created: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let exemplars = exemplars.inspect(|exemplars| {
             assert_eq!(buckets.len(), exemplars.len(), "buckets and exemplars count mismatch");
         });
@@ -320,7 +321,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                     },
                 })
             })
-            .collect::<Result<Vec<_>, fmt::Error>>()?;
+            .collect::<Result<Vec<_>, Error>>()?;
 
         self.metrics.push(openmetrics_data_model::Metric {
             labels: self.labels.clone(),
@@ -346,7 +347,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         exemplars: Option<&[Option<&dyn EncodeExemplar>]>,
         count: u64,
         sum: f64,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         self.encode_histogram(buckets, exemplars, count, sum, None)
     }
 
@@ -356,7 +357,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         sum: f64,
         count: u64,
         created: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         let quantile = quantiles
             .iter()
             .map(|q| openmetrics_data_model::summary_value::Quantile {
@@ -383,7 +384,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
         Ok(())
     }
 
-    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> fmt::Result {
+    fn encode(&mut self, label_set: &dyn EncodeLabelSet, metric: &dyn EncodeMetric) -> Result<()> {
         let mut labels = self.labels.clone();
         label_set.encode(&mut LabelSetEncoder { labels: &mut labels })?;
         metric.encode(&mut MetricEncoder {
@@ -399,7 +400,7 @@ struct LabelSetEncoder<'a> {
 }
 
 impl encoder::LabelSetEncoder for LabelSetEncoder<'_> {
-    fn encode(&mut self, label: &dyn EncodeLabel) -> fmt::Result {
+    fn encode(&mut self, label: &dyn EncodeLabel) -> Result<()> {
         self.labels.push(openmetrics_data_model::Label::default());
         label.encode(&mut LabelEncoder {
             label: self.labels.last_mut().expect("labels must not be none"),
@@ -414,7 +415,7 @@ struct LabelEncoder<'a> {
 macro_rules! encode_integer_value_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
-            fn [<encode_ $integer _value>](&mut self, value: $integer) -> fmt::Result {
+            fn [<encode_ $integer _value>](&mut self, value: $integer) -> Result<()> {
                 self.label.value.push_str(itoa::Buffer::new().format(value));
                 Ok(())
             }
@@ -425,7 +426,7 @@ macro_rules! encode_integer_value_impls {
 macro_rules! encode_float_value_impls {
     ($($float:ty),*) => (
         paste::paste! { $(
-            fn [<encode_ $float _value>](&mut self, value: $float) -> fmt::Result {
+            fn [<encode_ $float _value>](&mut self, value: $float) -> Result<()> {
                 self.label.value.push_str(dtoa::Buffer::new().format(value));
                 Ok(())
             }
@@ -434,17 +435,17 @@ macro_rules! encode_float_value_impls {
 }
 
 impl encoder::LabelEncoder for LabelEncoder<'_> {
-    fn encode_label_name(&mut self, name: &str) -> fmt::Result {
+    fn encode_label_name(&mut self, name: &str) -> Result<()> {
         self.label.name.push_str(name);
         Ok(())
     }
 
-    fn encode_str_value(&mut self, value: &str) -> fmt::Result {
+    fn encode_str_value(&mut self, value: &str) -> Result<()> {
         self.label.value.push_str(value);
         Ok(())
     }
 
-    fn encode_bool_value(&mut self, value: bool) -> fmt::Result {
+    fn encode_bool_value(&mut self, value: bool) -> Result<()> {
         self.label.value.push_str(if value { "true" } else { "false" });
         Ok(())
     }
@@ -462,28 +463,28 @@ struct UnknownValueEncoder<'a> {
 }
 
 impl encoder::UnknownValueEncoder for UnknownValueEncoder<'_> {
-    fn encode_i32(&mut self, value: i32) -> fmt::Result {
+    fn encode_i32(&mut self, value: i32) -> Result<()> {
         self.encode_i64(value as i64)
     }
 
-    fn encode_i64(&mut self, value: i64) -> fmt::Result {
+    fn encode_i64(&mut self, value: i64) -> Result<()> {
         *self.value = openmetrics_data_model::unknown_value::Value::IntValue(value);
         Ok(())
     }
 
-    fn encode_isize(&mut self, value: isize) -> fmt::Result {
+    fn encode_isize(&mut self, value: isize) -> Result<()> {
         self.encode_i64(value as i64)
     }
 
-    fn encode_u32(&mut self, value: u32) -> fmt::Result {
+    fn encode_u32(&mut self, value: u32) -> Result<()> {
         self.encode_i64(value as i64)
     }
 
-    fn encode_f32(&mut self, value: f32) -> fmt::Result {
+    fn encode_f32(&mut self, value: f32) -> Result<()> {
         self.encode_f64(value as f64)
     }
 
-    fn encode_f64(&mut self, value: f64) -> fmt::Result {
+    fn encode_f64(&mut self, value: f64) -> Result<()> {
         *self.value = openmetrics_data_model::unknown_value::Value::DoubleValue(value);
         Ok(())
     }
@@ -494,24 +495,24 @@ struct GaugeValueEncoder<'a> {
 }
 
 impl encoder::GaugeValueEncoder for GaugeValueEncoder<'_> {
-    fn encode_i32(&mut self, value: i32) -> fmt::Result {
+    fn encode_i32(&mut self, value: i32) -> Result<()> {
         self.encode_i64(value as i64)
     }
 
-    fn encode_i64(&mut self, value: i64) -> fmt::Result {
+    fn encode_i64(&mut self, value: i64) -> Result<()> {
         *self.value = openmetrics_data_model::gauge_value::Value::IntValue(value);
         Ok(())
     }
 
-    fn encode_isize(&mut self, value: isize) -> fmt::Result {
+    fn encode_isize(&mut self, value: isize) -> Result<()> {
         self.encode_i64(value as i64)
     }
 
-    fn encode_u32(&mut self, value: u32) -> fmt::Result {
+    fn encode_u32(&mut self, value: u32) -> Result<()> {
         self.encode_i64(value as i64)
     }
 
-    fn encode_u64(&mut self, value: u64) -> fmt::Result {
+    fn encode_u64(&mut self, value: u64) -> Result<()> {
         if value <= i64::MAX as u64 {
             *self.value = openmetrics_data_model::gauge_value::Value::IntValue(value as i64);
             Ok(())
@@ -520,20 +521,17 @@ impl encoder::GaugeValueEncoder for GaugeValueEncoder<'_> {
         else {
             // For gauge metrics that support the u64 type, the openmetrics protobuf format does not
             // support encoding values exceeding i64::MAX.
-            // panic!("Can't encode gauge value in protobuf format: value {value} > i64::MAX");
-
-            // For large u64 values that exceed i64::MAX, encode as a double to avoid errors
-            // Note: This may result in precision loss when converting to f64.
-            *self.value = openmetrics_data_model::gauge_value::Value::DoubleValue(value as f64);
-            Ok(())
+            Err(Error::unsupported(
+                "OpenMetrics protobuf format does not support encoding gauge values exceeding i64::MAX",
+            ))
         }
     }
 
-    fn encode_f32(&mut self, value: f32) -> fmt::Result {
+    fn encode_f32(&mut self, value: f32) -> Result<()> {
         self.encode_f64(value as f64)
     }
 
-    fn encode_f64(&mut self, value: f64) -> fmt::Result {
+    fn encode_f64(&mut self, value: f64) -> Result<()> {
         *self.value = openmetrics_data_model::gauge_value::Value::DoubleValue(value);
         Ok(())
     }
@@ -544,24 +542,24 @@ struct CounterValueEncoder<'a> {
 }
 
 impl encoder::CounterValueEncoder for CounterValueEncoder<'_> {
-    fn encode_u32(&mut self, value: u32) -> fmt::Result {
+    fn encode_u32(&mut self, value: u32) -> Result<()> {
         self.encode_u64(value as u64)
     }
 
-    fn encode_u64(&mut self, value: u64) -> fmt::Result {
+    fn encode_u64(&mut self, value: u64) -> Result<()> {
         *self.total = openmetrics_data_model::counter_value::Total::IntValue(value);
         Ok(())
     }
 
-    fn encode_usize(&mut self, value: usize) -> fmt::Result {
+    fn encode_usize(&mut self, value: usize) -> Result<()> {
         self.encode_u64(value as u64)
     }
 
-    fn encode_f32(&mut self, value: f32) -> fmt::Result {
+    fn encode_f32(&mut self, value: f32) -> Result<()> {
         self.encode_f64(value as f64)
     }
 
-    fn encode_f64(&mut self, value: f64) -> fmt::Result {
+    fn encode_f64(&mut self, value: f64) -> Result<()> {
         *self.total = openmetrics_data_model::counter_value::Total::DoubleValue(value);
         Ok(())
     }
@@ -577,7 +575,7 @@ impl encoder::ExemplarEncoder for ExemplarEncoder<'_> {
         label_set: &dyn EncodeLabelSet,
         value: f64,
         timestamp: Option<Duration>,
-    ) -> fmt::Result {
+    ) -> Result<()> {
         label_set.encode(&mut LabelSetEncoder { labels: &mut self.exemplar.label })?;
         self.exemplar.value = value;
         self.exemplar.timestamp = timestamp.map(into_prost_timestamp);

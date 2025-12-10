@@ -1,6 +1,5 @@
 use std::{
     convert::Infallible,
-    fmt, io,
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,
     time::Instant,
@@ -35,10 +34,8 @@ struct AppState {
 
 #[derive(Debug, Error)]
 enum AppError {
-    #[error("text encode error: {0}")]
-    TextEncode(#[from] fmt::Error),
-    #[error("protobuf encode error: {0}")]
-    ProtobufEncode(#[from] io::Error),
+    #[error("metrics encode error: {0}")]
+    Encode(#[from] fastmetrics::error::Error),
     #[error("http response error: {0}")]
     Http(#[from] http::Error),
 }
