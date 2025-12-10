@@ -1,4 +1,4 @@
-//! Errors that returned by FastMetrics.
+//! Errors that are returned by FastMetrics.
 
 use std::{
     backtrace::{Backtrace, BacktraceStatus},
