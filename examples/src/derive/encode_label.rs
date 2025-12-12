@@ -75,7 +75,7 @@ impl Distribution<Labels> for StandardUniform {
 }
 
 fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("demo").build();
+    let mut registry = Registry::builder().with_namespace("demo").build()?;
 
     let operation = Family::<Labels, Counter>::default();
     let operation_bytes =

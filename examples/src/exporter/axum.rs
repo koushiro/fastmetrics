@@ -160,7 +160,7 @@ async fn not_found_handler(uri: Uri) -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("axum").build();
+    let mut registry = Registry::builder().with_namespace("axum").build()?;
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 

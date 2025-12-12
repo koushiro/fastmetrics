@@ -115,7 +115,7 @@ impl DemoMetrics {
 
 fn main() -> Result<()> {
     // If you don't set a custom registry, the global registry will use the `Registry::default()`
-    let registry = Registry::builder().with_namespace("demo").build();
+    let registry = Registry::builder().with_namespace("demo").build()?;
     set_global_registry(registry).expect("Global registry already initialized");
 
     let metrics = DemoMetrics::new();

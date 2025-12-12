@@ -102,7 +102,7 @@ async fn not_found(req: &Request, Data(state): Data<&AppState>) -> Response {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("poem").build();
+    let mut registry = Registry::builder().with_namespace("poem").build()?;
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 

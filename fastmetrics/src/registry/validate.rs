@@ -120,22 +120,7 @@ impl fmt::Display for UnitViolation {
     }
 }
 
-pub fn validate_metric_name(name: &str) -> Result<(), MetricNameViolation> {
-    validate_metric_name_prefix(name)
-}
-
-pub fn validate_metric_name_prefix(prefix: &str) -> Result<(), MetricNameViolation> {
-    validate_metric_name_chars(prefix, true)
-}
-
-pub fn validate_metric_name_component(component: &str) -> Result<(), MetricNameViolation> {
-    validate_metric_name_chars(component, false)
-}
-
-fn validate_metric_name_chars(
-    name: &str,
-    require_initial: bool,
-) -> Result<(), MetricNameViolation> {
+pub fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), MetricNameViolation> {
     if name.is_empty() {
         return Err(MetricNameViolation::Empty);
     }
@@ -245,32 +230,29 @@ mod tests {
 
     #[test]
     fn test_validate_metric_name() {
-        assert!(validate_metric_name("valid_metric").is_ok());
-        assert!(matches!(validate_metric_name(""), Err(MetricNameViolation::Empty)));
+        assert!(validate_metric_name("valid_metric", true).is_ok());
+        assert!(matches!(validate_metric_name("", true), Err(MetricNameViolation::Empty)));
         assert!(matches!(
-            validate_metric_name("1bad"),
+            validate_metric_name("1bad", true),
             Err(MetricNameViolation::InvalidFirstChar('1'))
         ));
         assert!(matches!(
-            validate_metric_name("bad-"),
+            validate_metric_name("bad-", true),
             Err(MetricNameViolation::InvalidSubsequentChar('-'))
         ));
-    }
 
-    #[test]
-    fn test_validate_metric_name_components() {
-        assert!(validate_metric_name_prefix("namespace").is_ok());
+        assert!(validate_metric_name("namespace", true).is_ok());
         assert!(matches!(
-            validate_metric_name_prefix("1bad"),
+            validate_metric_name("1bad", true),
             Err(MetricNameViolation::InvalidFirstChar('1'))
         ));
-        assert!(validate_metric_name_component("1subsystem").is_ok());
-        assert!(validate_metric_name_component("subsystem2").is_ok());
+        assert!(validate_metric_name("1subsystem", false).is_ok());
+        assert!(validate_metric_name("subsystem2", false).is_ok());
         assert!(matches!(
-            validate_metric_name_component("needs-hyphen"),
+            validate_metric_name("needs-hyphen", false),
             Err(MetricNameViolation::InvalidSubsequentChar('-'))
         ));
-        assert!(matches!(validate_metric_name_component(""), Err(MetricNameViolation::Empty)));
+        assert!(matches!(validate_metric_name("", false), Err(MetricNameViolation::Empty)));
     }
 
     #[test]

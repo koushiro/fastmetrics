@@ -109,7 +109,7 @@ async fn protobuf_handler(state: Data<AppState>) -> Result<impl Responder, Error
 
 #[actix_web::main]
 async fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("actix").build();
+    let mut registry = Registry::builder().with_namespace("actix").build()?;
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 

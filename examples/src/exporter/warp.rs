@@ -142,7 +142,7 @@ fn build_filters(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("warp").build();
+    let mut registry = Registry::builder().with_namespace("warp").build()?;
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 

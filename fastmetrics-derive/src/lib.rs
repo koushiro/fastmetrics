@@ -235,7 +235,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 ///     flatten_gauge: Gauge,
 /// }
 ///
-/// let mut registry = Registry::builder().with_namespace("demo").build();
+/// let mut registry = Registry::builder().with_namespace("demo").build().unwrap();
 ///
 /// let metrics = DemoMetrics::default();
 /// metrics.register(&mut registry).unwrap();

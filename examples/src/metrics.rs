@@ -1,12 +1,12 @@
-use anyhow::Result;
 use fastmetrics::{
+    error::Result,
     format::text,
     metrics::{
         counter::Counter,
         gauge::Gauge,
         histogram::{Histogram, exponential_buckets},
     },
-    registry::{Register, Registry, RegistryError},
+    registry::{Register, Registry},
 };
 use rand::Rng;
 
@@ -27,13 +27,13 @@ impl Default for Metrics {
 }
 
 impl Register for Metrics {
-    fn register(&self, registry: &mut Registry) -> Result<(), RegistryError> {
+    fn register(&self, registry: &mut Registry) -> Result<()> {
         registry.register("my_counter", "My counter help", self.counter.clone())?;
 
-        let subsystem = registry.subsystem("outer");
+        let subsystem = registry.subsystem("outer")?;
         subsystem.register("my_gauge", "My gauge help", self.gauge.clone())?;
 
-        let subsystem = subsystem.subsystem("inner");
+        let subsystem = subsystem.subsystem("inner")?;
         subsystem.register("my_histogram", "My histogram help", self.histogram.clone())?;
 
         Ok(())
@@ -41,7 +41,7 @@ impl Register for Metrics {
 }
 
 fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("demo").build();
+    let mut registry = Registry::builder().with_namespace("demo").build()?;
 
     // 1. Using built-in metric types directly
     let counter = <Counter>::default();
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
 
     registry.register("my_counter", "My counter help", counter.clone())?;
     registry
-        .subsystem("app")
+        .subsystem("app")?
         .register("my_gauge", "My gauge help", gauge.clone())?
         .register("my_histogram", "My histogram help", histogram.clone())?;
 

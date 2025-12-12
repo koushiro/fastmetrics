@@ -5,6 +5,10 @@ use std::{borrow::Cow, fmt};
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum RegistryError {
+    /// Namespace configuration is invalid.
+    InvalidNamespace { namespace: Cow<'static, str>, reason: String },
+    /// Subsystem name is invalid.
+    InvalidSubsystemName { name: Cow<'static, str>, reason: String },
     /// Metric name is invalid.
     InvalidMetricName { name: Cow<'static, str>, reason: String },
     /// Help text is invalid.
@@ -20,6 +24,12 @@ pub enum RegistryError {
 impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidNamespace { namespace, reason } => {
+                write!(f, "namespace '{namespace}' is invalid: {reason}")
+            },
+            Self::InvalidSubsystemName { name, reason } => {
+                write!(f, "subsystem name '{name}' is invalid: {reason}")
+            },
             Self::InvalidMetricName { name, reason } => {
                 write!(f, "metric name '{name}' is invalid: {reason}")
             },

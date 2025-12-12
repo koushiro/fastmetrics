@@ -49,6 +49,7 @@ macro_rules! define_gauge {
         ///
         /// ```rust
         /// # use fastmetrics::metrics::gauge::Gauge;
+        /// #
         /// // Create a default gauge
         /// let gauge = <Gauge>::default();
         /// assert_eq!(gauge.get(), 0);
@@ -172,6 +173,7 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for Gauge<N> {
 ///
 /// ```rust
 /// # use fastmetrics::metrics::gauge::ConstGauge;
+/// #
 /// // Create a constant gauge with initial value
 /// let gauge = ConstGauge::new(42);
 /// assert_eq!(gauge.get(), 42);
@@ -214,9 +216,12 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
 /// (e.g. `/proc`, cgroups) or other expensive sources at scrape time.
 ///
 /// # Example
+///
 /// ```rust
 /// # use std::sync::atomic::{AtomicI64, Ordering};
+/// #
 /// # use fastmetrics::metrics::gauge::LazyGauge;
+/// #
 /// let lazy = LazyGauge::new({
 ///     let value = AtomicI64::new(42);
 ///     move || value.load(Ordering::Relaxed)

@@ -117,7 +117,7 @@ fn simulate_http_server() {
 
 fn main() -> Result<()> {
     // Optionally set a custom global registry
-    let registry = Registry::builder().with_namespace("myapp").build();
+    let registry = Registry::builder().with_namespace("myapp").build()?;
     set_global_registry(registry)?;
 
     // Simulate application activity
