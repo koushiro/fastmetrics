@@ -171,6 +171,16 @@ impl Error {
         self.source = Some(src.into());
         self
     }
+
+    /// Returns the kind of the error.
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
+    }
+
+    /// Returns the message of the error.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
 }
 
 impl From<fmt::Error> for Error {

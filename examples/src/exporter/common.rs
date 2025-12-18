@@ -27,19 +27,15 @@ pub struct HttpLabels {
 #[derive(Clone, Register)]
 pub struct Metrics {
     /// Total number of HTTP requests received.
-    #[register(rename = "http_requests_total", help = "Total number of HTTP requests")]
+    #[register(rename = "http_requests_total")]
     http_requests: Family<HttpLabels, Counter>,
 
     /// Latency of HTTP requests in seconds (histogram).
-    #[register(
-        rename = "http_request_duration_seconds",
-        unit(Seconds),
-        help = "HTTP request latencies (seconds)"
-    )]
+    #[register(rename = "http_request_duration_seconds", unit(Seconds))]
     http_request_duration: Family<HttpLabels, Histogram>,
 
     /// Number of in-flight (currently processing) HTTP requests.
-    #[register(rename = "http_requests_in_flight", help = "In-flight HTTP requests")]
+    #[register(rename = "http_requests_in_flight")]
     http_in_flight: Gauge,
 }
 
