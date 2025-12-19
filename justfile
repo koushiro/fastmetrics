@@ -19,76 +19,62 @@ fmt:
 
 # Run rust clippy
 clippy *args='':
-    @cargo clippy --workspace --all-targets --all-features {{args}} -- -D warnings
+    @cargo clippy --workspace --all-targets --all-features {{ args }} -- -D warnings
 
 # Check code
 check *args='':
-	@cargo check --workspace --all-targets --all-features {{args}}
+    @cargo check --workspace --all-targets --all-features {{ args }}
 
 # Build workspace
 build *args='':
-    @cargo build --workspace --all-targets --all-features {{args}}
+    @cargo build --workspace --all-targets --all-features {{ args }}
 
 # Run all tests
 test *args='':
-    @cargo test --workspace --all-features {{args}}
+    @cargo test --workspace --all-features {{ args }}
 
 # Generate docs
 gen-docs *args='':
-	@cargo doc --no-deps --workspace --lib --all-features {{args}}
+    @cargo doc --no-deps --workspace --lib --all-features {{ args }}
 
-# Run examples: `just example [name] <args>`
-[working-directory: 'examples']
+# Run a example: `just example <name> [args]`
 [positional-arguments]
+[working-directory('examples')]
 example name *args:
     #!/usr/bin/env bash
     set -eo pipefail
-    if [ -n "{{args}}" ]; then
-        echo "Running example \"{{name}}\" with: {{args}}"
-        cargo run --example {{name}} -- {{args}}
+    if [ -n "{{ args }}" ]; then
+        echo "Running example \"{{ name }}\" with: {{ args }}"
+        cargo run --example {{ name }} -- {{ args }}
     else
-        echo "Running example \"{{name}}\""
-        cargo run --example {{name}}
+        echo "Running example \"{{ name }}\""
+        cargo run --example {{ name }}
     fi
 
-# Run benchmarks: `just bench <args>` or `just bench [name] <args>`
-[working-directory: 'benchmarks']
+# Run a benchmark: `just bench <name> [args]`
 [positional-arguments]
-bench *args:
+[working-directory('benchmarks')]
+bench name *args:
     #!/usr/bin/env bash
     set -eo pipefail
-    # Array-safe split: names before `--`, extra args after
-    names=()
-    extra_args=()
-    parsing_names=1
-    for arg in "$@"; do
-        if [ "$parsing_names" -eq 1 ]; then
-            if [ "$arg" = "--" ]; then
-                parsing_names=0
-            else
-                names+=("$arg")
-            fi
-        else
-            extra_args+=("$arg")
-        fi
-    done
-
-    if [ ${#names[@]} -eq 0 ]; then
-        if [ ${#extra_args[@]} -gt 0 ]; then
-            echo "Running all benchmarks with: ${extra_args[*]}"
-            cargo bench -- "${extra_args[@]}"
-        else
-            echo "Running all benchmarks"
-            cargo bench -- --quiet
-        fi
+    if [ -n "{{ args }}" ]; then
+        echo "Running benchmark \"{{ name }}\" with: {{ args }}"
+        cargo bench --bench {{ name }} -- {{ args }}
     else
-        for name in "${names[@]}"; do
-            if [ ${#extra[@]} -gt 0 ]; then
-                echo "Running benchmark \"$name\" with: ${extra_args[*]}"
-                cargo bench --bench "$name" -- "${extra_args[@]}"
-            else
-                echo "Running benchmark \"$name\""
-                cargo bench --bench "$name" -- --quiet
-            fi
-        done
+        echo "Running benchmark \"{{ name }}\""
+        cargo bench --bench {{ name }} -- --quiet
+    fi
+
+# Run benchmarks: `just benches [args]`
+[positional-arguments]
+[working-directory('benchmarks')]
+benches *args:
+    #!/usr/bin/env bash
+    set -eo pipefail
+    if [ -n "{{ args }}" ]; then
+        echo "Running all benchmarks with: {{ args }}"
+        cargo bench -- {{ args }}
+    else
+        echo "Running all benchmarks"
+        cargo bench -- --quiet
     fi
