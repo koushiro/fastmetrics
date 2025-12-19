@@ -37,7 +37,7 @@ test *args='':
 gen-docs *args='':
     @cargo doc --no-deps --workspace --lib --all-features {{ args }}
 
-# Run a example: `just example [name] <args>`
+# Run a example: `just example <name> [args]`
 [positional-arguments]
 [working-directory('examples')]
 example name *args:
@@ -51,7 +51,7 @@ example name *args:
         cargo run --example {{ name }}
     fi
 
-# Run a benchmark: `just bench [name] <args>`
+# Run a benchmark: `just bench <name> [args]`
 [positional-arguments]
 [working-directory('benchmarks')]
 bench name *args:
@@ -65,7 +65,7 @@ bench name *args:
         cargo bench --bench {{ name }} -- --quiet
     fi
 
-# Run benchmarks: `just benches <args>`
+# Run benchmarks: `just benches [args]`
 [positional-arguments]
 [working-directory('benchmarks')]
 benches *args:
