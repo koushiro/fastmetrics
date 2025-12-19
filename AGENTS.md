@@ -40,24 +40,15 @@ While working on this codebase, please remember:
 - Formatting: use `taplo fmt` for TOML and `cargo fmt` for Rust. Prefer running `just fmt` (formats all) or `just fmt-check`.
 - Docs: public items should have doc comments. Avoid missing_docs failures.
 
-## Development workflow (local)
+## Development commands
 
-- Format: `just fmt` or `just fmt-check`.
-- Lint: `just clippy`.
-- Check/build: `just check` or `just build`.
-- Tests: `just test` (runs workspace tests).
-- Docs: `just gen-docs` for local validation (no-deps, all-features).
-- Examples: `just example <name> [args]` from `examples/`.
-- Benchmarks: `just bench <name>` from `benchmarks/`. For perf-sensitive changes, run relevant benches and note results.
-
-## Quick commands
-
-- Format: `just fmt`
+- Format: `just fmt` or `just fmt-check`
 - Lint: `just clippy`
-- Test: `just test`
-- Docs: `just gen-docs`
-- Example: `just example <name> [args]`
-- Benchmarks: `just bench <name> [args]` or `just benches [args]`
+- Check/Build: `just check` or `just build`
+- Test: `just test` (runs workspace tests)
+- Docs: `just gen-docs` for local validation (no-deps, all-features)
+- Example: `just example <name> [args]` from `examples/`
+- Benchmarks: `just bench <name> [args]` or `just benches [args]` from `benchmarks/`. For perf-sensitive changes, run relevant benches and note results.
 
 ## Documentation pointers
 
