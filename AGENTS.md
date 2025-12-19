@@ -48,16 +48,16 @@ While working on this codebase, please remember:
 - Tests: `just test` (runs workspace tests).
 - Docs: `just gen-docs` for local validation (no-deps, all-features).
 - Examples: `just example <name> [args]` from `examples/`.
-- Benchmarks: `just bench [name] [-- <extra>]` from `benchmarks/`. For perf-sensitive changes, run relevant benches and note results.
+- Benchmarks: `just bench <name>` from `benchmarks/`. For perf-sensitive changes, run relevant benches and note results.
 
 ## Quick commands
 
 - Format: `just fmt`
 - Lint: `just clippy`
 - Test: `just test`
-- Bench: `just bench [name] <args>` or `just benchs <args>`
 - Docs: `just gen-docs`
-- Example: `just example [name] <args`
+- Example: `just example <name> [args]`
+- Benchmarks: `just bench <name> [args]` or `just benches [args]`
 
 ## Documentation pointers
 
