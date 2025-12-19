@@ -37,7 +37,7 @@ test *args='':
 gen-docs *args='':
     @cargo doc --no-deps --workspace --lib --all-features {{ args }}
 
-# Run examples: `just example [name] <args>`
+# Run a example: `just example [name] <args>`
 [positional-arguments]
 [working-directory('examples')]
 example name *args:
@@ -51,7 +51,7 @@ example name *args:
         cargo run --example {{ name }}
     fi
 
-# Run benchmark: `just bench [name] <args>`
+# Run a benchmark: `just bench [name] <args>`
 [positional-arguments]
 [working-directory('benchmarks')]
 bench name *args:
@@ -65,10 +65,10 @@ bench name *args:
         cargo bench --bench {{ name }} -- --quiet
     fi
 
-# Run benchmarks: `just benchs <args>`
+# Run benchmarks: `just benches <args>`
 [positional-arguments]
 [working-directory('benchmarks')]
-benchs *args:
+benches *args:
     #!/usr/bin/env bash
     set -eo pipefail
     if [ -n "{{ args }}" ]; then
