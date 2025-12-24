@@ -34,8 +34,8 @@ use crate::{
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`Error`](crate::error::Error) if there was an error
-/// writing to the output.
+/// Returns `Ok(())` if encoding was successful, or a [`Error`](crate::error::Error) if there was an
+/// error writing to the output.
 ///
 /// # Example
 ///

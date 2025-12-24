@@ -558,10 +558,25 @@ impl<'a> RegistrySubsystemBuilder<'a> {
             .map_err(|err| Error::invalid(err.to_string()).with_context("subsystem", &name))?;
 
         match parent.subsystems.entry(name.clone()) {
-            hash_map::Entry::Occupied(entry) => {
-                // TODO:
-                // If the subsystem already exists, and add constant labels, it will emit an error.
-                Ok(entry.into_mut())
+            hash_map::Entry::Occupied(entry) => match const_labels {
+                None => Ok(entry.into_mut()),
+                Some(subsystem_const_labels) => {
+                    validate_const_labels_config(&subsystem_const_labels)?;
+
+                    let merged = merge_const_labels(&parent.const_labels, subsystem_const_labels);
+
+                    let existing_const_labels = entry.get().constant_labels();
+                    if merged.as_slice() != existing_const_labels {
+                        return Err(Error::invalid(
+                            "subsystem already exists with different constant labels",
+                        )
+                        .with_context("subsystem", &name)
+                        .with_context("existing_const_labels", format!("{existing_const_labels:?}"))
+                        .with_context("requested_const_labels", format!("{merged:?}")));
+                    }
+
+                    Ok(entry.into_mut())
+                },
             },
             hash_map::Entry::Vacant(entry) => {
                 // Handle namespace of subsystem
@@ -574,16 +589,7 @@ impl<'a> RegistrySubsystemBuilder<'a> {
                 let const_labels = match const_labels {
                     Some(subsystem_const_labels) => {
                         validate_const_labels_config(&subsystem_const_labels)?;
-
-                        let mut merged = parent.const_labels.clone();
-                        for (new_key, new_value) in subsystem_const_labels {
-                            if let Some(pos) = merged.iter().position(|(key, _)| key == &new_key) {
-                                merged[pos] = (new_key, new_value);
-                            } else {
-                                merged.push((new_key, new_value));
-                            }
-                        }
-                        merged
+                        merge_const_labels(&parent.const_labels, subsystem_const_labels)
                     },
                     None => parent.const_labels.clone(),
                 };
@@ -597,6 +603,23 @@ impl<'a> RegistrySubsystemBuilder<'a> {
             },
         }
     }
+}
+
+fn merge_const_labels(
+    parent_labels: &[(Cow<'static, str>, Cow<'static, str>)],
+    subsystem_const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
+) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    // If there are any label key conflicts,
+    // the subsystem's labels will take precedence.
+    let mut merged = parent_labels.to_vec();
+    for (new_key, new_value) in subsystem_const_labels {
+        if let Some(pos) = merged.iter().position(|(key, _)| key == &new_key) {
+            merged[pos] = (new_key, new_value);
+        } else {
+            merged.push((new_key, new_value));
+        }
+    }
+    merged
 }
 
 fn validate_const_labels_config(
@@ -708,16 +731,33 @@ mod tests {
     }
 
     #[test]
-    fn test_subsystem_const_labels_validation_even_when_subsystem_exists() -> Result<()> {
+    fn test_subsystem_const_labels_existing_behaviors() -> Result<()> {
         let mut registry = Registry::builder().with_namespace("myapp").build()?;
-        registry.subsystem("cache")?;
-
-        // cache subsystem has been created so we cannot add more const labels
-        let result = registry
+        registry
             .subsystem_builder("cache")
-            .with_const_labels([("1invalid", "value")]) // these constant labels won't be added
+            .with_const_labels([("role", "primary")])
+            .build()?;
+
+        // Existing subsystem with invalid constant labels should error
+        let result_invalid = registry
+            .subsystem_builder("cache")
+            .with_const_labels([("1invalid", "value")])
             .build();
-        assert!(result.is_ok());
+        assert!(result_invalid.is_err());
+
+        // Existing subsystem with different constant labels should error
+        let result_mismatch = registry
+            .subsystem_builder("cache")
+            .with_const_labels([("role", "secondary")])
+            .build();
+        assert!(result_mismatch.is_err());
+
+        // Same subsystem with identical constant labels should be reused
+        let result_same = registry
+            .subsystem_builder("cache")
+            .with_const_labels([("role", "primary")])
+            .build();
+        assert!(result_same.is_ok());
 
         Ok(())
     }
