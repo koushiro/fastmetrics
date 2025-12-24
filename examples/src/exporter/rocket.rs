@@ -87,7 +87,7 @@ fn not_found(req: &Request<'_>) -> (Status, String) {
 
 #[rocket::main]
 async fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("rocket").build();
+    let mut registry = Registry::builder().with_namespace("rocket").build()?;
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 

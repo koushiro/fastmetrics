@@ -29,6 +29,7 @@ pub trait StateSetValue: PartialEq + Sized + Send + Sync + 'static {
 ///
 /// ```rust
 /// # use fastmetrics::metrics::state_set::{StateSet, StateSetValue};
+/// #
 /// #[derive(Copy, Clone, Debug, PartialEq, Default)]
 /// enum JobState {
 ///     #[default]
@@ -141,6 +142,7 @@ impl<T: StateSetValue> EncodeMetric for StateSet<T> {
 ///
 /// ```rust
 /// # use fastmetrics::metrics::state_set::{ConstStateSet, StateSetValue};
+/// #
 /// #[derive(Copy, Clone, Debug, PartialEq)]
 /// enum JobState {
 ///     Pending,

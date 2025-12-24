@@ -128,7 +128,7 @@ async fn serve_http1(stream: TcpStream, state: AppState) -> Result<(), hyper::Er
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mut registry = Registry::builder().with_namespace("hyper").build();
+    let mut registry = Registry::builder().with_namespace("hyper").build()?;
     let metrics = Metrics::default();
     metrics.register(&mut registry)?;
 

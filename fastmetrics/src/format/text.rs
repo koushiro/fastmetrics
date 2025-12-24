@@ -34,19 +34,20 @@ use crate::{
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`crate::error::Error`] if there was an error
-/// writing to the output.
+/// Returns `Ok(())` if encoding was successful, or a [`Error`](crate::error::Error) if there was an
+/// error writing to the output.
 ///
 /// # Example
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     format::text,
 /// #     metrics::counter::Counter,
 /// #     registry::Registry,
 /// # };
 /// #
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn main() -> Result<()> {
 /// let mut registry = Registry::default();
 ///
 /// // Register a counter

@@ -68,10 +68,10 @@ cfg_if::cfg_if! {
 /// #     error::Result,
 /// #     metrics::{counter::Counter, family::Family},
 /// #     raw::LabelSetSchema,
-/// #     registry::{Registry, RegistryError},
+/// #     registry::Registry,
 /// # };
 /// #
-/// # fn main() -> Result<(), RegistryError> {
+/// # fn main() -> Result<()> {
 /// let mut registry = Registry::default();
 ///
 /// #[derive(Clone, Eq, PartialEq, Hash)]
@@ -179,6 +179,7 @@ where
     /// #     },
     /// #     raw::LabelSetSchema,
     /// # };
+    /// #
     /// // Create a family with a custom factory function
     /// #[derive(Clone, Eq, PartialEq, Hash)]
     /// struct Labels {
@@ -232,10 +233,10 @@ where
     /// #     error::Result,
     /// #     raw::LabelSetSchema,
     /// #     metrics::{counter::Counter, family::Family},
-    /// #     registry::{Registry, RegistryError},
+    /// #     registry::Registry,
     /// # };
     /// #
-    /// # fn main() -> Result<(), RegistryError> {
+    /// # fn main() -> Result<()> {
     /// let mut registry = Registry::default();
     ///
     /// #[derive(Clone, Eq, PartialEq, Hash)]
@@ -310,10 +311,10 @@ where
     /// #     error::Result,
     /// #     raw::LabelSetSchema,
     /// #     metrics::{counter::Counter, family::Family},
-    /// #     registry::{Registry, RegistryError},
+    /// #     registry::Registry,
     /// # };
     /// #
-    /// # fn main() -> Result<(), RegistryError> {
+    /// # fn main() -> Result<()> {
     /// let mut registry = Registry::default();
     ///
     /// #[derive(Clone, Eq, PartialEq, Hash)]

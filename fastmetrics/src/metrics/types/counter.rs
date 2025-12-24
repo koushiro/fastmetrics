@@ -47,7 +47,9 @@ macro_rules! define_counter {
         ///
         /// ```rust
         /// # use std::time::SystemTime;
+        /// #
         /// # use fastmetrics::metrics::counter::Counter;
+        /// #
         /// // Create a default counter
         /// let counter = <Counter>::default();
         /// assert_eq!(counter.total(), 0);
@@ -179,7 +181,9 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for Counter<N> {
 ///
 /// ```rust
 /// # use std::time::SystemTime;
+/// #
 /// # use fastmetrics::metrics::counter::ConstCounter;
+/// #
 /// // Create a constant counter with initial value
 /// let counter = ConstCounter::new(42_u64);
 /// assert_eq!(counter.total(), 42);
@@ -265,9 +269,12 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 /// the registry.
 ///
 /// # Example
+///
 /// ```rust
 /// # use std::sync::atomic::{AtomicU64, Ordering};
+/// #
 /// # use fastmetrics::metrics::counter::LazyCounter;
+/// #
 /// let lazy = LazyCounter::new({
 ///     let total = AtomicU64::new(42);
 ///     move || total.load(Ordering::Relaxed)

@@ -22,7 +22,9 @@ use crate::{
 ///
 /// ```rust
 /// # use std::time::SystemTime;
+/// #
 /// # use fastmetrics::metrics::histogram::{linear_buckets, Histogram};
+/// #
 /// // Create a histogram with custom bucket boundaries
 /// let hist = Histogram::new(linear_buckets(1.0, 1.0, 10));
 ///
@@ -208,6 +210,7 @@ impl Histogram {
     ///
     /// ```
     /// # use fastmetrics::metrics::histogram::{Histogram, linear_buckets};
+    /// #
     /// let hist = Histogram::new(linear_buckets(1.0, 1.0, 3));
     /// hist.observe(2.5);
     ///

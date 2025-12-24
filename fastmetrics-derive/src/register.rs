@@ -47,7 +47,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
                     Some(subsystem_name) => {
                         let subsystem_expr = subsystem_name.to_token_stream();
                         quote! {
-                            let subsystem = registry.subsystem(#subsystem_expr);
+                            let subsystem = registry.subsystem(#subsystem_expr)?;
                             self.#field_ident.register(subsystem)?;
                         }
                     },
@@ -125,7 +125,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     let impl_block = quote! {
         #[automatically_derived]
         impl #impl_generics ::fastmetrics::registry::Register for #name #ty_generics #where_clause {
-            fn register(&self, registry: &mut ::fastmetrics::registry::Registry) -> ::core::result::Result<(), ::fastmetrics::registry::RegistryError> {
+            fn register(&self, registry: &mut ::fastmetrics::registry::Registry) -> ::core::result::Result<(), ::fastmetrics::error::Error> {
                 #(#register_stmts)*
 
                 ::core::result::Result::Ok(())

@@ -1,20 +1,11 @@
-use std::{borrow::Cow, error, fmt, sync::OnceLock};
+use std::{borrow::Cow, sync::OnceLock};
 
 use parking_lot::RwLock;
 
-use crate::registry::{Metric, Registry, RegistryError, Unit};
-
-/// Error returned when trying to set a global registry when another has already been initialized.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SetRegistryError;
-
-impl fmt::Display for SetRegistryError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Global registry has already been initialized")
-    }
-}
-
-impl error::Error for SetRegistryError {}
+use crate::{
+    error::{Error, Result},
+    registry::{Metric, Registry, Unit},
+};
 
 struct GlobalRegistry {
     registry: OnceLock<RwLock<Registry>>,
@@ -27,14 +18,16 @@ impl GlobalRegistry {
 }
 
 trait RegistryProvider: Send + Sync {
-    fn set(&self, registry: Registry) -> Result<(), SetRegistryError>;
+    fn set(&self, registry: Registry) -> Result<()>;
 
     fn get(&self) -> &RwLock<Registry>;
 }
 
 impl RegistryProvider for GlobalRegistry {
-    fn set(&self, registry: Registry) -> Result<(), SetRegistryError> {
-        self.registry.set(RwLock::new(registry)).map_err(|_| SetRegistryError)
+    fn set(&self, registry: Registry) -> Result<()> {
+        self.registry
+            .set(RwLock::new(registry))
+            .map_err(|_| Error::duplicated("Global registry has already been initialized"))
     }
 
     fn get(&self) -> &RwLock<Registry> {
@@ -64,7 +57,7 @@ fn registry_provider() -> &'static dyn RegistryProvider {
 /// Sets the global registry to the provided registry instance.
 ///
 /// This function allows you to replace the default global registry with a custom one.
-/// It can only be called once - subsequent calls will return [`SetRegistryError`].
+/// It can only be called once - subsequent calls will return an [`Error`].
 ///
 /// # Thread Safety
 ///
@@ -74,12 +67,16 @@ fn registry_provider() -> &'static dyn RegistryProvider {
 /// # Example
 ///
 /// ```rust
-/// # use fastmetrics::registry::{Registry, set_global_registry};
+/// # use fastmetrics::{
+/// #    error::{ErrorKind, Result},
+/// #    registry::{Registry, set_global_registry}
+/// # };
+/// #
+/// # fn main() -> Result<()> {
 /// let custom_registry = Registry::builder()
 ///     .with_namespace("myapp")
 ///     .with_const_labels([("env", "prod")])
-///     .build();
-///
+///     .build()?;
 ///
 /// // This will succeed
 /// assert!(set_global_registry(custom_registry).is_ok());
@@ -89,10 +86,16 @@ fn registry_provider() -> &'static dyn RegistryProvider {
 /// // This will fail
 /// let another_registry = Registry::builder()
 ///     .with_namespace("other")
-///     .build();
-/// assert!(set_global_registry(another_registry).is_err());
+///     .build()?;
+/// let res = set_global_registry(another_registry);
+/// assert!(res.is_err());
+/// if let Err(err) = res {
+///     assert_eq!(err.kind(), ErrorKind::Duplicated);
+/// }
+/// # Ok(())
+/// # }
 /// ```
-pub fn set_global_registry(registry: Registry) -> Result<(), SetRegistryError> {
+pub fn set_global_registry(registry: Registry) -> Result<()> {
     let provider = registry_provider();
     provider.set(registry)
 }
@@ -115,6 +118,7 @@ pub fn set_global_registry(registry: Registry) -> Result<(), SetRegistryError> {
 ///
 /// ```rust
 /// # use fastmetrics::registry::with_global_registry;
+/// #
 /// let namespace = with_global_registry(|registry| {
 ///     registry.namespace().map(|s| s.to_owned())
 /// });
@@ -150,6 +154,7 @@ where
 /// #     registry::with_global_registry_mut,
 /// #     metrics::counter::Counter
 /// # };
+/// #
 /// let res = with_global_registry_mut(|registry| {
 ///     // Perform mutable operations on the registry
 ///     registry.register("my_counter", "my_counter help", <Counter>::default()).map(|_| ())
@@ -178,7 +183,7 @@ where
 ///
 /// # Returns
 ///
-/// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
+/// Returns `Ok(metric)` if registration succeeds, or [`Error`] if:
 /// - A same metric already exists
 /// - The metric name violates the OpenMetrics metric name rules
 /// - The help text violates the OpenMetrics escaped-string rules
@@ -189,10 +194,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     metrics::counter::Counter,
-/// #     registry::{register, RegistryError},
+/// #     registry::register,
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// let counter = register("http_requests_total", "Total HTTP requests", <Counter>::default())?;
 ///
 /// // Use the returned counter
@@ -206,10 +213,12 @@ where
 ///
 /// ```rust
 /// # use std::sync::LazyLock;
+/// #
 /// # use fastmetrics::{
 /// #     metrics::counter::Counter,
 /// #     registry::register,
 /// # };
+/// #
 /// static REQUEST_COUNTER: LazyLock<Counter> = LazyLock::new(|| {
 ///     register("requests_total", "Total requests processed", <Counter>::default())
 ///         .expect("Failed to register counter")
@@ -224,16 +233,22 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::{ErrorKind, Result},
 /// #     metrics::counter::Counter,
-/// #     registry::{register, RegistryError},
+/// #     registry::register,
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// // Register first counter
 /// let counter1 = register("my_counter", "A counter", <Counter>::default())?;
 ///
 /// // Try to register another counter with the same name - this will fail
 /// let result = register("my_counter", "Another counter", <Counter>::default());
-/// assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
+/// assert!(result.is_err());
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Duplicated);
+///     assert_eq!(err.message(), "metric already exists");
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -241,7 +256,7 @@ pub fn register<M>(
     name: impl Into<Cow<'static, str>>,
     help: impl Into<Cow<'static, str>>,
     metric: M,
-) -> Result<M, RegistryError>
+) -> Result<M>
 where
     M: Metric + Clone + 'static,
 {
@@ -262,7 +277,7 @@ where
 ///
 /// # Returns
 ///
-/// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
+/// Returns `Ok(metric)` if registration succeeds, or [`Error`] if:
 /// - A same metric already exists
 /// - The metric name violates the OpenMetrics metric name rules
 /// - The help text violates the OpenMetrics escaped-string rules
@@ -275,10 +290,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     metrics::histogram::Histogram,
-/// #     registry::{register_with_unit, RegistryError, Unit},
+/// #     registry::{register_with_unit, Unit},
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// let duration_histogram = register_with_unit(
 ///     "request_duration",
 ///     "HTTP request duration",
@@ -295,10 +312,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     metrics::gauge::Gauge,
-/// #     registry::{register_with_unit, RegistryError},
+/// #     registry::register_with_unit,
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// let temperature = register_with_unit(
 ///     "cpu_temperature",
 ///     "CPU temperature",
@@ -315,10 +334,12 @@ where
 ///
 /// ```rust
 /// # use std::sync::LazyLock;
+/// #
 /// # use fastmetrics::{
 /// #     metrics::gauge::Gauge,
 /// #     registry::{register_with_unit, Unit},
 /// # };
+/// #
 /// static MEMORY_USAGE: LazyLock<Gauge> = LazyLock::new(|| {
 ///     register_with_unit(
 ///         "memory_usage",
@@ -338,10 +359,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::{ErrorKind, Result},
 /// #     metrics::gauge::Gauge,
-/// #     registry::{register_with_unit, RegistryError},
+/// #     registry::register_with_unit,
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// // Invalid unit format (contains characters disallowed by OpenMetrics)
 /// let result = register_with_unit(
 ///     "invalid_metric",
@@ -349,7 +372,10 @@ where
 ///     "invalid-unit",
 ///     <Gauge>::default(),
 /// );
-/// assert!(matches!(result, Err(RegistryError::InvalidUnit { .. })));
+/// assert!(result.is_err());
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Invalid);
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -358,7 +384,7 @@ pub fn register_with_unit<M>(
     help: impl Into<Cow<'static, str>>,
     unit: impl Into<Unit>,
     metric: M,
-) -> Result<M, RegistryError>
+) -> Result<M>
 where
     M: Metric + Clone + 'static,
 {
@@ -382,7 +408,7 @@ where
 ///
 /// # Returns
 ///
-/// Returns `Ok(metric)` if registration succeeds, or [`RegistryError`] if:
+/// Returns `Ok(metric)` if registration succeeds, or [`Error`] if:
 /// - A same metric already exists
 /// - The metric name violates the OpenMetrics metric name rules
 /// - The help text violates the OpenMetrics escaped-string rules
@@ -395,10 +421,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     metrics::counter::Counter,
-/// #     registry::{register_metric, RegistryError, Unit},
+/// #     registry::{register_metric, Unit},
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// let counter = register_metric(
 ///     "requests_total",
 ///     "Total number of requests",
@@ -416,10 +444,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     metrics::histogram::Histogram,
-/// #     registry::{register_metric, RegistryError, Unit},
+/// #     registry::{register_metric, Unit},
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// let histogram = register_metric(
 ///     "http_request_duration",
 ///     "Duration of HTTP request",
@@ -436,10 +466,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     metrics::gauge::Gauge,
-/// #     registry::{register_metric, RegistryError, Unit},
+/// #     registry::{register_metric, Unit},
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// let use_metric_units = true; // from config
 /// let unit: Option<Unit> = if use_metric_units {
 ///     Some("celsius".into())
@@ -463,10 +495,12 @@ where
 ///
 /// ```rust
 /// # use std::sync::LazyLock;
+/// #
 /// # use fastmetrics::{
 /// #     metrics::gauge::Gauge,
 /// #     registry::{register_metric, Unit},
 /// # };
+/// #
 /// static MEMORY_USAGE: LazyLock<Gauge> = LazyLock::new(|| {
 ///     register_metric(
 ///         "memory_usage",
@@ -486,10 +520,12 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::{ErrorKind, Result},
 /// #     metrics::{counter::Counter, gauge::Gauge},
-/// #     registry::{register_metric, RegistryError, Unit},
+/// #     registry::{register_metric, Unit},
 /// # };
-/// # fn main() -> Result<(), RegistryError> {
+/// #
+/// # fn main() -> Result<()> {
 /// // Invalid unit format (contains characters disallowed by OpenMetrics)
 /// let result = register_metric(
 ///     "invalid_metric",
@@ -497,12 +533,18 @@ where
 ///     Some("invalid-unit"),
 ///     <Gauge>::default(),
 /// );
-/// assert!(matches!(result, Err(RegistryError::InvalidUnit { .. })));
+/// assert!(result.is_err());
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Invalid);
+/// }
 ///
 /// // Duplicate registration
 /// let counter1 = register_metric("my_counter", "A counter", None::<Unit>, <Counter>::default())?;
 /// let result = register_metric("my_counter", "Another counter", None::<Unit>, <Counter>::default());
-/// assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
+/// assert!(result.is_err());
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Duplicated);
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -511,7 +553,7 @@ pub fn register_metric<M>(
     help: impl Into<Cow<'static, str>>,
     unit: Option<impl Into<Unit>>,
     metric: M,
-) -> Result<M, RegistryError>
+) -> Result<M>
 where
     M: Metric + Clone + 'static,
 {
@@ -550,8 +592,10 @@ mod tests {
     }
 
     impl RegistryProvider for TestRegistry {
-        fn set(&self, registry: Registry) -> Result<(), SetRegistryError> {
-            self.registry.set(RwLock::new(registry)).map_err(|_| SetRegistryError)
+        fn set(&self, registry: Registry) -> Result<()> {
+            self.registry
+                .set(RwLock::new(registry))
+                .map_err(|_| Error::duplicated("Global registry has already been initialized"))
         }
 
         fn get(&self) -> &RwLock<Registry> {
@@ -568,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn test_global_registry() {
+    fn test_global_registry() -> Result<()> {
         let provider = create_default_test_provider();
         with_test_provider(provider, || {
             with_global_registry(|registry| {
@@ -576,7 +620,7 @@ mod tests {
             });
         });
 
-        let registry = Registry::builder().with_namespace("test1").build();
+        let registry = Registry::builder().with_namespace("test1").build()?;
         let provider = create_test_provider(registry);
         with_test_provider(provider, || {
             with_global_registry(|registry| {
@@ -584,18 +628,20 @@ mod tests {
             });
         });
 
-        let registry = Registry::builder().with_namespace("test2").build();
+        let registry = Registry::builder().with_namespace("test2").build()?;
         let provider = create_test_provider(registry);
         with_test_provider(provider, || {
             with_global_registry(|registry| {
                 assert_eq!(registry.namespace(), Some("test2"));
             });
         });
+
+        Ok(())
     }
 
     #[test]
-    fn test_concurrent_access() {
-        let registry = Registry::builder().with_namespace("concurrent").build();
+    fn test_concurrent_access() -> Result<()> {
+        let registry = Registry::builder().with_namespace("concurrent").build()?;
         let provider = create_test_provider(registry);
 
         with_test_provider(provider, || {
@@ -619,11 +665,13 @@ mod tests {
                 assert_eq!(namespace, Some("concurrent".to_owned()));
             }
         });
+
+        Ok(())
     }
 
     #[test]
-    fn test_mutable_and_immutable_access() {
-        let registry = Registry::builder().with_namespace("test").build();
+    fn test_mutable_and_immutable_access() -> Result<()> {
+        let registry = Registry::builder().with_namespace("test").build()?;
         let provider = create_test_provider(registry);
 
         with_test_provider(provider, || {
@@ -638,16 +686,18 @@ mod tests {
                 assert_eq!(registry.namespace(), Some("test"));
             });
         });
+
+        Ok(())
     }
 
     #[test]
-    fn duplicated_set_global_registry() {
+    fn duplicated_set_global_registry() -> Result<()> {
         // Create a test provider to isolate this test
         let provider = create_default_test_provider();
 
         with_test_provider(provider, || {
             // The First call should succeed
-            let registry1 = Registry::builder().with_namespace("first").build();
+            let registry1 = Registry::builder().with_namespace("first").build()?;
             let result1 = set_global_registry(registry1);
             assert!(result1.is_ok(), "First set_global_registry should succeed");
 
@@ -657,7 +707,7 @@ mod tests {
             });
 
             // The Second call should fail since the global registry is already initialized
-            let registry2 = Registry::builder().with_namespace("second").build();
+            let registry2 = Registry::builder().with_namespace("second").build()?;
             let result2 = set_global_registry(registry2);
             assert!(result2.is_err(), "Second set_global_registry should fail");
 
@@ -665,6 +715,8 @@ mod tests {
             with_global_registry(|registry| {
                 assert_eq!(registry.namespace(), Some("first"));
             });
-        });
+
+            Ok(())
+        })
     }
 }

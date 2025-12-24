@@ -49,7 +49,7 @@ mod unix {
     }
 
     pub fn run() -> anyhow::Result<()> {
-        let mut registry = Registry::builder().with_namespace("process").build();
+        let mut registry = Registry::builder().with_namespace("process").build()?;
 
         let metrics = ProcessMetrics::new(read_cpu_seconds_total, read_resident_memory_bytes);
         metrics.register(&mut registry)?;

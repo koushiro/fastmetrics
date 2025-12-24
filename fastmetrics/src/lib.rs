@@ -76,7 +76,7 @@
 //! let mut registry = Registry::builder()
 //!     .with_namespace("myapp")
 //!     .with_const_labels([("env", "prod")])
-//!     .build();
+//!     .build()?;
 //!
 //! // Register a simple counter
 //! let requests = <Counter>::default();
