@@ -27,7 +27,7 @@ impl RegistryProvider for GlobalRegistry {
     fn set(&self, registry: Registry) -> Result<()> {
         self.registry
             .set(RwLock::new(registry))
-            .map_err(|_| Error::unexpected("Global registry has already been initialized"))
+            .map_err(|_| Error::duplicated("Global registry has already been initialized"))
     }
 
     fn get(&self) -> &RwLock<Registry> {
@@ -68,7 +68,7 @@ fn registry_provider() -> &'static dyn RegistryProvider {
 ///
 /// ```rust
 /// # use fastmetrics::{
-/// #    error::Result,
+/// #    error::{ErrorKind, Result},
 /// #    registry::{Registry, set_global_registry}
 /// # };
 /// #
@@ -87,7 +87,11 @@ fn registry_provider() -> &'static dyn RegistryProvider {
 /// let another_registry = Registry::builder()
 ///     .with_namespace("other")
 ///     .build()?;
-/// assert!(set_global_registry(another_registry).is_err());
+/// let res = set_global_registry(another_registry);
+/// assert!(res.is_err());
+/// if let Err(err) = res {
+///     assert_eq!(err.kind(), ErrorKind::Duplicated);
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -229,7 +233,7 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
-/// #     error::Result,
+/// #     error::{ErrorKind, Result},
 /// #     metrics::counter::Counter,
 /// #     registry::register,
 /// # };
@@ -241,7 +245,10 @@ where
 /// // Try to register another counter with the same name - this will fail
 /// let result = register("my_counter", "Another counter", <Counter>::default());
 /// assert!(result.is_err());
-/// # // assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Duplicated);
+///     assert_eq!(err.message(), "metric already exists");
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -352,7 +359,7 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
-/// #     error::Result,
+/// #     error::{ErrorKind, Result},
 /// #     metrics::gauge::Gauge,
 /// #     registry::register_with_unit,
 /// # };
@@ -366,7 +373,9 @@ where
 ///     <Gauge>::default(),
 /// );
 /// assert!(result.is_err());
-/// # // assert!(matches!(result, Err(RegistryError::InvalidUnit { .. })));
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Invalid);
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -511,7 +520,7 @@ where
 ///
 /// ```rust
 /// # use fastmetrics::{
-/// #     error::Result,
+/// #     error::{ErrorKind, Result},
 /// #     metrics::{counter::Counter, gauge::Gauge},
 /// #     registry::{register_metric, Unit},
 /// # };
@@ -525,13 +534,17 @@ where
 ///     <Gauge>::default(),
 /// );
 /// assert!(result.is_err());
-/// # // assert!(matches!(result, Err(RegistryError::InvalidUnit { .. })));
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Invalid);
+/// }
 ///
 /// // Duplicate registration
 /// let counter1 = register_metric("my_counter", "A counter", None::<Unit>, <Counter>::default())?;
 /// let result = register_metric("my_counter", "Another counter", None::<Unit>, <Counter>::default());
 /// assert!(result.is_err());
-/// # // assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
+/// if let Err(err) = result {
+///     assert_eq!(err.kind(), ErrorKind::Duplicated);
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -582,7 +595,7 @@ mod tests {
         fn set(&self, registry: Registry) -> Result<()> {
             self.registry
                 .set(RwLock::new(registry))
-                .map_err(|_| Error::unexpected("Global registry has already been initialized"))
+                .map_err(|_| Error::duplicated("Global registry has already been initialized"))
         }
 
         fn get(&self) -> &RwLock<Registry> {

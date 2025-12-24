@@ -38,12 +38,13 @@ mod openmetrics_data_model {
 ///
 /// ```rust
 /// # use fastmetrics::{
+/// #     error::Result,
 /// #     format::prost,
 /// #     metrics::counter::Counter,
 /// #     registry::Registry,
 /// # };
 /// #
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # fn main() -> Result<()> {
 /// let mut registry = Registry::default();
 ///
 /// // Register a counter

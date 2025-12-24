@@ -144,14 +144,14 @@ impl RegistryBuilder {
     pub fn build(self) -> Result<Registry> {
         let namespace = if let Some(namespace) = self.namespace {
             if namespace.is_empty() {
-                return Err(Error::unexpected("namespace cannot be an empty string")
+                return Err(Error::invalid("namespace cannot be an empty string")
                     .with_context("namespace", namespace));
             }
             match validate_metric_name(namespace.as_ref(), true) {
                 Ok(()) => Some(namespace),
                 Err(err) => {
                     return Err(
-                        Error::unexpected(err.to_string()).with_context("namespace", namespace)
+                        Error::invalid(err.to_string()).with_context("namespace", namespace)
                     );
                 },
             }
@@ -298,12 +298,12 @@ impl Registry {
         // Check the metric name
         let name: Cow<'static, str> = name.into();
         validate_metric_name(&name, self.namespace().is_none())
-            .map_err(|err| Error::unexpected(err.to_string()).with_context("metric", &name))?;
+            .map_err(|err| Error::invalid(err.to_string()).with_context("metric", &name))?;
 
         // Check metric help text
         let help = help.into();
         validate_help_text(&help).map_err(|err| {
-            Error::unexpected(err.to_string())
+            Error::invalid(err.to_string())
                 .with_context("metric", &name)
                 .with_context("help", &help)
         })?;
@@ -313,7 +313,7 @@ impl Registry {
         let metric_type = <M as TypedMetric>::TYPE;
         if let Some(Unit::Other(unit)) = unit.as_ref() {
             validate_unit(unit.as_ref()).map_err(|err| {
-                Error::unexpected(err.to_string())
+                Error::invalid(err.to_string())
                     .with_context("metric", &name)
                     .with_context("unit", unit)
             })?;
@@ -321,7 +321,7 @@ impl Registry {
             // Check if metric type requires empty unit
             match metric_type {
                 MetricType::StateSet | MetricType::Info | MetricType::Unknown => {
-                    return Err(Error::unexpected("metric must have an empty unit string")
+                    return Err(Error::invalid("metric must have an empty unit string")
                         .with_context("metric", name)
                         .with_context("type", metric_type)
                         .with_context("unit", unit));
@@ -346,7 +346,7 @@ impl Registry {
         let mut const_label_names = HashSet::new();
         for (name, _) in self.const_labels.iter() {
             if let Some(reason) = reserved_label_reason(name.as_ref()) {
-                return Err(Error::unexpected(reason).with_context("label", name));
+                return Err(Error::invalid(reason).with_context("label", name));
             }
             const_label_names.insert(name.as_ref());
         }
@@ -356,20 +356,20 @@ impl Registry {
         if let Some(names) = <M::LabelSet as LabelSetSchema>::names() {
             for name in names.iter().copied() {
                 if let Err(err) = validate_label_name(name) {
-                    return Err(Error::unexpected(err.to_string()).with_context("label", name));
+                    return Err(Error::invalid(err.to_string()).with_context("label", name));
                 }
 
                 if let Some(reason) = reserved_label_reason(name) {
-                    return Err(Error::unexpected(reason).with_context("label", name));
+                    return Err(Error::invalid(reason).with_context("label", name));
                 }
 
                 if const_label_names.contains(name) {
-                    return Err(Error::unexpected("label name conflicts with a constant label")
+                    return Err(Error::invalid("label name conflicts with a constant label")
                         .with_context("label", name));
                 }
 
                 if !variable_label_names.insert(name) {
-                    return Err(Error::unexpected("duplicate label name in variable labels")
+                    return Err(Error::invalid("duplicate label name in variable labels")
                         .with_context("label", name));
                 }
             }
@@ -382,7 +382,7 @@ impl Registry {
                 Ok(self)
             },
             hash_map::Entry::Occupied(_) => {
-                Err(Error::unexpected("metric already exists").with_context("metric", name))
+                Err(Error::duplicated("metric already exists").with_context("metric", name))
             },
         }
     }
@@ -551,11 +551,11 @@ impl<'a> RegistrySubsystemBuilder<'a> {
 
         // Check if the subsystem name is valid
         if name.is_empty() {
-            return Err(Error::unexpected("subsystem name cannot be an empty string")
+            return Err(Error::invalid("subsystem name cannot be an empty string")
                 .with_context("subsystem", name));
         }
         validate_metric_name(&name, parent.namespace.is_none())
-            .map_err(|err| Error::unexpected(err.to_string()).with_context("subsystem", &name))?;
+            .map_err(|err| Error::invalid(err.to_string()).with_context("subsystem", &name))?;
 
         match parent.subsystems.entry(name.clone()) {
             hash_map::Entry::Occupied(entry) => {
@@ -606,10 +606,10 @@ fn validate_const_labels_config(
 
     for (name, _) in const_labels.iter() {
         validate_label_name(name.as_ref())
-            .map_err(|err| Error::unexpected(err.to_string()).with_context("label", name))?;
+            .map_err(|err| Error::invalid(err.to_string()).with_context("label", name))?;
 
         if !names.insert(name.clone()) {
-            return Err(Error::unexpected("duplicate label name in constant labels")
+            return Err(Error::invalid("duplicate label name in constant labels")
                 .with_context("label", name));
         }
     }
@@ -622,7 +622,7 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
-    use crate::encoder::MetricEncoder;
+    use crate::{encoder::MetricEncoder, error::ErrorKind};
 
     #[test]
     fn test_registry_subsystem() -> Result<()> {
@@ -769,7 +769,10 @@ mod tests {
         // Try to register another counter with the same name and type - this will fail
         let result = registry.register("my_dummy_counter", "Another dummy counter", DummyCounter);
         assert!(result.is_err());
-        // assert!(matches!(result, Err(RegistryError::AlreadyExists { .. })));
+        if let Err(err) = result {
+            assert_eq!(err.kind(), ErrorKind::Duplicated);
+            assert_eq!(err.message(), "metric already exists");
+        }
 
         Ok(())
     }

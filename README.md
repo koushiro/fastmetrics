@@ -34,6 +34,7 @@ and it's compatible with [Prometheus].
 ```rust
 use fastmetrics::{
     derive::*,
+    error::Result,
     format::text,
     metrics::{counter::Counter, family::Family},
     registry::*,
@@ -63,12 +64,12 @@ struct Metrics {
     http_requests: Family<Labels, Counter>,
 }
 
-fn main() -> Box<dyn std::error::Error> {
+fn main() -> Result<()> {
     // Create a registry with a namespace and some constant labels
     let mut registry = Registry::builder()
         .with_namespace("myapp")
         .with_const_labels([("env", "prod")])
-        .build();
+        .build()?;
 
     // Register metrics
     let metrics = Metrics::default();

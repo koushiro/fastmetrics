@@ -18,6 +18,10 @@ pub enum ErrorKind {
     Unexpected,
     /// The operation is not supported.
     Unsupported,
+    /// The definition is invalid.
+    Invalid,
+    /// The operation is duplicated.
+    Duplicated,
 }
 
 impl fmt::Display for ErrorKind {
@@ -25,6 +29,8 @@ impl fmt::Display for ErrorKind {
         match self {
             Self::Unexpected => f.write_str("Unexpected"),
             Self::Unsupported => f.write_str("Unsupported"),
+            Self::Invalid => f.write_str("Invalid"),
+            Self::Duplicated => f.write_str("Duplicated"),
         }
     }
 }
@@ -155,6 +161,16 @@ impl Error {
         Self::new(ErrorKind::Unsupported, message)
     }
 
+    /// Create a new invalid [`Error`] with message.
+    pub fn invalid(message: impl Into<Cow<'static, str>>) -> Self {
+        Self::new(ErrorKind::Invalid, message)
+    }
+
+    /// Create a new duplicated [`Error`] with message.
+    pub fn duplicated(message: impl Into<Cow<'static, str>>) -> Self {
+        Self::new(ErrorKind::Duplicated, message)
+    }
+
     /// Add more context in error.
     pub fn with_context(mut self, key: &'static str, value: impl ToString) -> Self {
         self.context.push((key, value.to_string()));
@@ -184,7 +200,7 @@ impl Error {
 }
 
 impl From<fmt::Error> for Error {
-    fn from(_: fmt::Error) -> Self {
-        Self::unexpected("failed to encode text")
+    fn from(err: fmt::Error) -> Self {
+        Self::unexpected("failed to encode text").set_source(err)
     }
 }
