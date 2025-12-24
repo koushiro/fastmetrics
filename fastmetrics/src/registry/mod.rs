@@ -144,8 +144,7 @@ impl RegistryBuilder {
     pub fn build(self) -> Result<Registry> {
         let namespace = if let Some(namespace) = self.namespace {
             if namespace.is_empty() {
-                return Err(Error::invalid("namespace cannot be an empty string")
-                    .with_context("namespace", namespace));
+                return Err(Error::invalid("namespace cannot be an empty string"));
             }
             match validate_metric_name(namespace.as_ref(), true) {
                 Ok(()) => Some(namespace),
@@ -551,8 +550,7 @@ impl<'a> RegistrySubsystemBuilder<'a> {
 
         // Check if the subsystem name is valid
         if name.is_empty() {
-            return Err(Error::invalid("subsystem name cannot be an empty string")
-                .with_context("subsystem", name));
+            return Err(Error::invalid("subsystem name cannot be an empty string"));
         }
         validate_metric_name(&name, parent.namespace.is_none())
             .map_err(|err| Error::invalid(err.to_string()).with_context("subsystem", &name))?;
