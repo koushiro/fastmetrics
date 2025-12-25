@@ -225,12 +225,12 @@ where
         }
 
         if has_family_labels {
-            if let Some(family_labels) = self.family_labels {
-                if has_const_labels {
-                    common_labels.push(',');
-                }
-                family_labels.encode(&mut LabelSetEncoder::new(&mut common_labels))?;
+            if has_const_labels {
+                common_labels.push(',');
             }
+            self.family_labels
+                .expect("family_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(&mut common_labels))?;
         }
 
         Ok(Some(common_labels))
@@ -254,19 +254,18 @@ where
 
         let mut wrote_any = false;
         if has_common_labels {
-            if let Some(common) = common_labels {
-                self.writer.write_str(common)?;
-                wrote_any = true;
-            }
+            let common_labels = common_labels.expect("common_labels should be `Some` value");
+            self.writer.write_str(common_labels)?;
+            wrote_any = true;
         }
 
         if has_additional_labels {
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            if let Some(additional_labels) = additional_labels {
-                additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
-            }
+            additional_labels
+                .expect("additional_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(self.writer))?;
         }
 
         self.writer.write_str("} ")?;
@@ -295,19 +294,19 @@ where
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            if let Some(family_labels) = self.family_labels {
-                family_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
-                wrote_any = true;
-            }
+            self.family_labels
+                .expect("family_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(self.writer))?;
+            wrote_any = true;
         }
 
         if has_additional_labels {
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            if let Some(additional_labels) = additional_labels {
-                additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
-            }
+            additional_labels
+                .expect("additional_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(self.writer))?;
         }
 
         self.writer.write_str("} ")?;
