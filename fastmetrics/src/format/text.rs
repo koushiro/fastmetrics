@@ -212,11 +212,7 @@ where
     /// Pre-encode common labels (const_labels + family_labels) to a string buffer
     fn encode_common_labels_to_string(&self) -> Result<Option<String>> {
         let has_const_labels = !self.const_labels.is_empty();
-        let has_family_labels = match self.family_labels {
-            None => false,
-            Some(labels) if labels.is_empty() => false,
-            Some(_) => true,
-        };
+        let has_family_labels = matches!(self.family_labels, Some(labels) if !labels.is_empty());
 
         if !has_const_labels && !has_family_labels {
             return Ok(None);
@@ -228,13 +224,13 @@ where
             self.const_labels.encode(&mut LabelSetEncoder::new(&mut common_labels))?;
         }
 
-        if let Some(family_labels) = self.family_labels {
-            if has_family_labels {
-                if has_const_labels {
-                    common_labels.push(',');
-                }
-                family_labels.encode(&mut LabelSetEncoder::new(&mut common_labels))?;
+        if has_family_labels {
+            if has_const_labels {
+                common_labels.push(',');
             }
+            self.family_labels
+                .expect("family_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(&mut common_labels))?;
         }
 
         Ok(Some(common_labels))
@@ -247,11 +243,7 @@ where
         additional_labels: Option<&dyn EncodeLabelSet>,
     ) -> Result<()> {
         let has_common_labels = common_labels.is_some();
-        let has_additional_labels = match additional_labels {
-            None => false,
-            Some(labels) if labels.is_empty() => false,
-            Some(_) => true,
-        };
+        let has_additional_labels = matches!(additional_labels, Some(labels) if !labels.is_empty());
 
         if !has_common_labels && !has_additional_labels {
             self.writer.write_str(" ")?;
@@ -259,24 +251,66 @@ where
         }
 
         self.writer.write_str("{")?;
-        if let Some(common) = common_labels {
-            self.writer.write_str(common)?;
+
+        let mut wrote_any = false;
+        if has_common_labels {
+            let common_labels = common_labels.expect("common_labels should be `Some` value");
+            self.writer.write_str(common_labels)?;
+            wrote_any = true;
         }
-        if let Some(additional_labels) = additional_labels {
-            if has_additional_labels {
-                if has_common_labels {
-                    self.writer.write_str(",")?;
-                }
-                additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+
+        if has_additional_labels {
+            if wrote_any {
+                self.writer.write_str(",")?;
             }
+            additional_labels
+                .expect("additional_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(self.writer))?;
         }
+
         self.writer.write_str("} ")?;
         Ok(())
     }
 
     fn encode_label_set(&mut self, additional_labels: Option<&dyn EncodeLabelSet>) -> Result<()> {
-        let common_labels = self.encode_common_labels_to_string()?;
-        self.encode_label_set_with_common(common_labels.as_deref(), additional_labels)
+        let has_const_labels = !self.const_labels.is_empty();
+        let has_family_labels = matches!(self.family_labels, Some(labels) if !labels.is_empty());
+        let has_additional_labels = matches!(additional_labels, Some(labels) if !labels.is_empty());
+
+        if !has_const_labels && !has_family_labels && !has_additional_labels {
+            self.writer.write_str(" ")?;
+            return Ok(());
+        }
+
+        self.writer.write_str("{")?;
+
+        let mut wrote_any = false;
+        if has_const_labels {
+            self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+            wrote_any = true;
+        }
+
+        if has_family_labels {
+            if wrote_any {
+                self.writer.write_str(",")?;
+            }
+            self.family_labels
+                .expect("family_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(self.writer))?;
+            wrote_any = true;
+        }
+
+        if has_additional_labels {
+            if wrote_any {
+                self.writer.write_str(",")?;
+            }
+            additional_labels
+                .expect("additional_labels should be `Some` value")
+                .encode(&mut LabelSetEncoder::new(self.writer))?;
+        }
+
+        self.writer.write_str("} ")?;
+        Ok(())
     }
 
     fn encode_buckets(
