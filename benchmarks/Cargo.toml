@@ -7,8 +7,10 @@ license.workspace = true
 publish = false
 
 [dev-dependencies]
+bytes = "1"
 criterion = "0.8"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "prost", "protobuf"] }
+measured = "0.0.24"
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.18", default-features = false, features = [
     "protobuf",
