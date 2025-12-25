@@ -261,10 +261,10 @@ where
         }
 
         if has_additional_labels {
+            if wrote_any {
+                self.writer.write_str(",")?;
+            }
             if let Some(additional_labels) = additional_labels {
-                if wrote_any {
-                    self.writer.write_str(",")?;
-                }
                 additional_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
             }
         }
