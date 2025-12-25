@@ -97,9 +97,6 @@ See [documentation](https://docs.rs/fastmetrics) and [examples](https://github.c
 
 ## Performance
 
-Compared with the existing rust client libraries, its text encoding is about 20%~30% faster than the fastest rust library (prometheus-client),
-while its Protobuf encoding is on par with the fastest rust library (prometheus).
-
 See [benchmarks](https://github.com/koushiro/fastmetrics/blob/main/benchmarks/README.md) for more details
 
 ## Acknowledgment
