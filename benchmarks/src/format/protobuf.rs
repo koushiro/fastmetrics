@@ -17,7 +17,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
         for times in observe_times {
             let mut group = c.benchmark_group("protobuf::encode");
 
-            let metric_id = format!("{count} metrics * {times} observe times");
+            let metric_id = format!("{count} metrics * {times} times");
 
             let id = format!("metrics_exporter_prometheus(prost/prometheus): {metric_id}");
             group.sample_size(20).bench_function(id, |b| {
