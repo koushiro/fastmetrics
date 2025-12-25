@@ -21,6 +21,12 @@ fn bench_counter_u64(c: &mut Criterion) {
             b.iter(|| handle.increment(1));
         });
     });
+    group.bench_function("measured", |b| {
+        use measured::Counter;
+        let counter = Counter::new();
+
+        b.iter(|| counter.inc());
+    });
     group.bench_function("prometheus", |b| {
         use prometheus::IntCounter;
         let counter = IntCounter::new("my_counter", "My counter").unwrap();
@@ -90,6 +96,16 @@ fn bench_gauge_i64(c: &mut Criterion) {
             );
         });
     });
+    group.bench_function("measured", |b| {
+        use measured::Gauge;
+        let gauge = Gauge::new();
+
+        b.iter_batched(
+            || rand::rng().random::<i64>(),
+            |input| gauge.set(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
     group.bench_function("prometheus", |b| {
         use prometheus::IntGauge;
         let gauge = IntGauge::new("my_gauge", "My gauge").unwrap();
@@ -134,6 +150,16 @@ fn bench_gauge_i64(c: &mut Criterion) {
             );
         });
     });
+    group.bench_function("measured", |b| {
+        use measured::Gauge;
+        let gauge = Gauge::new();
+
+        b.iter_batched(
+            || rand::rng().random::<i64>(),
+            |input| gauge.inc_by(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
     group.bench_function("prometheus", |b| {
         use prometheus::IntGauge;
         let gauge = IntGauge::new("my_gauge", "My gauge").unwrap();
@@ -177,6 +203,16 @@ fn bench_gauge_i64(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
+    });
+    group.bench_function("measured", |b| {
+        use measured::Gauge;
+        let gauge = Gauge::new();
+
+        b.iter_batched(
+            || rand::rng().random::<i64>(),
+            |input| gauge.dec_by(black_box(input)),
+            BatchSize::SmallInput,
+        );
     });
     group.bench_function("prometheus", |b| {
         use prometheus::IntGauge;
@@ -224,6 +260,16 @@ fn bench_gauge_f64(c: &mut Criterion) {
             );
         });
     });
+    group.bench_function("measured", |b| {
+        use measured::FloatGauge;
+        let gauge = FloatGauge::new();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.set(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
     group.bench_function("prometheus", |b| {
         use prometheus::Gauge;
         let gauge = Gauge::new("my_gauge", "My gauge").unwrap();
@@ -268,6 +314,16 @@ fn bench_gauge_f64(c: &mut Criterion) {
             );
         });
     });
+    group.bench_function("measured", |b| {
+        use measured::FloatGauge;
+        let gauge = FloatGauge::new();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.inc_by(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
     group.bench_function("prometheus", |b| {
         use prometheus::Gauge;
         let gauge = Gauge::new("my_gauge", "My gauge").unwrap();
@@ -311,6 +367,16 @@ fn bench_gauge_f64(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
+    });
+    group.bench_function("measured", |b| {
+        use measured::FloatGauge;
+        let gauge = FloatGauge::new();
+
+        b.iter_batched(
+            || rand::rng().random::<f64>(),
+            |input| gauge.dec_by(black_box(input)),
+            BatchSize::SmallInput,
+        );
     });
     group.bench_function("prometheus", |b| {
         use prometheus::Gauge;
@@ -357,6 +423,17 @@ fn bench_histogram(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
+    });
+    group.bench_function("measured", |b| {
+        use measured::{Histogram, metric::histogram::Thresholds};
+        let histogram =
+            Histogram::<10>::with_metadata(Thresholds::<10>::exponential_buckets(0.005f64, 2f64));
+
+        b.iter_batched(
+            || rand::rng().random_range(0f64..100f64),
+            |input| histogram.observe(black_box(input)),
+            BatchSize::SmallInput,
+        );
     });
     group.bench_function("prometheus", |b| {
         use prometheus::{Histogram, exponential_buckets, histogram_opts};

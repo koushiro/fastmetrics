@@ -79,12 +79,34 @@ mod fastmetrics_setup {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+mod measured_setup {
+    use measured::{CounterVec, HistogramVec, metric::histogram::Thresholds};
+
+    use super::HttpLabelsSet;
+
+    pub struct Families {
+        pub counter: CounterVec<HttpLabelsSet>,
+        pub histogram: HistogramVec<HttpLabelsSet, 10>,
+    }
+
+    pub fn setup_families() -> Families {
+        let counter = CounterVec::with_label_set(HttpLabelsSet::new());
+        let histogram = HistogramVec::with_label_set_and_metadata(
+            HttpLabelsSet::new(),
+            Thresholds::<10>::exponential_buckets(0.005f64, 2f64),
+        );
+
+        Families { counter, histogram }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, measured::LabelGroup)]
+#[label(set = HttpLabelsSet)]
 struct Labels {
     method: Method,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, measured::FixedCardinalityLabel)]
 enum Method {
     Get,
     Put,
@@ -211,6 +233,19 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
                 BatchSize::SmallInput,
             );
         });
+    });
+    group.bench_function("measured", |b| {
+        let families = measured_setup::setup_families();
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                let labels = black_box(input.labels);
+                families.counter.inc(labels.clone());
+                families.histogram.observe(labels, input.value);
+            },
+            BatchSize::SmallInput,
+        );
     });
     group.bench_function("prometheus", |b| {
         let families = prometheus_setup::set_families(&["method"]);

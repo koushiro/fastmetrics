@@ -20,8 +20,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             let metric_id = format!("{count} metrics * {times} observe times");
 
             let id = format!("metrics_exporter_prometheus(prost/prometheus): {metric_id}");
-            group.sample_size(20);
-            group.bench_function(id, |b| {
+            group.sample_size(20).bench_function(id, |b| {
                 let handle = setup_metrics_exporter_prometheus_handle(count, times);
                 b.iter(|| {
                     let payload = handle.render_protobuf();
@@ -30,8 +29,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("prometheus(protobuf/prometheus): {metric_id}");
-            group.sample_size(100);
-            group.bench_function(id, |b| {
+            group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_prometheus_registry(count, times);
                 let mut buffer = Vec::new();
                 b.iter(|| {
@@ -48,8 +46,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("prometheus_client(prost/openmetrics): {metric_id}");
-            group.sample_size(100);
-            group.bench_function(id, |b| {
+            group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
                 let mut buffer = Vec::new();
                 b.iter(|| {
@@ -61,8 +58,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("fastmetrics(prost/openmetrics): {metric_id}");
-            group.sample_size(100);
-            group.bench_function(id, |b| {
+            group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = Vec::new();
                 b.iter(|| {
@@ -73,8 +69,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             });
 
             let id = format!("fastmetrics(protobuf/openmetrics): {metric_id}");
-            group.sample_size(100);
-            group.bench_function(id, |b| {
+            group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = Vec::new();
                 b.iter(|| {
