@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use fastmetrics::{
+    derive::*,
     format::{prost, text},
     registry::{Register, Registry},
 };
@@ -14,8 +15,17 @@ use warp::{
     http::{Method, StatusCode},
 };
 
-mod common;
-use self::common::Metrics;
+#[path = "../metrics/mod.rs"]
+mod metrics;
+
+#[derive(Clone, Default, Register)]
+pub struct Metrics {
+    #[register(flatten)]
+    pub http: metrics::http::HttpMetrics,
+
+    #[register(subsystem = "process")]
+    pub process: metrics::process::ProcessMetrics,
+}
 
 #[derive(Clone)]
 struct AppState {
@@ -45,17 +55,20 @@ fn metrics_encode_protobuf(state: AppState) -> Result<impl Reply, ProtobufEncode
 
 async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
-    state.metrics.inc_in_flight();
+    state.metrics.http.inc_in_flight();
     let result = metrics_encode_text(state.clone());
     match result {
         Ok(reply) => {
-            state.metrics.observe(method, StatusCode::OK.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(method, StatusCode::OK.as_u16(), start);
+            state.metrics.http.dec_in_flight();
             Ok(reply)
         },
         Err(err) => {
-            state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state
+                .metrics
+                .http
+                .observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
+            state.metrics.http.dec_in_flight();
             Err(warp::reject::custom(err))
         },
     }
@@ -63,17 +76,20 @@ async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Re
 
 async fn protobuf_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
-    state.metrics.inc_in_flight();
+    state.metrics.http.inc_in_flight();
     let result = metrics_encode_protobuf(state.clone());
     match result {
         Ok(reply) => {
-            state.metrics.observe(method, StatusCode::OK.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(method, StatusCode::OK.as_u16(), start);
+            state.metrics.http.dec_in_flight();
             Ok(reply)
         },
         Err(err) => {
-            state.metrics.observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state
+                .metrics
+                .http
+                .observe(method, StatusCode::INTERNAL_SERVER_ERROR.as_u16(), start);
+            state.metrics.http.dec_in_flight();
             Err(warp::reject::custom(err))
         },
     }
@@ -85,13 +101,13 @@ async fn not_found_endpoint(
     state: AppState,
 ) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
-    state.metrics.inc_in_flight();
+    state.metrics.http.inc_in_flight();
 
     let reply = format!("Not found: {}", path.as_str());
     let reply = warp::reply::with_status(reply, StatusCode::NOT_FOUND);
 
-    state.metrics.observe(method, StatusCode::NOT_FOUND.as_u16(), start);
-    state.metrics.dec_in_flight();
+    state.metrics.http.observe(method, StatusCode::NOT_FOUND.as_u16(), start);
+    state.metrics.http.dec_in_flight();
     Ok(reply)
 }
 

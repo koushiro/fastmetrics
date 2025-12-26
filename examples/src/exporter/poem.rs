@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use fastmetrics::{
+    derive::*,
     format::{prost, text},
     registry::{Register, Registry},
 };
@@ -14,8 +15,17 @@ use poem::{
     listener::TcpListener, web::Data,
 };
 
-mod common;
-use self::common::Metrics;
+#[path = "../metrics/mod.rs"]
+mod metrics;
+
+#[derive(Clone, Default, Register)]
+pub struct Metrics {
+    #[register(flatten)]
+    pub http: metrics::http::HttpMetrics,
+
+    #[register(subsystem = "process")]
+    pub process: metrics::process::ProcessMetrics,
+}
 
 #[derive(Clone)]
 struct AppState {
@@ -29,7 +39,7 @@ struct AppState {
 #[handler]
 async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
     let start = Instant::now();
-    state.metrics.inc_in_flight();
+    state.metrics.http.inc_in_flight();
 
     let mut output = String::new();
     let result = text::encode(&mut output, &state.registry);
@@ -39,8 +49,8 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
             let status = StatusCode::OK;
             let body = output;
 
-            state.metrics.observe(req.method(), status.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(req.method(), status.as_u16(), start);
+            state.metrics.http.dec_in_flight();
 
             Response::builder().status(status).body(body)
         },
@@ -48,8 +58,8 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
             let status = StatusCode::INTERNAL_SERVER_ERROR;
             let body = format!("text encode error: {e}");
 
-            state.metrics.observe(req.method(), status.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(req.method(), status.as_u16(), start);
+            state.metrics.http.dec_in_flight();
 
             Response::builder().status(status).body(body)
         },
@@ -59,7 +69,7 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
 #[handler]
 async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Response {
     let start = Instant::now();
-    state.metrics.inc_in_flight();
+    state.metrics.http.inc_in_flight();
 
     let mut output = Vec::new();
     let result = prost::encode(&mut output, &state.registry);
@@ -69,8 +79,8 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
             let status = StatusCode::OK;
             let body = output;
 
-            state.metrics.observe(req.method(), status.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(req.method(), status.as_u16(), start);
+            state.metrics.http.dec_in_flight();
 
             Response::builder().status(status).body(body)
         },
@@ -78,8 +88,8 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
             let status = StatusCode::INTERNAL_SERVER_ERROR;
             let body = format!("protobuf encode error: {e}");
 
-            state.metrics.observe(req.method(), status.as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(req.method(), status.as_u16(), start);
+            state.metrics.http.dec_in_flight();
 
             Response::builder().status(status).body(body)
         },
@@ -89,13 +99,13 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
 #[handler]
 async fn not_found(req: &Request, Data(state): Data<&AppState>) -> Response {
     let start = Instant::now();
-    state.metrics.inc_in_flight();
+    state.metrics.http.inc_in_flight();
 
     let status = StatusCode::NOT_FOUND;
     let body = format!("Not found: {}", req.uri().path());
 
-    state.metrics.observe(req.method(), status.as_u16(), start);
-    state.metrics.dec_in_flight();
+    state.metrics.http.observe(req.method(), status.as_u16(), start);
+    state.metrics.http.dec_in_flight();
 
     Response::builder().status(status).body(body)
 }

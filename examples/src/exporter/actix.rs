@@ -13,13 +13,23 @@ use actix_web::{
 };
 use anyhow::Result;
 use fastmetrics::{
+    derive::*,
     format::{prost, text},
     registry::{Register, Registry},
 };
 use futures::future::{LocalBoxFuture, Ready, ready};
 
-mod common;
-use self::common::Metrics;
+#[path = "../metrics/mod.rs"]
+mod metrics;
+
+#[derive(Clone, Default, Register)]
+pub struct Metrics {
+    #[register(flatten)]
+    pub http: metrics::http::HttpMetrics,
+
+    #[register(subsystem = "process")]
+    pub process: metrics::process::ProcessMetrics,
+}
 
 struct AppState {
     registry: Arc<Registry>,
@@ -75,7 +85,7 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let metrics = self.metrics.clone();
         let method = req.method().clone();
-        metrics.inc_in_flight();
+        metrics.http.inc_in_flight();
         let start = Instant::now();
 
         let fut = self.inner.call(req);
@@ -83,13 +93,13 @@ where
         Box::pin(async move {
             let res = fut.await;
             match &res {
-                Ok(sr) => metrics.observe(method, sr.response().status().as_u16(), start),
+                Ok(sr) => metrics.http.observe(method, sr.response().status().as_u16(), start),
                 Err(_) => {
                     let status = StatusCode::INTERNAL_SERVER_ERROR;
-                    metrics.observe(method, status.as_u16(), start)
+                    metrics.http.observe(method, status.as_u16(), start)
                 },
             }
-            metrics.dec_in_flight();
+            metrics.http.dec_in_flight();
             res
         })
     }
