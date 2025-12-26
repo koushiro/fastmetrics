@@ -55,7 +55,7 @@ impl Default for ProcessMetrics {
     }
 }
 
-pub static PROCESS_SAMPLER: LazyLock<ProcessSampler> = LazyLock::new(|| ProcessSampler::new());
+pub static PROCESS_SAMPLER: LazyLock<ProcessSampler> = LazyLock::new(ProcessSampler::new);
 
 #[derive(Clone, Copy, Default)]
 struct ProcessSample {
