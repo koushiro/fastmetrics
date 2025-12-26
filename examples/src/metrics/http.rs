@@ -18,7 +18,7 @@ pub struct HttpLabels {
     pub method: &'static str,
 }
 
-/// HHTTP metrics used by all HTTP exporter examples.
+/// HTTP metrics used by all HTTP exporter examples.
 #[derive(Clone, Register)]
 pub struct HttpMetrics {
     /// Total number of HTTP requests received.

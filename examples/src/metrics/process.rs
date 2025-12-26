@@ -10,6 +10,7 @@ use sysinfo::{
     get_current_pid,
 };
 
+/// Custom process metrics.
 #[derive(Clone, Register)]
 pub struct ProcessMetrics {
     /// Process ID.
