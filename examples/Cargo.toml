@@ -17,10 +17,12 @@ http-body-util = "0.1"
 hyper = { version = "1.8", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 libc = "0.2"
+parking_lot = "0.12"
 pin-project = "1.1"
 poem = { version = "3.1", features = ["websocket", "tower-compat"] }
 rand = "0.9"
 rocket = { version = "0.5", features = ["json"] }
+sysinfo = "0.37.2"
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["net", "macros", "rt-multi-thread"] }
 tower = "0.5"
@@ -28,8 +30,8 @@ tower-http = { version = "0.6", features = ["normalize-path"] }
 warp = { version = "0.4", features = ["server"] }
 
 [[example]]
-name = "metrics"
-path = "src/metrics.rs"
+name = "simple_metrics"
+path = "src/simple_metrics.rs"
 
 [[example]]
 name = "static_metrics"

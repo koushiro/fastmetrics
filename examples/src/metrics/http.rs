@@ -1,8 +1,3 @@
-//! Common metrics definitions and helpers shared by exporter examples.
-//!
-//! This module centralizes the HTTP metrics (request count, duration histogram,
-//! and in-flight gauge).
-
 use std::time::Instant;
 
 use fastmetrics::{
@@ -23,9 +18,9 @@ pub struct HttpLabels {
     pub method: &'static str,
 }
 
-/// Top-level metrics used by all HTTP exporter examples.
+/// HHTTP metrics used by all HTTP exporter examples.
 #[derive(Clone, Register)]
-pub struct Metrics {
+pub struct HttpMetrics {
     /// Total number of HTTP requests received.
     #[register(rename = "http_requests_total")]
     http_requests: Family<HttpLabels, Counter>,
@@ -39,7 +34,7 @@ pub struct Metrics {
     http_in_flight: Gauge,
 }
 
-impl Default for Metrics {
+impl Default for HttpMetrics {
     fn default() -> Self {
         Self {
             http_requests: Default::default(),
@@ -52,7 +47,7 @@ impl Default for Metrics {
     }
 }
 
-impl Metrics {
+impl HttpMetrics {
     /// Observe a completed request.
     pub fn observe(&self, method: impl AsRef<str>, status: u16, start: Instant) {
         let elapsed = start.elapsed();

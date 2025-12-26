@@ -8,6 +8,7 @@ use std::{
 use anyhow::Result;
 use bytes::Bytes;
 use fastmetrics::{
+    derive::*,
     format::{prost, text},
     registry::{Register, Registry},
 };
@@ -20,8 +21,17 @@ use hyper_util::rt::TokioIo;
 use thiserror::Error;
 use tokio::net::{TcpListener, TcpStream};
 
-mod common;
-use self::common::Metrics;
+#[path = "../metrics/mod.rs"]
+mod metrics;
+
+#[derive(Clone, Default, Register)]
+pub struct Metrics {
+    #[register(flatten)]
+    pub http: metrics::http::HttpMetrics,
+
+    #[register(subsystem = "process")]
+    pub process: metrics::process::ProcessMetrics,
+}
 
 type MetricsBody = Full<Bytes>;
 type MetricsResponse = Response<MetricsBody>;
@@ -111,13 +121,13 @@ async fn serve_http1(stream: TcpStream, state: AppState) -> Result<(), hyper::Er
             let method = req.method().clone();
             let start = Instant::now();
 
-            state.metrics.inc_in_flight();
+            state.metrics.http.inc_in_flight();
             let response = match route_request(&req, &state).await {
                 Ok(resp) => resp,
                 Err(err) => err.into_response(),
             };
-            state.metrics.observe(method, response.status().as_u16(), start);
-            state.metrics.dec_in_flight();
+            state.metrics.http.observe(method, response.status().as_u16(), start);
+            state.metrics.http.dec_in_flight();
 
             Ok::<_, Infallible>(response)
         }

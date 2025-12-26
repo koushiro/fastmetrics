@@ -2,6 +2,7 @@ use std::{net::Ipv4Addr, sync::Arc, time::Instant};
 
 use anyhow::Result;
 use fastmetrics::{
+    derive::*,
     format::{prost, text},
     registry::{Register, Registry},
 };
@@ -13,8 +14,17 @@ use rocket::{
     response::Response,
 };
 
-mod common;
-use self::common::Metrics;
+#[path = "../metrics/mod.rs"]
+mod metrics;
+
+#[derive(Clone, Default, Register)]
+pub struct Metrics {
+    #[register(flatten)]
+    pub http: metrics::http::HttpMetrics,
+
+    #[register(subsystem = "process")]
+    pub process: metrics::process::ProcessMetrics,
+}
 
 struct AppState {
     registry: Arc<Registry>,
@@ -41,13 +51,15 @@ impl Fairing for MetricsFairing {
     async fn on_request(&self, request: &mut Request<'_>, _data: &mut rocket::Data<'_>) {
         // Save start time in request-local cache
         let _ = request.local_cache(Instant::now);
-        self.metrics.inc_in_flight();
+        self.metrics.http.inc_in_flight();
     }
 
     async fn on_response<'r>(&self, request: &'r Request<'_>, response: &mut Response<'r>) {
         let start = *request.local_cache(Instant::now);
-        self.metrics.observe(request.method().as_str(), response.status().code, start);
-        self.metrics.dec_in_flight();
+        self.metrics
+            .http
+            .observe(request.method().as_str(), response.status().code, start);
+        self.metrics.http.dec_in_flight();
     }
 }
 

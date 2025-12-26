@@ -17,6 +17,7 @@ use axum::{
     routing::{Router, get},
 };
 use fastmetrics::{
+    derive::*,
     format::{prost, text},
     registry::{Register, Registry},
 };
@@ -25,8 +26,17 @@ use tokio::net::TcpListener;
 use tower::{Layer, Service};
 use tower_http::normalize_path::NormalizePathLayer;
 
-mod common;
-use self::common::Metrics;
+#[path = "../metrics/mod.rs"]
+mod metrics;
+
+#[derive(Clone, Default, Register)]
+pub struct Metrics {
+    #[register(flatten)]
+    pub http: metrics::http::HttpMetrics,
+
+    #[register(subsystem = "process")]
+    pub process: metrics::process::ProcessMetrics,
+}
 
 #[derive(Clone)]
 struct MetricsLayer {
@@ -62,7 +72,7 @@ where
     fn call(&mut self, req: Request<R>) -> Self::Future {
         let start = Instant::now();
         let method = req.method().clone();
-        self.metrics.inc_in_flight();
+        self.metrics.http.inc_in_flight();
         let inner_future = self.inner.call(req);
         MetricsFuture {
             inner: inner_future,
@@ -96,15 +106,15 @@ where
         let result = ready!(this.inner.poll(cx));
         match result {
             Ok(ref response) => {
-                this.metrics.observe(this.method, response.status().as_u16(), *this.start);
+                this.metrics.http.observe(this.method, response.status().as_u16(), *this.start);
             },
             Err(_) => {
                 let status = StatusCode::INTERNAL_SERVER_ERROR;
-                this.metrics.observe(this.method, status.as_u16(), *this.start);
+                this.metrics.http.observe(this.method, status.as_u16(), *this.start);
             },
         }
 
-        this.metrics.dec_in_flight();
+        this.metrics.http.dec_in_flight();
         *this.done = true;
         Poll::Ready(result)
     }
@@ -115,7 +125,7 @@ impl<F> PinnedDrop for MetricsFuture<F> {
     fn drop(self: Pin<&mut Self>) {
         let this = self.project();
         if !*this.done {
-            this.metrics.dec_in_flight();
+            this.metrics.http.dec_in_flight();
         }
     }
 }
