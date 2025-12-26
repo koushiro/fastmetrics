@@ -2,7 +2,7 @@ use std::{sync::LazyLock, time::Instant};
 
 use fastmetrics::{
     derive::*,
-    metrics::{counter::LazyCounter, gauge::LazyGauge},
+    metrics::gauge::{ConstGauge, LazyGauge},
 };
 use parking_lot::Mutex;
 use sysinfo::{
@@ -13,9 +13,9 @@ use sysinfo::{
 #[derive(Clone, Register)]
 pub struct ProcessMetrics {
     /// Process ID.
-    pid: LazyGauge<fn() -> u32, u32>,
+    pid: ConstGauge<u32>,
     /// Total CPU time consumed by the current process in seconds.
-    cpu_seconds: LazyCounter<fn() -> f64, f64>,
+    cpu_seconds: LazyGauge<fn() -> f64, f64>,
     /// CPU usage of the current process in percent.
     cpu_usage_percent: LazyGauge<fn() -> f32, f32>,
     /// Resident Set Size (RSS) of the current process in bytes.
@@ -31,26 +31,26 @@ pub struct ProcessMetrics {
     #[register(unit(Seconds))]
     run_time: LazyGauge<fn() -> u64, u64>,
     /// Number of open file descriptors for the current process.
-    open_fds: LazyCounter<fn() -> usize, usize>,
+    open_fds: LazyGauge<fn() -> u32, u32>,
     /// Limit of open file descriptors for the current process.
-    max_open_fds: LazyCounter<fn() -> usize, usize>,
+    max_open_fds: LazyGauge<fn() -> u32, u32>,
     /// Number of threads for the current process.
-    threads: LazyCounter<fn() -> usize, usize>,
+    threads: LazyGauge<fn() -> u32, u32>,
 }
 
 impl Default for ProcessMetrics {
     fn default() -> Self {
         Self {
-            pid: LazyGauge::new(|| PROCESS_SAMPLER.sample().pid),
-            cpu_seconds: LazyCounter::new(|| PROCESS_SAMPLER.sample().cpu_seconds_total),
+            pid: ConstGauge::new(PROCESS_SAMPLER.sample().pid),
+            cpu_seconds: LazyGauge::new(|| PROCESS_SAMPLER.sample().cpu_seconds_total),
             cpu_usage_percent: LazyGauge::new(|| PROCESS_SAMPLER.sample().cpu_usage_percent),
             resident_memory: LazyGauge::new(|| PROCESS_SAMPLER.sample().resident_memory_bytes),
             virtual_memory: LazyGauge::new(|| PROCESS_SAMPLER.sample().virtual_memory_bytes),
             start_time: LazyGauge::new(|| PROCESS_SAMPLER.sample().start_time_seconds),
             run_time: LazyGauge::new(|| PROCESS_SAMPLER.sample().run_time_seconds),
-            open_fds: LazyCounter::new(|| PROCESS_SAMPLER.sample().open_fds),
-            max_open_fds: LazyCounter::new(|| PROCESS_SAMPLER.sample().max_open_fds),
-            threads: LazyCounter::new(|| PROCESS_SAMPLER.sample().thread_count),
+            open_fds: LazyGauge::new(|| PROCESS_SAMPLER.sample().open_fds),
+            max_open_fds: LazyGauge::new(|| PROCESS_SAMPLER.sample().max_open_fds),
+            threads: LazyGauge::new(|| PROCESS_SAMPLER.sample().thread_count),
         }
     }
 }
@@ -66,9 +66,9 @@ struct ProcessSample {
     virtual_memory_bytes: u64,
     start_time_seconds: u64,
     run_time_seconds: u64,
-    open_fds: usize,
-    max_open_fds: usize,
-    thread_count: usize,
+    open_fds: u32,
+    max_open_fds: u32,
+    thread_count: u32,
 }
 
 pub struct ProcessSampler {
@@ -122,9 +122,9 @@ impl ProcessSampler {
                 virtual_memory_bytes: p.virtual_memory(),
                 start_time_seconds: p.start_time(),
                 run_time_seconds: p.run_time(),
-                open_fds: p.open_files().unwrap_or(0),
-                max_open_fds: p.open_files_limit().unwrap_or(0),
-                thread_count: p.tasks().map(|t| t.len()).unwrap_or(0),
+                open_fds: p.open_files().unwrap_or(0) as u32,
+                max_open_fds: p.open_files_limit().unwrap_or(0) as u32,
+                thread_count: p.tasks().map(|t| t.len()).unwrap_or(0) as u32,
             })
             .unwrap_or_default();
         *sample_lock = Some(sample);
