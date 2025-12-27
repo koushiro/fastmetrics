@@ -229,7 +229,7 @@ impl<N: CounterValue> ConstCounter<N> {
     }
 
     /// Creates a [`ConstCounter`] with a constant `total` value and a `created` timestamp.
-    pub fn with_created(total: N, created: Duration) -> Self {
+    pub const fn with_created(total: N, created: Duration) -> Self {
         Self { total, created: Some(created) }
     }
 
