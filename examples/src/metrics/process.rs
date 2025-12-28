@@ -16,27 +16,27 @@ pub struct ProcessMetrics {
     /// Process ID.
     pid: ConstGauge<u32>,
     /// Total CPU time consumed by the current process in seconds.
-    cpu_seconds: LazyGauge<fn() -> f64, f64>,
+    cpu_seconds: LazyGauge<fn() -> f64>,
     /// CPU usage of the current process in percent.
-    cpu_usage_percent: LazyGauge<fn() -> f32, f32>,
+    cpu_usage_percent: LazyGauge<fn() -> f32>,
     /// Resident Set Size (RSS) of the current process in bytes.
     #[register(unit(Bytes))]
-    resident_memory: LazyGauge<fn() -> u64, u64>,
+    resident_memory: LazyGauge<fn() -> u64>,
     /// Virtual memory size of the current process in bytes.
     #[register(unit(Bytes))]
-    virtual_memory: LazyGauge<fn() -> u64, u64>,
+    virtual_memory: LazyGauge<fn() -> u64>,
     /// Process start time in seconds since the Unix epoch.
     #[register(unit(Seconds))]
-    start_time: LazyGauge<fn() -> u64, u64>,
+    start_time: LazyGauge<fn() -> u64>,
     /// Process run time in seconds.
     #[register(unit(Seconds))]
-    run_time: LazyGauge<fn() -> u64, u64>,
+    run_time: LazyGauge<fn() -> u64>,
     /// Number of open file descriptors for the current process.
-    open_fds: LazyGauge<fn() -> u32, u32>,
+    open_fds: LazyGauge<fn() -> u32>,
     /// Limit of open file descriptors for the current process.
-    max_open_fds: LazyGauge<fn() -> u32, u32>,
+    max_open_fds: LazyGauge<fn() -> u32>,
     /// Number of threads for the current process.
-    threads: LazyGauge<fn() -> u32, u32>,
+    threads: LazyGauge<fn() -> u32>,
 }
 
 impl Default for ProcessMetrics {

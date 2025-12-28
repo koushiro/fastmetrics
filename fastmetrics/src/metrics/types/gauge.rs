@@ -12,6 +12,7 @@ use std::{
 use crate::{
     encoder::{EncodeGaugeValue, EncodeMetric, MetricEncoder},
     error::Result,
+    metrics::utils::fetch::OutputOf,
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -228,7 +229,7 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
 /// });
 /// assert_eq!(lazy.fetch(), 42);
 /// ```
-pub struct LazyGauge<F, N> {
+pub struct LazyGauge<F, N = OutputOf<F>> {
     fetch: Arc<F>,
     _marker: PhantomData<N>,
 }
