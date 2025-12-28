@@ -25,6 +25,7 @@
 
 pub mod family;
 mod types;
+mod utils;
 
 pub use self::types::*;
 

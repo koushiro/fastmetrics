@@ -13,6 +13,7 @@ use std::{
 use crate::{
     encoder::{EncodeCounterValue, EncodeMetric, MetricEncoder},
     error::Result,
+    metrics::utils::fetch::OutputOf,
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -281,7 +282,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 /// });
 /// assert_eq!(lazy.fetch(), 42);
 /// ```
-pub struct LazyCounter<F, N> {
+pub struct LazyCounter<F, N = OutputOf<F>> {
     fetch: Arc<F>,
     created: Option<Duration>,
     _marker: PhantomData<N>,
