@@ -428,7 +428,7 @@ macro_rules! encode_float_value_impls {
     ($($float:ty),*) => (
         paste::paste! { $(
             fn [<encode_ $float _value>](&mut self, value: $float) -> Result<()> {
-                self.label.value.push_str(dtoa::Buffer::new().format(value));
+                self.label.value.push_str(zmij::Buffer::new().format(value));
                 Ok(())
             }
         )* }
