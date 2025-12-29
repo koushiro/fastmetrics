@@ -372,7 +372,7 @@ where
         self.encode_metric_name()?;
         self.writer.write_str("_sum")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(dtoa::Buffer::new().format(sum))?;
+        self.writer.write_str(zmij::Buffer::new().format(sum))?;
         self.encode_timestamp()?;
         self.encode_newline()
     }
@@ -390,7 +390,7 @@ where
         self.encode_metric_name()?;
         self.writer.write_str("_gsum")?;
         self.encode_label_set(None)?;
-        self.writer.write_str(dtoa::Buffer::new().format(gsum))?;
+        self.writer.write_str(zmij::Buffer::new().format(gsum))?;
         self.encode_timestamp()?;
         self.encode_newline()
     }
@@ -558,7 +558,7 @@ where
                 common_labels.as_deref(),
                 Some(&[(QUANTILE_LABEL, quantile.quantile())]),
             )?;
-            self.writer.write_str(dtoa::Buffer::new().format(quantile.value()))?;
+            self.writer.write_str(zmij::Buffer::new().format(quantile.value()))?;
             self.encode_timestamp()?;
             self.encode_newline()?;
         }
@@ -636,7 +636,7 @@ macro_rules! encode_float_value_impls {
             #[inline]
             fn [<encode_ $float _value>](&mut self, value: $float) -> Result<()> {
                 self.writer.write_str("=\"")?;
-                self.writer.write_str(dtoa::Buffer::new().format(value))?;
+                self.writer.write_str(zmij::Buffer::new().format(value))?;
                 self.writer.write_str("\"")?;
                 Ok(())
             }
@@ -698,7 +698,7 @@ macro_rules! encode_float_number_impls {
         paste::paste! { $(
             #[inline]
             fn [<encode_ $float>](&mut self, value: $float) -> Result<()> {
-                self.writer.write_str(dtoa::Buffer::new().format(value))?;
+                self.writer.write_str(zmij::Buffer::new().format(value))?;
                 Ok(())
             }
         )* }
@@ -775,7 +775,7 @@ where
         labels.encode(&mut LabelSetEncoder::new(self.writer))?;
         self.writer.write_str("} ")?;
 
-        self.writer.write_str(dtoa::Buffer::new().format(value))?;
+        self.writer.write_str(zmij::Buffer::new().format(value))?;
 
         if let Some(timestamp) = timestamp {
             self.writer.write_fmt(format_args!(
