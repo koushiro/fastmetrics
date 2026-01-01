@@ -73,6 +73,9 @@ impl ScrapeContext {
         self.samples.entry(key).or_insert_with(|| Box::new(init()));
 
         // Correctness: a given `LazyGroupId` must only ever be used with a single sample type `T`.
+        //
+        // If this panics, the scrape context's internal cache has become inconsistent, most likely
+        // because the same `LazyGroupId` was used with different sample types in a prior call.
         self.samples
             .get(&key)
             .and_then(|v| v.downcast_ref::<T>())

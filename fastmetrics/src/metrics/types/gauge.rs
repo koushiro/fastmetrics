@@ -264,10 +264,7 @@ where
     /// Mainly intended for debugging or tests; regular metric collection should
     /// let the encoder trigger the fetch during scrapes.
     #[inline]
-    pub fn fetch(&self) -> N
-    where
-        N: EncodeGaugeValue,
-    {
+    pub fn fetch(&self) -> N {
         self.source.get()
     }
 }

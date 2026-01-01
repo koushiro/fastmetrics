@@ -44,15 +44,15 @@ impl Default for ProcessMetrics {
         let group: LazyGroup<ProcessSample> = LazyGroup::new(|| PROCESS_SAMPLER.sample());
         Self {
             pid: ConstGauge::new(PROCESS_SAMPLER.pid.as_u32()),
-            cpu_seconds: group.gauge(|s: &ProcessSample| s.cpu_seconds_total),
-            cpu_usage_percent: group.gauge(|s: &ProcessSample| s.cpu_usage_percent),
-            resident_memory: group.gauge(|s: &ProcessSample| s.resident_memory_bytes),
-            virtual_memory: group.gauge(|s: &ProcessSample| s.virtual_memory_bytes),
-            start_time: group.gauge(|s: &ProcessSample| s.start_time_seconds),
-            run_time: group.gauge(|s: &ProcessSample| s.run_time_seconds),
-            open_fds: group.gauge(|s: &ProcessSample| s.open_fds),
-            max_open_fds: group.gauge(|s: &ProcessSample| s.max_open_fds),
-            threads: group.gauge(|s: &ProcessSample| s.thread_count),
+            cpu_seconds: group.gauge(|s| s.cpu_seconds_total),
+            cpu_usage_percent: group.gauge(|s| s.cpu_usage_percent),
+            resident_memory: group.gauge(|s| s.resident_memory_bytes),
+            virtual_memory: group.gauge(|s| s.virtual_memory_bytes),
+            start_time: group.gauge(|s| s.start_time_seconds),
+            run_time: group.gauge(|s| s.run_time_seconds),
+            open_fds: group.gauge(|s| s.open_fds),
+            max_open_fds: group.gauge(|s| s.max_open_fds),
+            threads: group.gauge(|s| s.thread_count),
         }
     }
 }
