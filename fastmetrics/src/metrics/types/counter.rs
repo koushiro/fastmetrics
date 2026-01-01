@@ -23,8 +23,7 @@ pub trait CounterValue<Rhs = Self>: Number + AddAssign<Rhs> {
 }
 
 macro_rules! impl_counter_value_for {
-    ($($num:ident => $atomic:ident, $size:expr);* $(;)?) => ($(
-        #[cfg(target_has_atomic = $size)]
+    ($($num:ident => $atomic:ident);* $(;)?) => ($(
         impl CounterValue for $num {
             type Atomic = $atomic;
         }
@@ -32,60 +31,46 @@ macro_rules! impl_counter_value_for {
 }
 
 impl_counter_value_for! {
-    u32 => AtomicU32, "32";
-    u64 => AtomicU64, "64";
-    usize => AtomicUsize, "ptr";
-    f32 => AtomicU32, "32";
-    f64 => AtomicU64, "64";
+    u32 => AtomicU32;
+    u64 => AtomicU64;
+    usize => AtomicUsize;
+    f32 => AtomicU32;
+    f64 => AtomicU64;
 }
 
-macro_rules! define_counter {
-    ($($generics:tt)*) => {
-        /// Open Metrics [`Counter`] metric, which is used to measure discrete events.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// # use std::time::SystemTime;
-        /// #
-        /// # use fastmetrics::metrics::counter::Counter;
-        /// #
-        /// // Create a default counter
-        /// let counter = <Counter>::default();
-        /// assert_eq!(counter.total(), 0);
-        /// assert!(counter.created().is_none());
-        ///
-        /// // Increment by 1
-        /// counter.inc();
-        /// assert_eq!(counter.total(), 1);
-        ///
-        /// // Increment by custom value
-        /// counter.inc_by(5);
-        /// assert_eq!(counter.total(), 6);
-        ///
-        /// // Create a counter with created timestamp
-        /// let created = SystemTime::UNIX_EPOCH
-        ///     .elapsed()
-        ///     .expect("UNIX timestamp when the counter was created");
-        /// let counter = <Counter>::with_created(created);
-        /// assert!(counter.created().is_some());
-        /// ```
-        pub struct Counter<$($generics)*> {
-            total: Arc<N::Atomic>,
-            // UNIX timestamp
-            created: Option<Duration>,
-        }
-    };
-}
-
-cfg_if::cfg_if! {
-    if #[cfg(target_has_atomic = "64")] {
-        define_counter!(N: CounterValue = u64);
-    } else if #[cfg(target_has_atomic = "32")] {
-        define_counter!(N: CounterValue = u32);
-    } else {
-        define_counter!(N: CounterValue = usize);
-    }
+/// Open Metrics [`Counter`] metric, which is used to measure discrete events.
+///
+/// # Example
+///
+/// ```rust
+/// # use std::time::SystemTime;
+/// #
+/// # use fastmetrics::metrics::counter::Counter;
+/// #
+/// // Create a default counter
+/// let counter = <Counter>::default();
+/// assert_eq!(counter.total(), 0);
+/// assert!(counter.created().is_none());
+///
+/// // Increment by 1
+/// counter.inc();
+/// assert_eq!(counter.total(), 1);
+///
+/// // Increment by custom value
+/// counter.inc_by(5);
+/// assert_eq!(counter.total(), 6);
+///
+/// // Create a counter with created timestamp
+/// let created = SystemTime::UNIX_EPOCH
+///     .elapsed()
+///     .expect("UNIX timestamp when the counter was created");
+/// let counter = <Counter>::with_created(created);
+/// assert!(counter.created().is_some());
+/// ```
+pub struct Counter<N: CounterValue = u64> {
+    total: Arc<N::Atomic>,
+    // UNIX timestamp
+    created: Option<Duration>,
 }
 
 impl<N: CounterValue> Clone for Counter<N> {
