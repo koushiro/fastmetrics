@@ -4,15 +4,16 @@
 
 use std::{
     fmt::{self, Debug},
-    sync::{Arc, atomic::*},
+    sync::Arc,
 };
 
-pub use crate::raw::bucket::*;
 use crate::{
     encoder::{EncodeMetric, MetricEncoder},
     error::Result,
-    raw::{Atomic, MetricLabelSet, MetricType, TypedMetric},
+    metrics::internal::histogram::{BoundsFilter, HistogramCore},
+    raw::{MetricLabelSet, MetricType, TypedMetric},
 };
+pub use crate::{metrics::internal::histogram::HistogramSnapshot, raw::bucket::*};
 
 /// Open Metrics [`GaugeHistogram`] metric, which samples observations and counts them in
 /// configurable buckets.
@@ -43,98 +44,14 @@ use crate::{
 ///     assert_eq!(buckets[4].count(), 1);  // One value ≤100.0
 ///     assert_eq!(buckets[6].upper_bound(), f64::INFINITY);
 ///     assert_eq!(buckets[6].count(), 1);  // One value in +Inf bucket
-///     // Get gcount and gsum statistics
-///     assert_eq!(s.gcount(), 4);       // Total number of observations
-///     assert_eq!(s.gsum(), 850.0);     // Sum of all observed values
+///     // Get count and sum statistics
+///     assert_eq!(s.count(), 4);       // Total number of observations
+///     assert_eq!(s.sum(), 850.0);     // Sum of all observed values
 /// });
 /// ```
 #[derive(Clone)]
 pub struct GaugeHistogram {
-    inner: Arc<GaugeHistogramInner>,
-}
-
-struct GaugeHistogramInner {
-    buckets: Vec<BucketCell>,
-    gsum: AtomicU64,
-    gcount: AtomicU64,
-}
-
-struct BucketCell {
-    upper_bound: f64,
-    count: AtomicU64,
-}
-
-impl BucketCell {
-    fn new(upper_bound: f64) -> Self {
-        Self { upper_bound, count: AtomicU64::new(0) }
-    }
-
-    fn inc(&self) {
-        self.count.fetch_add(1, Ordering::Relaxed);
-    }
-
-    fn load(&self) -> Bucket {
-        Bucket::new(self.upper_bound, self.count.load(Ordering::Relaxed))
-    }
-}
-
-impl GaugeHistogramInner {
-    fn from_bounds(buckets: impl IntoIterator<Item = f64>) -> Self {
-        // filter the NaN bound
-        let mut upper_bounds = buckets
-            .into_iter()
-            .filter(|upper_bound| !upper_bound.is_nan())
-            .collect::<Vec<_>>();
-        // sort and dedup the bounds
-        upper_bounds.sort_by(|a, b| a.partial_cmp(b).expect("upper_bound must not be NaN"));
-        upper_bounds.dedup();
-
-        // ensure +Inf bucket is included
-        match upper_bounds.last() {
-            Some(last) if last.is_finite() => upper_bounds.push(f64::INFINITY),
-            None => upper_bounds.push(f64::INFINITY),
-            _ => { /* do nothing */ },
-        }
-        let buckets = upper_bounds.into_iter().map(BucketCell::new).collect::<Vec<_>>();
-
-        Self { buckets, gcount: AtomicU64::new(0), gsum: AtomicU64::new(0f64.to_bits()) }
-    }
-
-    fn bucket_index(&self, value: f64) -> usize {
-        self.buckets.partition_point(|bucket| bucket.upper_bound < value)
-    }
-
-    fn snapshot(&self) -> GaugeHistogramSnapshot {
-        let buckets = self.buckets.iter().map(BucketCell::load).collect();
-        let gcount = self.gcount.load(Ordering::Relaxed);
-        let gsum = self.gsum.get();
-        GaugeHistogramSnapshot { buckets, gcount, gsum }
-    }
-}
-
-/// A snapshot of a [`GaugeHistogram`] at a point in time.
-#[derive(Clone)]
-pub struct GaugeHistogramSnapshot {
-    buckets: Vec<Bucket>,
-    gsum: f64,
-    gcount: u64,
-}
-
-impl GaugeHistogramSnapshot {
-    /// Gets the current `bucket` counts.
-    pub fn buckets(&self) -> &[Bucket] {
-        &self.buckets
-    }
-
-    /// Gets the current `gcount` of all observations.
-    pub const fn gcount(&self) -> u64 {
-        self.gcount
-    }
-
-    /// Gets the current `gsum` of all observed values.
-    pub const fn gsum(&self) -> f64 {
-        self.gsum
-    }
+    inner: Arc<HistogramCore>,
 }
 
 impl Debug for GaugeHistogram {
@@ -142,8 +59,8 @@ impl Debug for GaugeHistogram {
         self.with_snapshot(|snapshot| {
             f.debug_struct("GaugeHistogram")
                 .field("buckets", &snapshot.buckets())
-                .field("gcount", &snapshot.gcount())
-                .field("gsum", &snapshot.gsum())
+                .field("count", &snapshot.count())
+                .field("sum", &snapshot.sum())
                 .finish()
         })
     }
@@ -158,7 +75,7 @@ impl Default for GaugeHistogram {
 impl GaugeHistogram {
     /// Creates a new [`GaugeHistogram`] with the given bucket boundaries.
     pub fn new(buckets: impl IntoIterator<Item = f64>) -> Self {
-        Self { inner: Arc::new(GaugeHistogramInner::from_bounds(buckets)) }
+        Self { inner: Arc::new(HistogramCore::from_bounds(buckets, BoundsFilter::AllowNegative)) }
     }
 
     /// Observes a value, incrementing the appropriate buckets.
@@ -168,20 +85,14 @@ impl GaugeHistogram {
             return;
         }
 
-        // increment the gcount and add the value into the gsum
-        self.inner.gcount.fetch_add(1, Ordering::Relaxed);
-        self.inner.gsum.inc_by(value);
-
-        // only increment the count of the found bucket
-        let idx = self.inner.bucket_index(value);
-        self.inner.buckets[idx].inc();
+        self.inner.observe(value);
     }
 
     /// Provides temporary access to a snapshot of the gauge histogram's current state.
     ///
     /// # Parameters
     ///
-    /// * `func` - A closure that receives a reference to the [`GaugeHistogramSnapshot`].
+    /// * `func` - A closure that receives a reference to the [`HistogramSnapshot`].
     ///
     /// # Returns
     ///
@@ -196,13 +107,13 @@ impl GaugeHistogram {
     /// histogram.observe(42.0);
     ///
     /// histogram.with_snapshot(|s| {
-    ///     assert_eq!(s.gcount(), 1);
-    ///     assert_eq!(s.gsum(), 42.0);
+    ///     assert_eq!(s.count(), 1);
+    ///     assert_eq!(s.sum(), 42.0);
     /// });
     /// ```
     pub fn with_snapshot<F, R>(&self, func: F) -> R
     where
-        F: FnOnce(&GaugeHistogramSnapshot) -> R,
+        F: FnOnce(&HistogramSnapshot) -> R,
     {
         let snapshot = self.inner.snapshot();
         func(&snapshot)
@@ -222,7 +133,7 @@ impl EncodeMetric for GaugeHistogram {
         self.with_snapshot(|s| {
             let buckets = s.buckets();
             let exemplars = None;
-            encoder.encode_gauge_histogram(buckets, exemplars, s.gcount(), s.gsum())
+            encoder.encode_gauge_histogram(buckets, exemplars, s.count(), s.sum())
         })
     }
 }
@@ -238,8 +149,8 @@ mod tests {
         hist.with_snapshot(|s| {
             let buckets = s.buckets();
             assert_eq!(buckets.len(), DEFAULT_BUCKETS.len() + 1); // Including +Inf bucket
-            assert_eq!(s.gcount(), 0);
-            assert_eq!(s.gsum(), 0.0);
+            assert_eq!(s.count(), 0);
+            assert_eq!(s.sum(), 0.0);
         });
 
         let bounds = vec![1.0, 2.0, 5.0];
@@ -269,8 +180,8 @@ mod tests {
             assert_eq!(buckets[3].count(), 1); // ≤0.0
             assert_eq!(buckets[4].count(), 1); // ≤100.0
             assert_eq!(buckets[6].count(), 1); // +Inf
-            assert_eq!(s.gcount(), 4);
-            assert_eq!(s.gsum(), 850.0);
+            assert_eq!(s.count(), 4);
+            assert_eq!(s.sum(), 850.0);
         });
     }
 
@@ -282,8 +193,8 @@ mod tests {
         hist.observe(f64::NAN); // NaN value, invalid
 
         hist.with_snapshot(|s| {
-            assert_eq!(s.gcount(), 1);
-            assert_eq!(s.gsum(), -1.0);
+            assert_eq!(s.count(), 1);
+            assert_eq!(s.sum(), -1.0);
         });
     }
 
@@ -311,8 +222,8 @@ mod tests {
         handle.join().unwrap();
 
         hist.with_snapshot(|s| {
-            assert_eq!(s.gcount(), 400);
-            assert_eq!(s.gsum(), 0.0);
+            assert_eq!(s.count(), 400);
+            assert_eq!(s.sum(), 0.0);
         });
     }
 

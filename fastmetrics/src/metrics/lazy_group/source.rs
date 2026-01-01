@@ -10,11 +10,8 @@ use std::{marker::PhantomData, sync::Arc, time::Duration};
 
 use crate::{
     encoder::{EncodeCounterValue, EncodeGaugeValue},
-    metrics::{
-        counter::{CounterSource, LazyCounter},
-        gauge::{GaugeSource, LazyGauge},
-        lazy_group::LazyGroup,
-    },
+    metrics::internal::lazy::LazySource,
+    metrics::{counter::LazyCounter, gauge::LazyGauge, lazy_group::LazyGroup},
 };
 
 /// Constructs a `LazyCounter` derived from the shared `LazyGroup` sample.
@@ -32,45 +29,9 @@ where
     N: EncodeCounterValue + Send + Sync + 'static,
 {
     LazyCounter::from_source(
-        Arc::new(GroupedCounterSource::<S, N, _>::new(group, Arc::new(map))),
+        Arc::new(GroupedLazySource::<S, N, _>::new(group, Arc::new(map))),
         created,
     )
-}
-
-/// A counter source whose total is derived from a shared per-scrape sample.
-pub(crate) struct GroupedCounterSource<S, N, M> {
-    pub(crate) group: LazyGroup<S>,
-    pub(crate) map: Arc<M>,
-    pub(crate) _marker: PhantomData<N>,
-}
-
-impl<S, N, M> GroupedCounterSource<S, N, M> {
-    #[inline]
-    pub(crate) fn new(group: LazyGroup<S>, map: Arc<M>) -> Self {
-        Self { group, map, _marker: PhantomData }
-    }
-}
-
-impl<S, N, M> CounterSource<N> for GroupedCounterSource<S, N, M>
-where
-    S: Send + Sync + 'static,
-    M: Fn(&S) -> N + Send + Sync + 'static,
-    N: Send + Sync + 'static,
-{
-    #[inline]
-    fn total(&self) -> N {
-        let map = self.map.as_ref();
-
-        if let Some(r) = super::scrape_ctx::with_current(|ctx| {
-            let sample = ctx.get_or_init::<S>(self.group.id, || (self.group.sample.as_ref())());
-            map(sample)
-        }) {
-            r
-        } else {
-            let sample = (self.group.sample.as_ref())();
-            map(&sample)
-        }
-    }
 }
 
 /// Constructs a `LazyGauge` derived from the shared `LazyGroup` sample.
@@ -83,31 +44,31 @@ where
     M: Fn(&S) -> N + Send + Sync + 'static,
     N: EncodeGaugeValue + Send + Sync + 'static,
 {
-    LazyGauge::from_source(Arc::new(GroupedGaugeSource::<S, N, _>::new(group, Arc::new(map))))
+    LazyGauge::from_source(Arc::new(GroupedLazySource::<S, N, _>::new(group, Arc::new(map))))
 }
 
-/// A gauge source whose value is derived from a shared per-scrape sample.
-pub(crate) struct GroupedGaugeSource<S, N, M> {
+/// A lazy source whose value is derived from a shared per-scrape sample.
+pub(crate) struct GroupedLazySource<S, N, M> {
     pub(crate) group: LazyGroup<S>,
     pub(crate) map: Arc<M>,
     pub(crate) _marker: PhantomData<N>,
 }
 
-impl<S, N, M> GroupedGaugeSource<S, N, M> {
+impl<S, N, M> GroupedLazySource<S, N, M> {
     #[inline]
     pub(crate) fn new(group: LazyGroup<S>, map: Arc<M>) -> Self {
         Self { group, map, _marker: PhantomData }
     }
 }
 
-impl<S, N, M> GaugeSource<N> for GroupedGaugeSource<S, N, M>
+impl<S, N, M> LazySource<N> for GroupedLazySource<S, N, M>
 where
     S: Send + Sync + 'static,
     M: Fn(&S) -> N + Send + Sync + 'static,
     N: Send + Sync + 'static,
 {
     #[inline]
-    fn get(&self) -> N {
+    fn load(&self) -> N {
         let map = self.map.as_ref();
 
         if let Some(r) = super::scrape_ctx::with_current(|ctx| {

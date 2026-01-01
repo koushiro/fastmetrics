@@ -12,6 +12,7 @@ use std::{
 use crate::{
     encoder::{EncodeCounterValue, EncodeMetric, MetricEncoder},
     error::Result,
+    metrics::internal::lazy::{LazySource, PlainLazySource},
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -286,7 +287,7 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 /// When constructed via [`crate::metrics::lazy_group::LazyGroup`], multiple lazy counters can share a
 /// single expensive sample per scrape.
 pub struct LazyCounter<N> {
-    source: Arc<dyn CounterSource<N>>,
+    source: Arc<dyn LazySource<N>>,
     created: Option<Duration>,
 }
 
@@ -304,21 +305,18 @@ where
     ///
     /// This is used by crate-internal glue (e.g., `metrics::lazy_group`) to build a `LazyCounter`
     /// without exposing additional public types.
-    pub(crate) fn from_source(
-        source: Arc<dyn CounterSource<N>>,
-        created: Option<Duration>,
-    ) -> Self {
+    pub(crate) fn from_source(source: Arc<dyn LazySource<N>>, created: Option<Duration>) -> Self {
         Self { source, created }
     }
 
     /// Creates a `LazyCounter` without a creation timestamp.
     pub fn new(fetch: impl Fn() -> N + Send + Sync + 'static) -> Self {
-        Self::from_source(Arc::new(PlainCounterSource { fetch: Arc::new(fetch) }), None)
+        Self::from_source(Arc::new(PlainLazySource::new(Arc::new(fetch))), None)
     }
 
     /// Creates a `LazyCounter` with the provided `created` timestamp.
     pub fn with_created(fetch: impl Fn() -> N + Send + Sync + 'static, created: Duration) -> Self {
-        Self::from_source(Arc::new(PlainCounterSource { fetch: Arc::new(fetch) }), Some(created))
+        Self::from_source(Arc::new(PlainLazySource::new(Arc::new(fetch))), Some(created))
     }
 
     /// Evaluates the underlying fetcher and returns the current total.
@@ -327,7 +325,7 @@ where
     /// let the encoder trigger the fetch during scrapes.
     #[inline]
     pub fn fetch(&self) -> N {
-        self.source.total()
+        self.source.load()
     }
 }
 
@@ -344,32 +342,8 @@ where
     N: EncodeCounterValue + Send + Sync + 'static,
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
-        let total = self.source.total();
+        let total = self.fetch();
         encoder.encode_counter(&total, None, self.created)
-    }
-}
-
-/// Internal source of values for [`LazyCounter`].
-///
-/// This trait is deliberately crate-private so other internal modules (e.g.
-/// `metrics::lazy_group`) can provide alternative implementations (such as a
-/// scrape-scoped cached source) without exposing extra public types.
-///
-/// Implementations must be thread-safe (`Send + Sync`) because metrics can be
-/// encoded from multiple threads depending on the exporter design.
-pub(crate) trait CounterSource<N>: Send + Sync {
-    /// Returns the current total value for this counter.
-    fn total(&self) -> N;
-}
-
-struct PlainCounterSource<N> {
-    fetch: Arc<dyn Fn() -> N + Send + Sync>,
-}
-
-impl<N> CounterSource<N> for PlainCounterSource<N> {
-    #[inline]
-    fn total(&self) -> N {
-        (self.fetch.as_ref())()
     }
 }
 
