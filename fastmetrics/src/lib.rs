@@ -112,6 +112,11 @@
 #![deny(unsafe_code)]
 #![deny(unused_crate_dependencies)]
 
+// Enforce platform requirements without interfering with crate-level inner docs (`//!`).
+// This must live after the crate docs block.
+#[cfg(not(target_has_atomic = "64"))]
+compile_error!("fastmetrics requires 64-bit atomic support (target_has_atomic = \"64\").");
+
 #[cfg(feature = "derive")]
 pub use fastmetrics_derive as derive;
 
