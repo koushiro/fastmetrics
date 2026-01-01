@@ -4,7 +4,6 @@
 
 use std::{
     fmt::{self, Debug},
-    marker::PhantomData,
     ops::{AddAssign, SubAssign},
     sync::{Arc, atomic::*},
 };
@@ -12,7 +11,6 @@ use std::{
 use crate::{
     encoder::{EncodeGaugeValue, EncodeMetric, MetricEncoder},
     error::Result,
-    metrics::utils::fetch::OutputOf,
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -229,18 +227,36 @@ impl<N: EncodeGaugeValue + GaugeValue> EncodeMetric for ConstGauge<N> {
 /// });
 /// assert_eq!(lazy.fetch(), 42);
 /// ```
-pub struct LazyGauge<F, N = OutputOf<F>> {
-    fetch: Arc<F>,
-    _marker: PhantomData<N>,
+///
+/// # Grouped sampling
+///
+/// When constructed via [`crate::metrics::lazy_group::LazyGroup`], multiple lazy gauges can share a
+/// single expensive sample per scrape.
+pub struct LazyGauge<N> {
+    source: Arc<dyn GaugeSource<N>>,
 }
 
-impl<F, N> LazyGauge<F, N>
+impl<N> Clone for LazyGauge<N> {
+    fn clone(&self) -> Self {
+        Self { source: Arc::clone(&self.source) }
+    }
+}
+
+impl<N> LazyGauge<N>
 where
-    F: Fn() -> N,
+    N: Send + Sync + 'static,
 {
+    /// Internal: constructs a lazy gauge from a source.
+    ///
+    /// This is used by crate-internal glue (e.g. `metrics::lazy_group`) to build a `LazyGauge`
+    /// without exposing additional public types.
+    pub(crate) fn from_source(source: Arc<dyn GaugeSource<N>>) -> Self {
+        Self { source }
+    }
+
     /// Creates a new [`LazyGauge`] from the provided fetcher function or closure.
-    pub fn new(fetch: F) -> Self {
-        Self { fetch: Arc::new(fetch), _marker: PhantomData }
+    pub fn new(fetch: impl Fn() -> N + Send + Sync + 'static) -> Self {
+        Self::from_source(Arc::new(PlainGaugeSource { fetch: Arc::new(fetch) }))
     }
 
     /// Evaluates the underlying fetcher and returns the current value.
@@ -248,33 +264,52 @@ where
     /// Mainly intended for debugging or tests; regular metric collection should
     /// let the encoder trigger the fetch during scrapes.
     #[inline]
-    pub fn fetch(&self) -> N {
-        (self.fetch.as_ref())()
+    pub fn fetch(&self) -> N
+    where
+        N: EncodeGaugeValue,
+    {
+        self.source.get()
     }
 }
 
-impl<F, N> Clone for LazyGauge<F, N> {
-    fn clone(&self) -> Self {
-        Self { fetch: Arc::clone(&self.fetch), _marker: PhantomData }
-    }
-}
-
-impl<F, N> TypedMetric for LazyGauge<F, N> {
+impl<N> TypedMetric for LazyGauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
 }
 
-impl<F, N> MetricLabelSet for LazyGauge<F, N> {
+impl<N> MetricLabelSet for LazyGauge<N> {
     type LabelSet = ();
 }
 
-impl<F, N> EncodeMetric for LazyGauge<F, N>
+impl<N> EncodeMetric for LazyGauge<N>
 where
-    F: Fn() -> N + Send + Sync,
-    N: EncodeGaugeValue + Send + Sync,
+    N: EncodeGaugeValue + Send + Sync + 'static,
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
-        let value = self.fetch();
+        let value = self.source.get();
         encoder.encode_gauge(&value)
+    }
+}
+
+/// Internal value source for [`LazyGauge`].
+///
+/// This trait is crate-private so other modules (e.g. `metrics::lazy_group`) can construct
+/// `LazyGauge` instances via [`LazyGauge::from_source`] without exposing additional public types.
+///
+/// Implementations should be cheap to call;
+/// the encoder may call this during scrapes to obtain the current value.
+pub(crate) trait GaugeSource<N>: Send + Sync {
+    /// Returns the current gauge value.
+    fn get(&self) -> N;
+}
+
+struct PlainGaugeSource<N> {
+    fetch: Arc<dyn Fn() -> N + Send + Sync>,
+}
+
+impl<N> GaugeSource<N> for PlainGaugeSource<N> {
+    #[inline]
+    fn get(&self) -> N {
+        (self.fetch.as_ref())()
     }
 }
 

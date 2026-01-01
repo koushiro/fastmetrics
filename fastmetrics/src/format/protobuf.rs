@@ -67,11 +67,44 @@ mod openmetrics_data_model {
 /// # }
 /// ```
 pub fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> Result<()> {
+    encode_with(buffer, registry, crate::metrics::lazy_group::scrape_ctx::enter)
+}
+
+/// Encodes metrics in protobuf format, running a user-provided "scope/guard" for the duration of
+/// the encoding pass.
+///
+/// Pass a closure that enters a scrape scope (e.g. `metrics::lazy_group::scrape_ctx::enter`) to
+/// enable scrape-scoped caching for grouped lazy metrics created via
+/// [`crate::metrics::lazy_group::LazyGroup`].
+///
+/// The returned value is kept alive for the duration of encoding and then dropped.
+///
+/// # Example
+///
+/// ```rust
+/// # use fastmetrics::{error::Result, format::protobuf, registry::Registry};
+/// # fn main() -> Result<()> {
+/// let registry = Registry::default();
+/// let mut out = Vec::new();
+///
+/// // No additional scope:
+/// protobuf::encode_with(&mut out, &registry, || ())?;
+///
+/// # Ok(())
+/// # }
+/// ```
+pub fn encode_with<G>(
+    buffer: &mut dyn io::Write,
+    registry: &Registry,
+    before: impl FnOnce() -> G,
+) -> Result<()> {
+    // The returned value is kept alive for the duration of encoding and then dropped.
+    let _guard = before();
+
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     Encoder::new(&mut metric_set, registry).encode()?;
     protobuf::Message::write_to_writer(&metric_set, buffer)
-        .map_err(|err| Error::unexpected(err.to_string()).set_source(err))?;
-    Ok(())
+        .map_err(|err| Error::unexpected(err.to_string()).set_source(err))
 }
 
 struct Encoder<'a> {

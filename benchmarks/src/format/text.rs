@@ -186,7 +186,7 @@ fn bench_text_encoding(c: &mut Criterion) {
             });
 
             let id = format!("fastmetrics: {metric_id}");
-            group.sample_size(100).bench_function(id, |b| {
+            group.sample_size(50).bench_function(id, |b| {
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = String::new();
                 b.iter(|| {
