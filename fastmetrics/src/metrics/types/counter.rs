@@ -4,7 +4,6 @@
 
 use std::{
     fmt::{self, Debug},
-    marker::PhantomData,
     ops::AddAssign,
     sync::{Arc, atomic::*},
     time::Duration,
@@ -13,7 +12,6 @@ use std::{
 use crate::{
     encoder::{EncodeCounterValue, EncodeMetric, MetricEncoder},
     error::Result,
-    metrics::utils::fetch::OutputOf,
     raw::{Atomic, MetricLabelSet, MetricType, Number, TypedMetric},
 };
 
@@ -282,24 +280,45 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 /// });
 /// assert_eq!(lazy.fetch(), 42);
 /// ```
-pub struct LazyCounter<F, N = OutputOf<F>> {
-    fetch: Arc<F>,
+///
+/// # Grouped sampling
+///
+/// When constructed via [`crate::metrics::lazy_group::LazyGroup`], multiple lazy counters can share a
+/// single expensive sample per scrape.
+pub struct LazyCounter<N> {
+    source: Arc<dyn CounterSource<N>>,
     created: Option<Duration>,
-    _marker: PhantomData<N>,
 }
 
-impl<F, N> LazyCounter<F, N>
+impl<N> Clone for LazyCounter<N> {
+    fn clone(&self) -> Self {
+        Self { source: Arc::clone(&self.source), created: self.created }
+    }
+}
+
+impl<N> LazyCounter<N>
 where
-    F: Fn() -> N,
+    N: Send + Sync + 'static,
 {
+    /// Internal: constructs a `LazyCounter` from an implementation of [`CounterSource`].
+    ///
+    /// This is used by crate-internal glue (e.g., `metrics::lazy_group`) to build a `LazyCounter`
+    /// without exposing additional public types.
+    pub(crate) fn from_source(
+        source: Arc<dyn CounterSource<N>>,
+        created: Option<Duration>,
+    ) -> Self {
+        Self { source, created }
+    }
+
     /// Creates a `LazyCounter` without a creation timestamp.
-    pub fn new(fetch: F) -> Self {
-        Self { fetch: Arc::new(fetch), created: None, _marker: PhantomData }
+    pub fn new(fetch: impl Fn() -> N + Send + Sync + 'static) -> Self {
+        Self::from_source(Arc::new(PlainCounterSource { fetch: Arc::new(fetch) }), None)
     }
 
     /// Creates a `LazyCounter` with the provided `created` timestamp.
-    pub fn with_created(fetch: F, created: Duration) -> Self {
-        Self { fetch: Arc::new(fetch), created: Some(created), _marker: PhantomData }
+    pub fn with_created(fetch: impl Fn() -> N + Send + Sync + 'static, created: Duration) -> Self {
+        Self::from_source(Arc::new(PlainCounterSource { fetch: Arc::new(fetch) }), Some(created))
     }
 
     /// Evaluates the underlying fetcher and returns the current total.
@@ -308,32 +327,49 @@ where
     /// let the encoder trigger the fetch during scrapes.
     #[inline]
     pub fn fetch(&self) -> N {
-        (self.fetch.as_ref())()
+        self.source.total()
     }
 }
 
-impl<F, N> Clone for LazyCounter<F, N> {
-    fn clone(&self) -> Self {
-        Self { fetch: Arc::clone(&self.fetch), created: self.created, _marker: PhantomData }
-    }
-}
-
-impl<F, N> TypedMetric for LazyCounter<F, N> {
+impl<N> TypedMetric for LazyCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
 }
 
-impl<F, N> MetricLabelSet for LazyCounter<F, N> {
+impl<N> MetricLabelSet for LazyCounter<N> {
     type LabelSet = ();
 }
 
-impl<F, N> EncodeMetric for LazyCounter<F, N>
+impl<N> EncodeMetric for LazyCounter<N>
 where
-    F: Fn() -> N + Send + Sync,
-    N: EncodeCounterValue + Send + Sync,
+    N: EncodeCounterValue + Send + Sync + 'static,
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
-        let total = self.fetch();
+        let total = self.source.total();
         encoder.encode_counter(&total, None, self.created)
+    }
+}
+
+/// Internal source of values for [`LazyCounter`].
+///
+/// This trait is deliberately crate-private so other internal modules (e.g.
+/// `metrics::lazy_group`) can provide alternative implementations (such as a
+/// scrape-scoped cached source) without exposing extra public types.
+///
+/// Implementations must be thread-safe (`Send + Sync`) because metrics can be
+/// encoded from multiple threads depending on the exporter design.
+pub(crate) trait CounterSource<N>: Send + Sync {
+    /// Returns the current total value for this counter.
+    fn total(&self) -> N;
+}
+
+struct PlainCounterSource<N> {
+    fetch: Arc<dyn Fn() -> N + Send + Sync>,
+}
+
+impl<N> CounterSource<N> for PlainCounterSource<N> {
+    #[inline]
+    fn total(&self) -> N {
+        (self.fetch.as_ref())()
     }
 }
 

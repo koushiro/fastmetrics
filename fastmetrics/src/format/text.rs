@@ -68,6 +68,43 @@ use crate::{
 /// # }
 /// ```
 pub fn encode(writer: &mut impl fmt::Write, registry: &Registry) -> Result<()> {
+    encode_with(writer, registry, crate::metrics::lazy_group::scrape_ctx::enter)
+}
+
+/// Encodes metrics in text format, running a user-provided "scope/guard" for the duration of the
+/// encoding pass.
+///
+/// This is the underlying primitive used by [`encode`]. The `before` closure is called once before
+/// encoding starts, and the value it returns is kept alive for the duration of encoding and then
+/// dropped.
+///
+/// ## Scrape-scoped caching (grouped lazy metrics)
+///
+/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an expensive
+/// sampling operation within a single scrape. To enable this, pass a closure that enters a scrape
+/// scope (internally used by the crate's default [`encode`] implementation).
+///
+/// ## Example
+///
+/// ```rust
+/// # use fastmetrics::{error::Result, format::text, registry::Registry};
+/// # fn main() -> Result<()> {
+/// let registry = Registry::default();
+/// let mut out = String::new();
+///
+/// // Encode without adding any additional per-encode scope:
+/// text::encode_with(&mut out, &registry, || ())?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn encode_with<G>(
+    writer: &mut impl fmt::Write,
+    registry: &Registry,
+    before: impl FnOnce() -> G,
+) -> Result<()> {
+    // The returned value is kept alive for the duration of encoding and then dropped.
+    let _guard = before();
+
     Encoder::new(writer, registry).encode()
 }
 

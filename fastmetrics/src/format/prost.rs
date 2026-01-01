@@ -65,11 +65,47 @@ mod openmetrics_data_model {
 /// # }
 /// ```
 pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Result<()> {
+    encode_with(buffer, registry, crate::metrics::lazy_group::scrape_ctx::enter)
+}
+
+/// Encodes metrics in protobuf format (prost), running a user-provided "scope/guard" for the
+/// duration of the encoding pass.
+///
+/// This is the underlying primitive used by [`encode`]. The `before` closure is called once before
+/// encoding starts, and the value it returns is kept alive for the duration of encoding and then
+/// dropped.
+///
+/// ## Scrape-scoped caching (grouped lazy metrics)
+///
+/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an expensive
+/// sampling operation within a single scrape. To enable this, pass a closure that enters a scrape
+/// scope (internally used by the crate's default [`encode`] implementation).
+///
+/// ## Example
+///
+/// ```rust
+/// # use fastmetrics::{error::Result, format::prost, registry::Registry};
+/// # fn main() -> Result<()> {
+/// let registry = Registry::default();
+/// let mut out = Vec::new();
+///
+/// // Encode without adding any additional per-encode scope:
+/// prost::encode_with(&mut out, &registry, || ())?;
+/// # Ok(())
+/// # }
+/// ```
+pub fn encode_with<G>(
+    buffer: &mut impl prost::bytes::BufMut,
+    registry: &Registry,
+    before: impl FnOnce() -> G,
+) -> Result<()> {
+    // The returned value is kept alive for the duration of encoding and then dropped.
+    let _guard = before();
+
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     Encoder::new(&mut metric_set, registry).encode()?;
     prost::Message::encode(&metric_set, buffer)
-        .map_err(|err| Error::unexpected(err.to_string()).set_source(err))?;
-    Ok(())
+        .map_err(|err| Error::unexpected(err.to_string()).set_source(err))
 }
 
 struct Encoder<'a> {

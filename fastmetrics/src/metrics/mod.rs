@@ -24,8 +24,8 @@
 //! [Family]: self::family::Family
 
 pub mod family;
+pub mod lazy_group;
 mod types;
-mod utils;
 
 pub use self::types::*;
 
