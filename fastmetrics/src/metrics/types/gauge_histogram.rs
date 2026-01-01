@@ -59,8 +59,8 @@ impl Debug for GaugeHistogram {
         self.with_snapshot(|snapshot| {
             f.debug_struct("GaugeHistogram")
                 .field("buckets", &snapshot.buckets())
-                .field("gcount", &snapshot.count())
-                .field("gsum", &snapshot.sum())
+                .field("count", &snapshot.count())
+                .field("sum", &snapshot.sum())
                 .finish()
         })
     }
