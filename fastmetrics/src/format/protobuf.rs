@@ -595,6 +595,10 @@ impl encoder::GaugeValueEncoder for GaugeValueEncoder<'_> {
         }
     }
 
+    fn encode_usize(&mut self, value: usize) -> Result<()> {
+        self.encode_u64(value as u64)
+    }
+
     fn encode_f32(&mut self, value: f32) -> Result<()> {
         self.encode_f64(value as f64)
     }
