@@ -29,7 +29,7 @@ If there are user-facing changes then we may require documentation to be updated
 If there are any breaking changes to public APIs, please add the `breaking-changes` label.
 -->
 
-# AI Usage Statement
+# AI usage statement
 
 <!--
 If you are using AI tools to build this PR, please include a statement specifying the tool and models you are using.
