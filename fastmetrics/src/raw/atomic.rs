@@ -4,9 +4,13 @@ use crate::raw::number::Number;
 
 /// Atomic operations for the integer or float value.
 ///
-/// Note: `inc_by`/`dec_by` use the underlying atomic add/sub operations. For integer atomics, this
-/// means they may wrap on overflow/underflow. If you need a stronger guarantee (e.g. saturating
-/// arithmetic), use [`Atomic::update`] to implement it via a CAS loop.
+/// # Note
+///
+/// `inc_by`/`dec_by` use the underlying atomic add/sub operations.
+///
+/// For integer atomics, this means they may wrap on overflow/underflow.
+/// If you need a stronger guarantee (e.g. saturating arithmetic),
+/// use [`Atomic::update`] to implement it via a CAS loop.
 ///
 /// For floating-point atomics, `inc_by`/`dec_by` are implemented via [`Atomic::update`].
 pub trait Atomic<N: Number>: Default + Send + Sync {
@@ -16,10 +20,7 @@ pub trait Atomic<N: Number>: Default + Send + Sync {
     /// Decrease the value.
     fn dec_by(&self, v: N);
 
-    /// Atomically updates the current value using a compare-and-swap loop.
-    ///
-    /// This is the generic primitive used to implement saturating operations at higher layers
-    /// without forcing the fast path (`inc_by`/`dec_by`) to pay the CAS cost.
+    /// Atomically updates the current value.
     fn update<F>(&self, f: F)
     where
         F: FnMut(N) -> N;

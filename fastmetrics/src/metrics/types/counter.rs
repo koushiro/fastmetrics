@@ -134,12 +134,18 @@ impl<N: CounterValue> Counter<N> {
     }
 
     /// Increases the [`Counter`] by 1.
+    ///
+    /// For integer counters, this uses wrapping arithmetic on overflow.
+    /// Use [`Counter::saturating_inc`] if you need clamping semantics.
     #[inline]
     pub fn inc(&self) {
         self.total.inc_by(N::ONE);
     }
 
     /// Increases the [`Counter`] by `v`.
+    ///
+    /// For integer counters, this uses wrapping arithmetic on overflow.
+    /// Use [`Counter::saturating_inc_by`] if you need clamping semantics.
     ///
     /// # Panics
     ///
