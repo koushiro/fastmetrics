@@ -53,7 +53,7 @@ pub(crate) use self::id::LazyGroupId;
 /// #[derive(Clone, Copy)]
 /// struct Sample {
 ///     a: u64,
-///     b: u64,
+///     b: i64,
 /// }
 ///
 /// let group = LazyGroup::new(|| Sample { a: 1, b: 2 });
