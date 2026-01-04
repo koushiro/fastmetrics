@@ -33,6 +33,7 @@ impl_gauge_value_for! {
     i32 => AtomicI32;
     i64 => AtomicI64;
     isize => AtomicIsize;
+
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
@@ -220,7 +221,7 @@ pub struct LazyGauge<N> {
     source: Arc<dyn LazySource<N>>,
 }
 
-impl<N: GaugeValue> Clone for LazyGauge<N> {
+impl<N> Clone for LazyGauge<N> {
     fn clone(&self) -> Self {
         Self { source: self.source.clone() }
     }

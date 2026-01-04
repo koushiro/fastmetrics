@@ -34,6 +34,7 @@ impl_counter_value_for! {
     u32 => AtomicU32;
     u64 => AtomicU64;
     usize => AtomicUsize;
+
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
@@ -276,7 +277,7 @@ pub struct LazyCounter<N> {
     created: Option<Duration>,
 }
 
-impl<N: CounterValue> Clone for LazyCounter<N> {
+impl<N> Clone for LazyCounter<N> {
     fn clone(&self) -> Self {
         Self { source: self.source.clone(), created: self.created }
     }
