@@ -45,12 +45,6 @@ pub trait GaugeValueEncoder {
     fn encode_i64(&mut self, value: i64) -> Result<()>;
     /// Encodes a platform-specific signed integer value.
     fn encode_isize(&mut self, value: isize) -> Result<()>;
-    /// Encodes a 32-bit unsigned integer value.
-    fn encode_u32(&mut self, value: u32) -> Result<()>;
-    /// Encodes a 64-bit unsigned integer value.
-    fn encode_u64(&mut self, value: u64) -> Result<()>;
-    /// Encodes a platform-specific unsigned integer value.
-    fn encode_usize(&mut self, value: usize) -> Result<()>;
 
     /// Encodes a 32-bit floating point value.
     fn encode_f32(&mut self, value: f32) -> Result<()>;
@@ -76,7 +70,7 @@ macro_rules! impl_encode_gauge_value {
     )
 }
 
-impl_encode_gauge_value! { i32, i64, isize, u32, u64, usize, f32, f64 }
+impl_encode_gauge_value! { i32, i64, isize, f32, f64 }
 
 /// Trait for encoding counter numeric values in metrics.
 pub trait CounterValueEncoder {

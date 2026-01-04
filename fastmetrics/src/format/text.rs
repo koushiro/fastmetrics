@@ -768,7 +768,7 @@ where
     W: fmt::Write,
 {
     encode_integer_number_impls! {
-        i32, i64, isize, u32, u64, usize
+        i32, i64, isize
     }
 
     encode_float_number_impls! {
