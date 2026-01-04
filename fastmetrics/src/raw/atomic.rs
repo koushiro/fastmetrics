@@ -4,20 +4,8 @@ use crate::raw::number::Number;
 
 /// Atomic operations for the integer or float value.
 pub trait Atomic<N: Number>: Default + Send + Sync {
-    /// Increase the value by `1`.
-    #[inline]
-    fn inc(&self) {
-        self.inc_by(N::ONE);
-    }
-
     /// Increase the value by `v`.
     fn inc_by(&self, v: N);
-
-    /// Decrease the value by `1`.
-    #[inline]
-    fn dec(&self) {
-        self.dec_by(N::ONE);
-    }
 
     /// Decrease the value.
     fn dec_by(&self, v: N);
@@ -59,6 +47,7 @@ impl_atomic_for_integer! {
     i32 => AtomicI32;
     i64 => AtomicI64;
     isize => AtomicIsize;
+
     u32 => AtomicU32;
     u64 => AtomicU64;
     usize => AtomicUsize;

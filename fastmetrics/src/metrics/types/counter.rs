@@ -106,7 +106,7 @@ impl<N: CounterValue> Counter<N> {
     /// Increases the [`Counter`] by 1.
     #[inline]
     pub fn inc(&self) {
-        self.total.inc();
+        self.total.inc_by(N::ONE);
     }
 
     /// Increases the [`Counter`] by `v`.

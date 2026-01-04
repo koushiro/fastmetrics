@@ -35,6 +35,7 @@ impl_gauge_value_for! {
     isize => AtomicIsize;
     u32 => AtomicU32;
     u64 => AtomicU64;
+    usize => AtomicUsize;
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
@@ -104,7 +105,7 @@ impl<N: GaugeValue> Gauge<N> {
     /// Increases the [`Gauge`] by 1.
     #[inline]
     pub fn inc(&self) {
-        self.value.inc();
+        self.value.inc_by(N::ONE);
     }
 
     /// Increases the [`Gauge`] by `v`.
@@ -116,7 +117,7 @@ impl<N: GaugeValue> Gauge<N> {
     /// Decreases the [`Gauge`] by 1.
     #[inline]
     pub fn dec(&self) {
-        self.value.dec();
+        self.value.dec_by(N::ONE);
     }
 
     /// Decreases the [`Gauge`] by `v`.
