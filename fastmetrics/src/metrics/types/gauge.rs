@@ -33,8 +33,6 @@ impl_gauge_value_for! {
     i32 => AtomicI32;
     i64 => AtomicI64;
     isize => AtomicIsize;
-    u32 => AtomicU32;
-    u64 => AtomicU64;
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
@@ -181,11 +179,11 @@ impl<N: GaugeValue> ConstGauge<N> {
     }
 }
 
-impl<N: GaugeValue> TypedMetric for ConstGauge<N> {
+impl<N> TypedMetric for ConstGauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
 }
 
-impl<N: GaugeValue> MetricLabelSet for ConstGauge<N> {
+impl<N> MetricLabelSet for ConstGauge<N> {
     type LabelSet = ();
 }
 
@@ -222,16 +220,13 @@ pub struct LazyGauge<N> {
     source: Arc<dyn LazySource<N>>,
 }
 
-impl<N> Clone for LazyGauge<N> {
+impl<N: GaugeValue> Clone for LazyGauge<N> {
     fn clone(&self) -> Self {
-        Self { source: Arc::clone(&self.source) }
+        Self { source: self.source.clone() }
     }
 }
 
-impl<N> LazyGauge<N>
-where
-    N: Send + Sync + 'static,
-{
+impl<N: GaugeValue + 'static> LazyGauge<N> {
     /// Internal: constructs a lazy gauge from a source.
     ///
     /// This is used by crate-internal glue (e.g. `metrics::lazy_group`) to build a `LazyGauge`
@@ -263,10 +258,7 @@ impl<N> MetricLabelSet for LazyGauge<N> {
     type LabelSet = ();
 }
 
-impl<N> EncodeMetric for LazyGauge<N>
-where
-    N: EncodeGaugeValue + Send + Sync + 'static,
-{
+impl<N: EncodeGaugeValue + GaugeValue + 'static> EncodeMetric for LazyGauge<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let value = self.fetch();
         encoder.encode_gauge(&value)

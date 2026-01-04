@@ -231,11 +231,11 @@ impl<N: CounterValue> ConstCounter<N> {
     }
 }
 
-impl<N: CounterValue> TypedMetric for ConstCounter<N> {
+impl<N> TypedMetric for ConstCounter<N> {
     const TYPE: MetricType = MetricType::Counter;
 }
 
-impl<N: CounterValue> MetricLabelSet for ConstCounter<N> {
+impl<N> MetricLabelSet for ConstCounter<N> {
     type LabelSet = ();
 }
 
@@ -276,16 +276,13 @@ pub struct LazyCounter<N> {
     created: Option<Duration>,
 }
 
-impl<N> Clone for LazyCounter<N> {
+impl<N: CounterValue> Clone for LazyCounter<N> {
     fn clone(&self) -> Self {
-        Self { source: Arc::clone(&self.source), created: self.created }
+        Self { source: self.source.clone(), created: self.created }
     }
 }
 
-impl<N> LazyCounter<N>
-where
-    N: Send + Sync + 'static,
-{
+impl<N: CounterValue + 'static> LazyCounter<N> {
     /// Internal: constructs a `LazyCounter` from an implementation of [`CounterSource`].
     ///
     /// This is used by crate-internal glue (e.g., `metrics::lazy_group`) to build a `LazyCounter`
@@ -322,10 +319,7 @@ impl<N> MetricLabelSet for LazyCounter<N> {
     type LabelSet = ();
 }
 
-impl<N> EncodeMetric for LazyCounter<N>
-where
-    N: EncodeCounterValue + Send + Sync + 'static,
-{
+impl<N: EncodeCounterValue + CounterValue + 'static> EncodeMetric for LazyCounter<N> {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
         let total = self.fetch();
         encoder.encode_counter(&total, None, self.created)
