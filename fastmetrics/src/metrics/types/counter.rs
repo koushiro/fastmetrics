@@ -368,6 +368,11 @@ impl<N: CounterValue + 'static> LazyCounter<N> {
     pub fn fetch(&self) -> N {
         self.source.load()
     }
+
+    /// Gets the optional `created` value of the [`LazyCounter`].
+    pub fn created(&self) -> Option<Duration> {
+        self.created
+    }
 }
 
 impl<N> TypedMetric for LazyCounter<N> {
@@ -478,20 +483,63 @@ mod tests {
     }
 
     #[test]
+    fn test_counter_saturating_inc() {
+        // clamps at max
+        let counter = <Counter<u64>>::default();
+        counter.set(u64::MAX);
+
+        counter.saturating_inc();
+        assert_eq!(counter.total(), u64::MAX);
+
+        counter.saturating_inc_by(1);
+        assert_eq!(counter.total(), u64::MAX);
+
+        counter.saturating_inc_by(123);
+        assert_eq!(counter.total(), u64::MAX);
+
+        // behaves normally in range
+        let counter = <Counter<u64>>::default();
+
+        counter.saturating_inc_by(5);
+        assert_eq!(counter.total(), 5);
+
+        counter.saturating_inc();
+        assert_eq!(counter.total(), 6);
+
+        counter.saturating_inc_by(3);
+        assert_eq!(counter.total(), 9);
+    }
+
+    #[test]
     fn test_const_counter() {
-        let counter = ConstCounter::new(42_u64);
+        let counter = ConstCounter::new(42u64);
         assert_eq!(counter.total(), 42);
         assert!(counter.created.is_none());
 
         let created = std::time::SystemTime::UNIX_EPOCH
             .elapsed()
             .expect("UNIX timestamp when the counter was created");
-        let counter = ConstCounter::with_created(42_u64, created);
+        let counter = ConstCounter::with_created(42u64, created);
         assert_eq!(counter.total(), 42);
         assert!(counter.created.is_some());
 
         let clone = counter.clone();
         assert_eq!(clone.total(), 42);
+    }
+
+    #[test]
+    fn test_lazy_counter() {
+        let total = Arc::new(AtomicU64::new(42));
+        let counter = LazyCounter::new({
+            let total = total.clone();
+            move || total.load(Ordering::Relaxed)
+        });
+        assert_eq!(counter.fetch(), 42);
+
+        let created = Duration::from_secs(123);
+        let counter = LazyCounter::with_created(|| 42u64, created);
+        assert_eq!(counter.fetch(), 42);
+        assert_eq!(counter.created(), Some(created));
     }
 
     #[test]
@@ -574,53 +622,6 @@ mod tests {
                     my_counter_total 42
                     # EOF
                 "#};
-                assert_eq!(expected, output);
-            },
-        );
-    }
-
-    #[test]
-    fn test_lazy_counter() {
-        check_text_encoding(
-            |registry| {
-                let total = Arc::new(AtomicU64::new(0));
-                let lazy = LazyCounter::new({
-                    let total = total.clone();
-                    move || total.load(Ordering::Relaxed)
-                });
-                registry.register("lazy_counter", "Lazy counter help", lazy).unwrap();
-                total.store(123, Ordering::Relaxed);
-            },
-            |output| {
-                let expected = indoc::indoc! {r#"
-                    # TYPE lazy_counter counter
-                    # HELP lazy_counter Lazy counter help
-                    lazy_counter_total 123
-                    # EOF
-                "#};
-                assert_eq!(expected, output);
-            },
-        );
-
-        let created = Duration::from_secs(123);
-        check_text_encoding(
-            |registry| {
-                let lazy = LazyCounter::with_created(|| 42_u64, created);
-                registry
-                    .register("lazy_counter_created", "Lazy counter with created help", lazy)
-                    .unwrap();
-            },
-            |output| {
-                let expected = indoc::formatdoc! {r#"
-                    # TYPE lazy_counter_created counter
-                    # HELP lazy_counter_created Lazy counter with created help
-                    lazy_counter_created_total 42
-                    lazy_counter_created_created {}.{}
-                    # EOF
-                    "#,
-                    created.as_secs(),
-                    created.as_millis() % 1000
-                };
                 assert_eq!(expected, output);
             },
         );

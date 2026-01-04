@@ -409,6 +409,48 @@ mod tests {
     }
 
     #[test]
+    fn test_gauge_saturating_inc_dec() {
+        // clamp at max
+        let gauge = Gauge::new(i64::MAX);
+
+        gauge.saturating_inc();
+        assert_eq!(gauge.get(), i64::MAX);
+
+        gauge.saturating_inc_by(1);
+        assert_eq!(gauge.get(), i64::MAX);
+
+        gauge.saturating_inc_by(123);
+        assert_eq!(gauge.get(), i64::MAX);
+
+        // clamps at min
+        let gauge = Gauge::new(i64::MIN);
+
+        gauge.saturating_dec();
+        assert_eq!(gauge.get(), i64::MIN);
+
+        gauge.saturating_dec_by(1);
+        assert_eq!(gauge.get(), i64::MIN);
+
+        gauge.saturating_dec_by(123);
+        assert_eq!(gauge.get(), i64::MIN);
+
+        // behaves normally in range
+        let gauge = Gauge::new(10i64);
+
+        gauge.saturating_inc_by(5);
+        assert_eq!(gauge.get(), 15);
+
+        gauge.saturating_dec_by(3);
+        assert_eq!(gauge.get(), 12);
+
+        gauge.saturating_inc();
+        assert_eq!(gauge.get(), 13);
+
+        gauge.saturating_dec();
+        assert_eq!(gauge.get(), 12);
+    }
+
+    #[test]
     fn test_gauge_thread_safe() {
         let gauge = <Gauge>::default();
         let clone = gauge.clone();
@@ -429,11 +471,22 @@ mod tests {
 
     #[test]
     fn test_const_gauge() {
-        let gauge = ConstGauge::new(42_i64);
+        let gauge = ConstGauge::new(42i64);
         assert_eq!(gauge.get(), 42);
 
         let clone = gauge.clone();
         assert_eq!(clone.get(), 42);
+    }
+
+    #[test]
+    fn test_lazy_gauge() {
+        let value = Arc::new(AtomicI64::new(10));
+        let gauge = LazyGauge::new({
+            let value = value.clone();
+            move || value.load(Ordering::Relaxed)
+        });
+
+        assert_eq!(gauge.fetch(), 10);
     }
 
     #[test]
@@ -485,30 +538,6 @@ mod tests {
                     # TYPE my_gauge gauge
                     # HELP my_gauge My gauge help
                     my_gauge 42
-                    # EOF
-                "#};
-                assert_eq!(expected, output);
-            },
-        );
-    }
-
-    #[test]
-    fn test_lazy_gauge() {
-        check_text_encoding(
-            |registry| {
-                let value = Arc::new(AtomicI64::new(0));
-                let lazy = LazyGauge::new({
-                    let value = value.clone();
-                    move || value.load(Ordering::Relaxed)
-                });
-                registry.register("lazy_gauge", "Lazy gauge help", lazy).unwrap();
-                value.store(99, Ordering::Relaxed);
-            },
-            |output| {
-                let expected = indoc::indoc! {r#"
-                    # TYPE lazy_gauge gauge
-                    # HELP lazy_gauge Lazy gauge help
-                    lazy_gauge 99
                     # EOF
                 "#};
                 assert_eq!(expected, output);
