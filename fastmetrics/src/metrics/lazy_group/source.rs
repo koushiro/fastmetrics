@@ -11,7 +11,11 @@ use std::{marker::PhantomData, sync::Arc, time::Duration};
 use crate::{
     encoder::{EncodeCounterValue, EncodeGaugeValue},
     metrics::internal::lazy::LazySource,
-    metrics::{counter::LazyCounter, gauge::LazyGauge, lazy_group::LazyGroup},
+    metrics::{
+        counter::{CounterValue, LazyCounter},
+        gauge::{GaugeValue, LazyGauge},
+        lazy_group::LazyGroup,
+    },
 };
 
 /// Constructs a `LazyCounter` derived from the shared `LazyGroup` sample.
@@ -26,7 +30,7 @@ pub(crate) fn counter_from_group<S, N, M>(
 where
     S: Send + Sync + 'static,
     M: Fn(&S) -> N + Send + Sync + 'static,
-    N: EncodeCounterValue + Send + Sync + 'static,
+    N: EncodeCounterValue + CounterValue + 'static,
 {
     LazyCounter::from_source(
         Arc::new(GroupedLazySource::<S, N, _>::new(group, Arc::new(map))),
@@ -42,7 +46,7 @@ pub(crate) fn gauge_from_group<S, N, M>(group: LazyGroup<S>, map: M) -> LazyGaug
 where
     S: Send + Sync + 'static,
     M: Fn(&S) -> N + Send + Sync + 'static,
-    N: EncodeGaugeValue + Send + Sync + 'static,
+    N: EncodeGaugeValue + GaugeValue + 'static,
 {
     LazyGauge::from_source(Arc::new(GroupedLazySource::<S, N, _>::new(group, Arc::new(map))))
 }

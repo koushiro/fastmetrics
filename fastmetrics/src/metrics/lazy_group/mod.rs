@@ -28,7 +28,10 @@ use std::{sync::Arc, time::Duration};
 
 use crate::{
     encoder::{EncodeCounterValue, EncodeGaugeValue},
-    metrics::{counter::LazyCounter, gauge::LazyGauge},
+    metrics::{
+        counter::{CounterValue, LazyCounter},
+        gauge::{GaugeValue, LazyGauge},
+    },
 };
 
 mod id;
@@ -50,7 +53,7 @@ pub(crate) use self::id::LazyGroupId;
 /// #[derive(Clone, Copy)]
 /// struct Sample {
 ///     a: u64,
-///     b: u64,
+///     b: i64,
 /// }
 ///
 /// let group = LazyGroup::new(|| Sample { a: 1, b: 2 });
@@ -88,7 +91,7 @@ where
     pub fn counter<N, M>(&self, map: M) -> LazyCounter<N>
     where
         M: Fn(&S) -> N + Send + Sync + 'static,
-        N: EncodeCounterValue + Send + Sync + 'static,
+        N: EncodeCounterValue + CounterValue + 'static,
     {
         source::counter_from_group(self.clone(), map, None)
     }
@@ -97,7 +100,7 @@ where
     pub fn counter_with_created<N, M>(&self, map: M, created: Duration) -> LazyCounter<N>
     where
         M: Fn(&S) -> N + Send + Sync + 'static,
-        N: EncodeCounterValue + Send + Sync + 'static,
+        N: EncodeCounterValue + CounterValue + 'static,
     {
         source::counter_from_group(self.clone(), map, Some(created))
     }
@@ -109,7 +112,7 @@ where
     pub fn gauge<N, M>(&self, map: M) -> LazyGauge<N>
     where
         M: Fn(&S) -> N + Send + Sync + 'static,
-        N: EncodeGaugeValue + Send + Sync + 'static,
+        N: EncodeGaugeValue + GaugeValue + 'static,
     {
         source::gauge_from_group(self.clone(), map)
     }
