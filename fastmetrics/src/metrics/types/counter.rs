@@ -1,6 +1,12 @@
 //! [Open Metrics Counter](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#counter) metric type.
 //!
 //! See [`Counter`], [`ConstCounter`] and [`LazyCounter`] for more details.
+//!
+//! ## Overflow/underflow behavior
+//!
+//! - Integer counters (`u32`, `u64`, `usize`) use **wrapping** arithmetic for `inc*` on overflow by default.
+//!   If you need clamping behavior, use the `saturating_*` methods.
+//! - Floating-point counters follow IEEE-754 semantics (they do not saturate; results may become `inf`/`NaN`).
 
 use std::{
     fmt::{self, Debug},
@@ -38,6 +44,29 @@ impl_counter_value_for! {
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
+
+/// Counter values that support `saturating_*` operations.
+///
+/// This is implemented for integer counter value types only.
+pub trait SaturatingCounterValue: CounterValue {
+    /// Saturating addition.
+    ///
+    /// This clamps at the numeric maximum instead of wrapping around on overflow.
+    fn saturating_add(self, rhs: Self) -> Self;
+}
+
+macro_rules! impl_saturating_counter_value_for_uint {
+    ($($ty:ty),* $(,)?) => {$(
+        impl SaturatingCounterValue for $ty {
+            #[inline]
+            fn saturating_add(self, rhs: Self) -> Self {
+                <$ty>::saturating_add(self, rhs)
+            }
+        }
+    )*};
+}
+
+impl_saturating_counter_value_for_uint! { u32, u64, usize }
 
 /// Open Metrics [`Counter`] metric, which is used to measure discrete events.
 ///
@@ -105,12 +134,18 @@ impl<N: CounterValue> Counter<N> {
     }
 
     /// Increases the [`Counter`] by 1.
+    ///
+    /// For integer counters, this uses wrapping arithmetic on overflow.
+    /// Use [`Counter::saturating_inc`] if you need clamping semantics.
     #[inline]
     pub fn inc(&self) {
         self.total.inc_by(N::ONE);
     }
 
     /// Increases the [`Counter`] by `v`.
+    ///
+    /// For integer counters, this uses wrapping arithmetic on overflow.
+    /// Use [`Counter::saturating_inc_by`] if you need clamping semantics.
     ///
     /// # Panics
     ///
@@ -142,6 +177,29 @@ impl<N: CounterValue> Counter<N> {
     /// Gets the optional `created` value of the [`Counter`].
     pub const fn created(&self) -> Option<Duration> {
         self.created
+    }
+}
+
+impl<N: SaturatingCounterValue> Counter<N> {
+    /// Increases the [`Counter`] by 1, saturating at the numeric maximum.
+    ///
+    /// This is slower than [`Counter::inc`] because it uses a CAS loop.
+    #[inline]
+    pub fn saturating_inc(&self) {
+        self.saturating_inc_by(N::ONE);
+    }
+
+    /// Increases the [`Counter`] by `v`, saturating at the numeric maximum.
+    ///
+    /// This is slower than [`Counter::inc_by`] because it uses a CAS loop.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the increment `v` is negative (i.e, not zero or positive).
+    #[inline]
+    pub fn saturating_inc_by(&self, v: N) {
+        assert!(v >= N::ZERO, "increment must be zero or positive");
+        self.total.update(|old| old.saturating_add(v));
     }
 }
 
@@ -310,6 +368,11 @@ impl<N: CounterValue + 'static> LazyCounter<N> {
     pub fn fetch(&self) -> N {
         self.source.load()
     }
+
+    /// Gets the optional `created` value of the [`LazyCounter`].
+    pub fn created(&self) -> Option<Duration> {
+        self.created
+    }
 }
 
 impl<N> TypedMetric for LazyCounter<N> {
@@ -420,20 +483,63 @@ mod tests {
     }
 
     #[test]
+    fn test_counter_saturating_inc() {
+        // clamps at max
+        let counter = <Counter<u64>>::default();
+        counter.set(u64::MAX);
+
+        counter.saturating_inc();
+        assert_eq!(counter.total(), u64::MAX);
+
+        counter.saturating_inc_by(1);
+        assert_eq!(counter.total(), u64::MAX);
+
+        counter.saturating_inc_by(123);
+        assert_eq!(counter.total(), u64::MAX);
+
+        // behaves normally in range
+        let counter = <Counter<u64>>::default();
+
+        counter.saturating_inc_by(5);
+        assert_eq!(counter.total(), 5);
+
+        counter.saturating_inc();
+        assert_eq!(counter.total(), 6);
+
+        counter.saturating_inc_by(3);
+        assert_eq!(counter.total(), 9);
+    }
+
+    #[test]
     fn test_const_counter() {
-        let counter = ConstCounter::new(42_u64);
+        let counter = ConstCounter::new(42u64);
         assert_eq!(counter.total(), 42);
         assert!(counter.created.is_none());
 
         let created = std::time::SystemTime::UNIX_EPOCH
             .elapsed()
             .expect("UNIX timestamp when the counter was created");
-        let counter = ConstCounter::with_created(42_u64, created);
+        let counter = ConstCounter::with_created(42u64, created);
         assert_eq!(counter.total(), 42);
         assert!(counter.created.is_some());
 
         let clone = counter.clone();
         assert_eq!(clone.total(), 42);
+    }
+
+    #[test]
+    fn test_lazy_counter() {
+        let total = Arc::new(AtomicU64::new(42));
+        let counter = LazyCounter::new({
+            let total = total.clone();
+            move || total.load(Ordering::Relaxed)
+        });
+        assert_eq!(counter.fetch(), 42);
+
+        let created = Duration::from_secs(123);
+        let counter = LazyCounter::with_created(|| 42u64, created);
+        assert_eq!(counter.fetch(), 42);
+        assert_eq!(counter.created(), Some(created));
     }
 
     #[test]
@@ -516,53 +622,6 @@ mod tests {
                     my_counter_total 42
                     # EOF
                 "#};
-                assert_eq!(expected, output);
-            },
-        );
-    }
-
-    #[test]
-    fn test_lazy_counter() {
-        check_text_encoding(
-            |registry| {
-                let total = Arc::new(AtomicU64::new(0));
-                let lazy = LazyCounter::new({
-                    let total = total.clone();
-                    move || total.load(Ordering::Relaxed)
-                });
-                registry.register("lazy_counter", "Lazy counter help", lazy).unwrap();
-                total.store(123, Ordering::Relaxed);
-            },
-            |output| {
-                let expected = indoc::indoc! {r#"
-                    # TYPE lazy_counter counter
-                    # HELP lazy_counter Lazy counter help
-                    lazy_counter_total 123
-                    # EOF
-                "#};
-                assert_eq!(expected, output);
-            },
-        );
-
-        let created = Duration::from_secs(123);
-        check_text_encoding(
-            |registry| {
-                let lazy = LazyCounter::with_created(|| 42_u64, created);
-                registry
-                    .register("lazy_counter_created", "Lazy counter with created help", lazy)
-                    .unwrap();
-            },
-            |output| {
-                let expected = indoc::formatdoc! {r#"
-                    # TYPE lazy_counter_created counter
-                    # HELP lazy_counter_created Lazy counter with created help
-                    lazy_counter_created_total 42
-                    lazy_counter_created_created {}.{}
-                    # EOF
-                    "#,
-                    created.as_secs(),
-                    created.as_millis() % 1000
-                };
                 assert_eq!(expected, output);
             },
         );

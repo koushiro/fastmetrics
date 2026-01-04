@@ -46,6 +46,15 @@ fn bench_counter_u64(c: &mut Criterion) {
         b.iter(|| counter.inc());
     });
     group.finish();
+
+    let mut group = c.benchmark_group("counter(u64)::saturating_inc");
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::counter::Counter;
+        let counter = <Counter>::default();
+
+        b.iter(|| counter.saturating_inc());
+    });
+    group.finish();
 }
 
 fn bench_counter_f64(c: &mut Criterion) {
@@ -192,6 +201,19 @@ fn bench_gauge_i64(c: &mut Criterion) {
     });
     group.finish();
 
+    let mut group = c.benchmark_group("gauge(i64)::saturating_inc_by");
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
+        let gauge = <Gauge>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<i64>(),
+            |input| gauge.saturating_inc_by(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+
     let mut group = c.benchmark_group("gauge(i64)::dec_by");
     group.bench_function("metrics", |b| {
         with_metrics_recorder(|| {
@@ -241,6 +263,19 @@ fn bench_gauge_i64(c: &mut Criterion) {
         b.iter_batched(
             || rand::rng().random::<i64>(),
             |input| gauge.dec_by(black_box(input)),
+            BatchSize::SmallInput,
+        );
+    });
+    group.finish();
+
+    let mut group = c.benchmark_group("gauge(i64)::saturating_dec_by");
+    group.bench_function("fastmetrics", |b| {
+        use fastmetrics::metrics::gauge::Gauge;
+        let gauge = <Gauge>::default();
+
+        b.iter_batched(
+            || rand::rng().random::<i64>(),
+            |input| gauge.saturating_dec_by(black_box(input)),
             BatchSize::SmallInput,
         );
     });

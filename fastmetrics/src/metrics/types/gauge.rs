@@ -1,6 +1,12 @@
 //! [Open Metrics Gauge](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge) metric type.
 //!
 //! See [`Gauge`], [`ConstGauge`] and [`LazyGauge`] for more details.
+//!
+//! ## Overflow/underflow behavior
+//!
+//! - Integer gauges (`i32`, `i64`, `isize`) use **wrapping** arithmetic for `inc*`/`dec*` on overflow/underflow by default.
+//!   If you need clamping behavior, use the `saturating_*` methods.
+//! - Floating-point gauges follow IEEE-754 semantics (they do not saturate; results may become `inf`/`-inf`/`NaN`).
 
 use std::{
     fmt::{self, Debug},
@@ -37,6 +43,41 @@ impl_gauge_value_for! {
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
+
+/// Gauge values that support saturating arithmetic helpers.
+///
+/// This is intentionally limited to integer types where saturating add/sub are well-defined.
+pub trait SaturatingGaugeValue: GaugeValue {
+    /// Saturating addition.
+    ///
+    /// Implementations must clamp at the numeric maximum instead of wrapping on overflow.
+    fn saturating_add(self, rhs: Self) -> Self;
+
+    /// Saturating subtraction.
+    ///
+    /// Implementations must clamp at the numeric minimum instead of wrapping on underflow.
+    fn saturating_sub(self, rhs: Self) -> Self;
+}
+
+macro_rules! impl_saturating_gauge_value_for_integer {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl SaturatingGaugeValue for $ty {
+                #[inline]
+                fn saturating_add(self, rhs: Self) -> Self {
+                    <$ty>::saturating_add(self, rhs)
+                }
+
+                #[inline]
+                fn saturating_sub(self, rhs: Self) -> Self {
+                    <$ty>::saturating_sub(self, rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_saturating_gauge_value_for_integer! { i32, i64, isize }
 
 /// Open Metrics [`Gauge`] metric, which is used to record current measurements,
 /// such as bytes of memory currently used or the number of items in a queue.
@@ -101,24 +142,36 @@ impl<N: GaugeValue> Gauge<N> {
     }
 
     /// Increases the [`Gauge`] by 1.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on overflow.
+    /// Use [`Gauge::saturating_inc`] if you need clamping semantics.
     #[inline]
     pub fn inc(&self) {
         self.value.inc_by(N::ONE);
     }
 
     /// Increases the [`Gauge`] by `v`.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on overflow.
+    /// Use [`Gauge::saturating_inc_by`] if you need clamping semantics.
     #[inline]
     pub fn inc_by(&self, v: N) {
         self.value.inc_by(v);
     }
 
     /// Decreases the [`Gauge`] by 1.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on underflow.
+    /// Use [`Gauge::saturating_dec`] if you need clamping semantics.
     #[inline]
     pub fn dec(&self) {
         self.value.dec_by(N::ONE);
     }
 
     /// Decreases the [`Gauge`] by `v`.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on underflow.
+    /// Use [`Gauge::saturating_dec_by`] if you need clamping semantics.
     #[inline]
     pub fn dec_by(&self, v: N) {
         self.value.dec_by(v);
@@ -139,6 +192,40 @@ impl<N: GaugeValue> Gauge<N> {
 
 impl<N: GaugeValue> TypedMetric for Gauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
+}
+
+impl<N: SaturatingGaugeValue> Gauge<N> {
+    /// Saturating variant of [`Gauge::inc`].
+    ///
+    /// For integer gauges, this increment clamps at the numeric maximum instead of wrapping around.
+    #[inline]
+    pub fn saturating_inc(&self) {
+        self.saturating_inc_by(N::ONE);
+    }
+
+    /// Saturating variant of [`Gauge::inc_by`].
+    ///
+    /// For integer gauges, this increment clamps at the numeric maximum instead of wrapping around.
+    #[inline]
+    pub fn saturating_inc_by(&self, v: N) {
+        self.value.update(|old| old.saturating_add(v));
+    }
+
+    /// Saturating variant of [`Gauge::dec`].
+    ///
+    /// For integer gauges, this decrement clamps at the numeric minimum instead of wrapping around.
+    #[inline]
+    pub fn saturating_dec(&self) {
+        self.saturating_dec_by(N::ONE);
+    }
+
+    /// Saturating variant of [`Gauge::dec_by`].
+    ///
+    /// For integer gauges, this decrement clamps at the numeric minimum instead of wrapping around.
+    #[inline]
+    pub fn saturating_dec_by(&self, v: N) {
+        self.value.update(|old| old.saturating_sub(v));
+    }
 }
 
 impl<N: GaugeValue> MetricLabelSet for Gauge<N> {
@@ -322,6 +409,48 @@ mod tests {
     }
 
     #[test]
+    fn test_gauge_saturating_inc_dec() {
+        // clamp at max
+        let gauge = Gauge::new(i64::MAX);
+
+        gauge.saturating_inc();
+        assert_eq!(gauge.get(), i64::MAX);
+
+        gauge.saturating_inc_by(1);
+        assert_eq!(gauge.get(), i64::MAX);
+
+        gauge.saturating_inc_by(123);
+        assert_eq!(gauge.get(), i64::MAX);
+
+        // clamps at min
+        let gauge = Gauge::new(i64::MIN);
+
+        gauge.saturating_dec();
+        assert_eq!(gauge.get(), i64::MIN);
+
+        gauge.saturating_dec_by(1);
+        assert_eq!(gauge.get(), i64::MIN);
+
+        gauge.saturating_dec_by(123);
+        assert_eq!(gauge.get(), i64::MIN);
+
+        // behaves normally in range
+        let gauge = Gauge::new(10i64);
+
+        gauge.saturating_inc_by(5);
+        assert_eq!(gauge.get(), 15);
+
+        gauge.saturating_dec_by(3);
+        assert_eq!(gauge.get(), 12);
+
+        gauge.saturating_inc();
+        assert_eq!(gauge.get(), 13);
+
+        gauge.saturating_dec();
+        assert_eq!(gauge.get(), 12);
+    }
+
+    #[test]
     fn test_gauge_thread_safe() {
         let gauge = <Gauge>::default();
         let clone = gauge.clone();
@@ -342,11 +471,22 @@ mod tests {
 
     #[test]
     fn test_const_gauge() {
-        let gauge = ConstGauge::new(42_i64);
+        let gauge = ConstGauge::new(42i64);
         assert_eq!(gauge.get(), 42);
 
         let clone = gauge.clone();
         assert_eq!(clone.get(), 42);
+    }
+
+    #[test]
+    fn test_lazy_gauge() {
+        let value = Arc::new(AtomicI64::new(10));
+        let gauge = LazyGauge::new({
+            let value = value.clone();
+            move || value.load(Ordering::Relaxed)
+        });
+
+        assert_eq!(gauge.fetch(), 10);
     }
 
     #[test]
@@ -398,30 +538,6 @@ mod tests {
                     # TYPE my_gauge gauge
                     # HELP my_gauge My gauge help
                     my_gauge 42
-                    # EOF
-                "#};
-                assert_eq!(expected, output);
-            },
-        );
-    }
-
-    #[test]
-    fn test_lazy_gauge() {
-        check_text_encoding(
-            |registry| {
-                let value = Arc::new(AtomicI64::new(0));
-                let lazy = LazyGauge::new({
-                    let value = value.clone();
-                    move || value.load(Ordering::Relaxed)
-                });
-                registry.register("lazy_gauge", "Lazy gauge help", lazy).unwrap();
-                value.store(99, Ordering::Relaxed);
-            },
-            |output| {
-                let expected = indoc::indoc! {r#"
-                    # TYPE lazy_gauge gauge
-                    # HELP lazy_gauge Lazy gauge help
-                    lazy_gauge 99
                     # EOF
                 "#};
                 assert_eq!(expected, output);

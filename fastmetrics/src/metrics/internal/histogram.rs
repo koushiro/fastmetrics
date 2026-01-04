@@ -3,8 +3,9 @@
 //! It exists to reduce duplication between `Histogram` and `GaugeHistogram`
 //! while keeping their externally-visible semantics intact.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 
+use crate::raw::Atomic;
 pub use crate::raw::bucket::Bucket;
 
 /// Controls which bucket bounds are accepted.
@@ -40,11 +41,11 @@ impl BucketCell {
     }
 
     fn inc(&self) {
-        self.count.fetch_add(1, Ordering::Relaxed);
+        self.count.inc_by(1);
     }
 
     fn load(&self) -> Bucket {
-        Bucket::new(self.upper_bound, self.count.load(Ordering::Relaxed))
+        Bucket::new(self.upper_bound, self.count.get())
     }
 }
 
@@ -81,8 +82,8 @@ impl HistogramCore {
 
     pub fn observe(&self, value: f64) {
         // Increment count and sum
-        self.count.fetch_add(1, Ordering::Relaxed);
-        crate::raw::Atomic::inc_by(&self.sum, value);
+        self.count.inc_by(1);
+        self.sum.inc_by(value);
 
         // Increment only the found bucket
         let idx = self.bucket_index(value);
@@ -95,8 +96,8 @@ impl HistogramCore {
 
     pub fn snapshot(&self) -> HistogramSnapshot {
         let buckets = self.buckets.iter().map(BucketCell::load).collect();
-        let count = self.count.load(Ordering::Relaxed);
-        let sum = crate::raw::Atomic::get(&self.sum);
+        let count = self.count.get();
+        let sum = self.sum.get();
         HistogramSnapshot { buckets, count, sum }
     }
 }
