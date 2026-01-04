@@ -12,99 +12,108 @@ cargo bench --bench metric -- --quiet
 
 ```text
 counter(u64)::inc/metrics
-                        time:   [7.1525 ns 7.1636 ns 7.1761 ns]
+                        time:   [7.4816 ns 7.9092 ns 8.4535 ns]
 counter(u64)::inc/measured
-                        time:   [2.1671 ns 2.1705 ns 2.1747 ns]
+                        time:   [2.1700 ns 2.1731 ns 2.1765 ns]
 counter(u64)::inc/prometheus
-                        time:   [2.2137 ns 2.2297 ns 2.2514 ns]
+                        time:   [2.1932 ns 2.1966 ns 2.2003 ns]
 counter(u64)::inc/prometheus_client
-                        time:   [2.1529 ns 2.2310 ns 2.3373 ns]
+                        time:   [2.1181 ns 2.1240 ns 2.1304 ns]
 counter(u64)::inc/fastmetrics
-                        time:   [2.2050 ns 2.2301 ns 2.2692 ns]
+                        time:   [2.1927 ns 2.1970 ns 2.2019 ns]
+
+counter(u64)::saturating_inc/fastmetrics
+                        time:   [2.4948 ns 2.4983 ns 2.5019 ns]
 
 counter(f64)::inc/metrics
-                        time:   [7.1328 ns 7.1433 ns 7.1555 ns]
+                        time:   [7.1307 ns 7.1831 ns 7.2757 ns]
 counter(f64)::inc/prometheus
-                        time:   [10.693 ns 10.707 ns 10.724 ns]
+                        time:   [10.680 ns 10.700 ns 10.722 ns]
 counter(f64)::inc/prometheus_client
-                        time:   [5.5991 ns 5.6093 ns 5.6208 ns]
+                        time:   [5.5834 ns 5.5934 ns 5.6037 ns]
 counter(f64)::inc/fastmetrics
-                        time:   [5.6798 ns 5.6973 ns 5.7214 ns]
+                        time:   [5.6479 ns 5.6556 ns 5.6643 ns]
 
-gauge(i64)::set/metrics time:   [6.4639 ns 6.5164 ns 6.5738 ns]
+gauge(i64)::set/metrics time:   [6.4623 ns 6.5125 ns 6.5635 ns]
 gauge(i64)::set/measured
-                        time:   [985.63 ps 988.45 ps 991.40 ps]
+                        time:   [984.02 ps 988.31 ps 994.21 ps]
 gauge(i64)::set/prometheus
-                        time:   [579.69 ps 581.63 ps 583.73 ps]
+                        time:   [579.43 ps 581.72 ps 584.11 ps]
 gauge(i64)::set/prometheus_client
-                        time:   [1.7251 ns 1.7365 ns 1.7474 ns]
+                        time:   [1.7902 ns 1.8036 ns 1.8195 ns]
 gauge(i64)::set/fastmetrics
-                        time:   [579.76 ps 582.81 ps 587.01 ps]
+                        time:   [584.77 ps 590.10 ps 596.20 ps]
 
 gauge(i64)::inc_by/metrics
-                        time:   [6.8638 ns 6.8886 ns 6.9161 ns]
+                        time:   [6.8406 ns 6.8525 ns 6.8644 ns]
 gauge(i64)::inc_by/measured
-                        time:   [2.1527 ns 2.1631 ns 2.1774 ns]
+                        time:   [2.1552 ns 2.1600 ns 2.1651 ns]
 gauge(i64)::inc_by/prometheus
-                        time:   [2.1728 ns 2.1846 ns 2.2042 ns]
+                        time:   [2.1675 ns 2.1723 ns 2.1775 ns]
 gauge(i64)::inc_by/prometheus_client
-                        time:   [2.2467 ns 2.2529 ns 2.2593 ns]
+                        time:   [2.2322 ns 2.2374 ns 2.2429 ns]
 gauge(i64)::inc_by/fastmetrics
-                        time:   [2.1697 ns 2.1850 ns 2.2115 ns]
+                        time:   [2.1672 ns 2.1757 ns 2.1881 ns]
+
+gauge(i64)::saturating_inc_by/fastmetrics
+                        time:   [3.1208 ns 3.1308 ns 3.1428 ns]
 
 gauge(i64)::dec_by/metrics
-                        time:   [6.8571 ns 6.8826 ns 6.9249 ns]
+                        time:   [6.8726 ns 6.9351 ns 7.0254 ns]
 gauge(i64)::dec_by/measured
-                        time:   [2.1567 ns 2.1696 ns 2.1916 ns]
+                        time:   [2.1557 ns 2.1831 ns 2.2267 ns]
 gauge(i64)::dec_by/prometheus
-                        time:   [2.1658 ns 2.1721 ns 2.1790 ns]
+                        time:   [2.1682 ns 2.1798 ns 2.1993 ns]
 gauge(i64)::dec_by/prometheus_client
-                        time:   [2.2243 ns 2.2288 ns 2.2336 ns]
+                        time:   [2.2895 ns 2.2989 ns 2.3082 ns]
 gauge(i64)::dec_by/fastmetrics
-                        time:   [2.1691 ns 2.1848 ns 2.2094 ns]
+                        time:   [2.1836 ns 2.2015 ns 2.2331 ns]
 
-gauge(f64)::set/metrics time:   [6.4346 ns 6.4778 ns 6.5189 ns]
+gauge(i64)::saturating_dec_by/fastmetrics
+                        time:   [3.1494 ns 3.2058 ns 3.2930 ns]
+
+gauge(f64)::set/metrics time:   [6.4775 ns 6.5351 ns 6.6173 ns]
 gauge(f64)::set/measured
-                        time:   [986.55 ps 995.76 ps 1.0111 ns]
+                        time:   [989.87 ps 993.67 ps 997.76 ps]
 gauge(f64)::set/prometheus
-                        time:   [586.60 ps 588.40 ps 590.24 ps]
+                        time:   [595.54 ps 692.19 ps 865.41 ps]
 gauge(f64)::set/prometheus_client
-                        time:   [1.7002 ns 1.7190 ns 1.7435 ns]
+                        time:   [1.6780 ns 1.6887 ns 1.7002 ns]
 gauge(f64)::set/fastmetrics
-                        time:   [585.92 ps 588.42 ps 591.39 ps]
+                        time:   [585.09 ps 586.87 ps 588.73 ps]
 
 gauge(f64)::inc_by/metrics
-                        time:   [6.8456 ns 6.8582 ns 6.8711 ns]
+                        time:   [6.8599 ns 6.8742 ns 6.8892 ns]
 gauge(f64)::inc_by/measured
-                        time:   [10.773 ns 10.796 ns 10.821 ns]
+                        time:   [10.782 ns 10.863 ns 10.998 ns]
 gauge(f64)::inc_by/prometheus
-                        time:   [10.834 ns 10.984 ns 11.176 ns]
+                        time:   [11.658 ns 13.641 ns 16.764 ns]
 gauge(f64)::inc_by/prometheus_client
-                        time:   [5.7706 ns 5.8330 ns 5.9264 ns]
+                        time:   [5.7452 ns 5.7606 ns 5.7769 ns]
 gauge(f64)::inc_by/fastmetrics
-                        time:   [5.7656 ns 5.7802 ns 5.7985 ns]
+                        time:   [6.0962 ns 6.3444 ns 6.6612 ns]
 
 gauge(f64)::dec_by/metrics
-                        time:   [6.8898 ns 6.9835 ns 7.1097 ns]
+                        time:   [6.9367 ns 7.2091 ns 7.5436 ns]
 gauge(f64)::dec_by/measured
-                        time:   [10.790 ns 10.844 ns 10.922 ns]
+                        time:   [11.001 ns 11.586 ns 12.294 ns]
 gauge(f64)::dec_by/prometheus
-                        time:   [10.739 ns 10.773 ns 10.810 ns]
+                        time:   [11.517 ns 12.376 ns 13.436 ns]
 gauge(f64)::dec_by/prometheus_client
-                        time:   [5.7367 ns 5.7462 ns 5.7555 ns]
+                        time:   [5.7816 ns 5.8117 ns 5.8488 ns]
 gauge(f64)::dec_by/fastmetrics
-                        time:   [5.7269 ns 5.7698 ns 5.8260 ns]
+                        time:   [5.8065 ns 6.0250 ns 6.3379 ns]
 
 histogram::observe/metrics
-                        time:   [10.391 ns 10.489 ns 10.614 ns]
+                        time:   [10.615 ns 11.552 ns 12.821 ns]
 histogram::observe/measured
-                        time:   [11.680 ns 11.969 ns 12.393 ns]
+                        time:   [11.570 ns 11.592 ns 11.617 ns]
 histogram::observe/prometheus
-                        time:   [10.902 ns 10.973 ns 11.078 ns]
+                        time:   [10.931 ns 10.967 ns 11.012 ns]
 histogram::observe/prometheus_client
-                        time:   [8.8961 ns 8.9094 ns 8.9232 ns]
+                        time:   [8.9663 ns 9.4707 ns 10.357 ns]
 histogram::observe/fastmetrics
-                        time:   [5.7252 ns 5.7737 ns 5.8664 ns]
+                        time:   [5.7460 ns 5.7702 ns 5.8036 ns]
 ```
 
 ## Metric Family

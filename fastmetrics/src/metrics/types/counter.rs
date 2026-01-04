@@ -1,6 +1,12 @@
 //! [Open Metrics Counter](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#counter) metric type.
 //!
 //! See [`Counter`], [`ConstCounter`] and [`LazyCounter`] for more details.
+//!
+//! ## Overflow/underflow behavior
+//!
+//! - Integer counters (`u32`, `u64`, `usize`) use **wrapping** arithmetic for `inc*` on overflow by default.
+//!   If you need clamping behavior, use the `saturating_*` methods.
+//! - Floating-point counters follow IEEE-754 semantics (they do not saturate; results may become `inf`/`NaN`).
 
 use std::{
     fmt::{self, Debug},
@@ -38,6 +44,29 @@ impl_counter_value_for! {
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
+
+/// Counter values that support `saturating_*` operations.
+///
+/// This is implemented for integer counter value types only.
+pub trait SaturatingCounterValue: CounterValue {
+    /// Saturating addition.
+    ///
+    /// This clamps at the numeric maximum instead of wrapping around on overflow.
+    fn saturating_add(self, rhs: Self) -> Self;
+}
+
+macro_rules! impl_saturating_counter_value_for_uint {
+    ($($ty:ty),* $(,)?) => {$(
+        impl SaturatingCounterValue for $ty {
+            #[inline]
+            fn saturating_add(self, rhs: Self) -> Self {
+                <$ty>::saturating_add(self, rhs)
+            }
+        }
+    )*};
+}
+
+impl_saturating_counter_value_for_uint! { u32, u64, usize }
 
 /// Open Metrics [`Counter`] metric, which is used to measure discrete events.
 ///
@@ -142,6 +171,29 @@ impl<N: CounterValue> Counter<N> {
     /// Gets the optional `created` value of the [`Counter`].
     pub const fn created(&self) -> Option<Duration> {
         self.created
+    }
+}
+
+impl<N: SaturatingCounterValue> Counter<N> {
+    /// Increases the [`Counter`] by 1, saturating at the numeric maximum.
+    ///
+    /// This is slower than [`Counter::inc`] because it uses a CAS loop.
+    #[inline]
+    pub fn saturating_inc(&self) {
+        self.saturating_inc_by(N::ONE);
+    }
+
+    /// Increases the [`Counter`] by `v`, saturating at the numeric maximum.
+    ///
+    /// This is slower than [`Counter::inc_by`] because it uses a CAS loop.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the increment `v` is negative (i.e, not zero or positive).
+    #[inline]
+    pub fn saturating_inc_by(&self, v: N) {
+        assert!(v >= N::ZERO, "increment must be zero or positive");
+        self.total.update(|old| old.saturating_add(v));
     }
 }
 

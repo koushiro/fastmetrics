@@ -1,6 +1,12 @@
 //! [Open Metrics Gauge](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge) metric type.
 //!
 //! See [`Gauge`], [`ConstGauge`] and [`LazyGauge`] for more details.
+//!
+//! ## Overflow/underflow behavior
+//!
+//! - Integer gauges (`i32`, `i64`, `isize`) use **wrapping** arithmetic for `inc*`/`dec*` on overflow/underflow by default.
+//!   If you need clamping behavior, use the `saturating_*` methods.
+//! - Floating-point gauges follow IEEE-754 semantics (they do not saturate; results may become `inf`/`-inf`/`NaN`).
 
 use std::{
     fmt::{self, Debug},
@@ -37,6 +43,41 @@ impl_gauge_value_for! {
     f32 => AtomicU32;
     f64 => AtomicU64;
 }
+
+/// Gauge values that support saturating arithmetic helpers.
+///
+/// This is intentionally limited to integer types where saturating add/sub are well-defined.
+pub trait SaturatingGaugeValue: GaugeValue {
+    /// Saturating addition.
+    ///
+    /// Implementations must clamp at the numeric maximum instead of wrapping on overflow.
+    fn saturating_add(self, rhs: Self) -> Self;
+
+    /// Saturating subtraction.
+    ///
+    /// Implementations must clamp at the numeric minimum instead of wrapping on underflow.
+    fn saturating_sub(self, rhs: Self) -> Self;
+}
+
+macro_rules! impl_saturating_gauge_value_for_integer {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl SaturatingGaugeValue for $ty {
+                #[inline]
+                fn saturating_add(self, rhs: Self) -> Self {
+                    <$ty>::saturating_add(self, rhs)
+                }
+
+                #[inline]
+                fn saturating_sub(self, rhs: Self) -> Self {
+                    <$ty>::saturating_sub(self, rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_saturating_gauge_value_for_integer! { i32, i64, isize }
 
 /// Open Metrics [`Gauge`] metric, which is used to record current measurements,
 /// such as bytes of memory currently used or the number of items in a queue.
@@ -101,24 +142,36 @@ impl<N: GaugeValue> Gauge<N> {
     }
 
     /// Increases the [`Gauge`] by 1.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on overflow.
+    /// Use [`Gauge::saturating_inc`] if you need clamping semantics.
     #[inline]
     pub fn inc(&self) {
         self.value.inc_by(N::ONE);
     }
 
     /// Increases the [`Gauge`] by `v`.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on overflow.
+    /// Use [`Gauge::saturating_inc_by`] if you need clamping semantics.
     #[inline]
     pub fn inc_by(&self, v: N) {
         self.value.inc_by(v);
     }
 
     /// Decreases the [`Gauge`] by 1.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on underflow.
+    /// Use [`Gauge::saturating_dec`] if you need clamping semantics.
     #[inline]
     pub fn dec(&self) {
         self.value.dec_by(N::ONE);
     }
 
     /// Decreases the [`Gauge`] by `v`.
+    ///
+    /// For integer gauges, this uses wrapping arithmetic on underflow.
+    /// Use [`Gauge::saturating_dec_by`] if you need clamping semantics.
     #[inline]
     pub fn dec_by(&self, v: N) {
         self.value.dec_by(v);
@@ -139,6 +192,40 @@ impl<N: GaugeValue> Gauge<N> {
 
 impl<N: GaugeValue> TypedMetric for Gauge<N> {
     const TYPE: MetricType = MetricType::Gauge;
+}
+
+impl<N: SaturatingGaugeValue> Gauge<N> {
+    /// Saturating variant of [`Gauge::inc`].
+    ///
+    /// For integer gauges, this increment clamps at the numeric maximum instead of wrapping around.
+    #[inline]
+    pub fn saturating_inc(&self) {
+        self.saturating_inc_by(N::ONE);
+    }
+
+    /// Saturating variant of [`Gauge::inc_by`].
+    ///
+    /// For integer gauges, this increment clamps at the numeric maximum instead of wrapping around.
+    #[inline]
+    pub fn saturating_inc_by(&self, v: N) {
+        self.value.update(|old| old.saturating_add(v));
+    }
+
+    /// Saturating variant of [`Gauge::dec`].
+    ///
+    /// For integer gauges, this decrement clamps at the numeric minimum instead of wrapping around.
+    #[inline]
+    pub fn saturating_dec(&self) {
+        self.saturating_dec_by(N::ONE);
+    }
+
+    /// Saturating variant of [`Gauge::dec_by`].
+    ///
+    /// For integer gauges, this decrement clamps at the numeric minimum instead of wrapping around.
+    #[inline]
+    pub fn saturating_dec_by(&self, v: N) {
+        self.value.update(|old| old.saturating_sub(v));
+    }
 }
 
 impl<N: GaugeValue> MetricLabelSet for Gauge<N> {
