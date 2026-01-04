@@ -163,11 +163,11 @@ mod tests {
         let value = AtomicI32::new(0);
 
         value.set(i32::MAX);
-        crate::raw::Atomic::update(&value, |old| old.saturating_add(1));
+        Atomic::update(&value, |old| old.saturating_add(1));
         assert_eq!(value.get(), i32::MAX);
 
         value.set(i32::MIN);
-        crate::raw::Atomic::update(&value, |old| old.saturating_sub(1));
+        Atomic::update(&value, |old| old.saturating_sub(1));
         assert_eq!(value.get(), i32::MIN);
     }
 
