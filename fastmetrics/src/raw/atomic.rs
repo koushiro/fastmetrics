@@ -17,7 +17,7 @@ pub trait Atomic<N: Number>: Default + Send + Sync {
     /// Increase the value by `v`.
     fn inc_by(&self, v: N);
 
-    /// Decrease the value.
+    /// Decrease the value by `v`.
     fn dec_by(&self, v: N);
 
     /// Atomically updates the current value.
