@@ -1,6 +1,6 @@
 [package]
 name = "fastmetrics-derive"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Qinxuan Chen <https://github.com/koushiro>"]
 description = "Some derive macros for fastmetrics."
 keywords = ["openmetrics", "metrics", "prometheus", "derive", "macros"]
