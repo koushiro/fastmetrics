@@ -75,6 +75,14 @@ While working on this codebase, please remember:
 - Mention feature combinations tested when relevant (e.g., `--no-default-features --features derive,prost`).
 - For performance changes, attach before/after benchmark snippets when practical.
 
+## Release Notes
+
+Generate GitHub Release notes that cover these sections:
+
+- Breaking Changes.
+- New Features.
+- Performance & Behavior Improvements.
+
 ## Security & licensing
 
 - License: Apache-2.0 (see `LICENSE`).
