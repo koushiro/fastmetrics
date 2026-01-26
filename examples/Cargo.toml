@@ -22,7 +22,7 @@ pin-project = "1.1"
 poem = { version = "3.1", features = ["websocket", "tower-compat"] }
 rand = "0.9"
 rocket = { version = "0.5", features = ["json"] }
-sysinfo = "0.37.2"
+sysinfo = "0.38.0"
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["net", "macros", "rt-multi-thread"] }
 tower = "0.5"
