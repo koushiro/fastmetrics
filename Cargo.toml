@@ -4,6 +4,7 @@ members = [
     "examples",
     "fastmetrics",
     "fastmetrics-derive",
+    "fastmetrics-process",
 ]
 resolver = "3"
 

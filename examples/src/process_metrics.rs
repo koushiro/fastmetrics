@@ -3,12 +3,10 @@ use fastmetrics::{
     format::text,
     registry::{Register, Registry},
 };
-
-#[path = "metrics/process.rs"]
-mod process;
+use fastmetrics_process::ProcessMetrics;
 
 fn main() -> Result<()> {
-    let metrics = process::ProcessMetrics::default();
+    let metrics = ProcessMetrics::default();
 
     let mut registry = Registry::builder().with_namespace("process").build()?;
     metrics.register(&mut registry)?;
