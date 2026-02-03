@@ -80,6 +80,7 @@ While working on this codebase, please remember:
 Generate GitHub Release notes that cover these sections:
 
 - Breaking Changes.
+- Bug Fixes.
 - New Features.
 - Performance & Behavior Improvements.
 

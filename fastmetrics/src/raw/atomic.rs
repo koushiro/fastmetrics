@@ -79,14 +79,20 @@ impl_atomic_for_integer! {
 macro_rules! impl_atomic_for_float  {
     ($($ty:ident => $atomic:ident);* $(;)?) => ($(
         impl Atomic<$ty> for $atomic {
-            #[inline]
+            #[inline(always)]
             fn inc_by(&self, v: $ty) {
-                <Self as Atomic<$ty>>::update(self, |old| old + v);
+                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                    let old_value = $ty::from_bits(old_bits);
+                    Some($ty::to_bits(old_value + v))
+                });
             }
 
             #[inline(always)]
             fn dec_by(&self, v: $ty) {
-                <Self as Atomic<$ty>>::update(self, |old| old - v);
+                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                    let old_value = $ty::from_bits(old_bits);
+                    Some($ty::to_bits(old_value - v))
+                });
             }
 
             #[inline]
