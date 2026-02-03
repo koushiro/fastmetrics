@@ -40,7 +40,7 @@
 #![deny(unsafe_code)]
 #![deny(unused_crate_dependencies)]
 
-use std::{process, sync::Arc};
+use std::{process, sync::LazyLock};
 
 use fastmetrics::{
     error::Result,
@@ -74,22 +74,13 @@ pub struct ProcessMetrics {
     threads: LazyGauge<i64>,
 }
 
+static PROCESS_SAMPLER: LazyLock<ProcessSampler> = LazyLock::new(ProcessSampler::new);
+
 impl Default for ProcessMetrics {
     fn default() -> Self {
-        Self::new(process::id())
-    }
-}
-
-impl ProcessMetrics {
-    fn new(pid: u32) -> Self {
-        let sampler = Arc::new(ProcessSampler::new(Pid::from_u32(pid)));
-        let group: LazyGroup<ProcessSample> = LazyGroup::new({
-            let sampler = Arc::clone(&sampler);
-            move || sampler.sample()
-        });
-
+        let group: LazyGroup<ProcessSample> = LazyGroup::new(|| PROCESS_SAMPLER.sample());
         Self {
-            pid: ConstGauge::new(pid as i64),
+            pid: ConstGauge::new(PROCESS_SAMPLER.pid.as_u32() as i64),
             cpu_seconds_total: group.counter(|s| s.cpu_seconds_total),
             cpu_usage_percent: group.gauge(|s| s.cpu_usage_percent),
             resident_memory_bytes: group.gauge(|s| s.resident_memory_bytes),
@@ -175,9 +166,12 @@ struct ProcessSampler {
 }
 
 impl ProcessSampler {
-    fn new(pid: Pid) -> Self {
+    fn new() -> Self {
+        let pid = Pid::from_u32(process::id());
         let mut system = System::new();
+
         sample(&mut system, pid);
+
         Self { pid, system: Mutex::new(system) }
     }
 
