@@ -111,6 +111,7 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 #![deny(unused_crate_dependencies)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 // Enforce platform requirements without interfering with crate-level inner docs (`//!`).
 // This must live after the crate docs block.

@@ -4,6 +4,7 @@
 #![deny(unsafe_code)]
 // False positive: https://github.com/rust-lang/rust/issues/129637
 // #![deny(unused_crate_dependencies)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod encode_label_set;
 mod encode_label_value;

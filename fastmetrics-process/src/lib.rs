@@ -1,8 +1,8 @@
 #![doc = include_str!("../README.md")]
-
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 #![deny(unused_crate_dependencies)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::{process, sync::LazyLock};
 

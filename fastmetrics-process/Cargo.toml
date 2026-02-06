@@ -12,6 +12,10 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 fastmetrics = { path = "../fastmetrics", version = "0.6.0" }
 parking_lot = "0.12"

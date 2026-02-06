@@ -17,9 +17,8 @@ Prometheus-style process metrics built on top of `fastmetrics`.
 This crate provides a small set of commonly used process metrics aligned with Prometheus naming
 conventions (for example: `process_cpu_seconds_total`, `process_resident_memory_bytes`).
 
-Metrics are implemented as **lazy (scrape-time) metrics** and grouped via
-[`fastmetrics::metrics::lazy_group::LazyGroup`] so a single OS sampling operation is shared across
-all metrics per scrape.
+Metrics are implemented as **lazy (scrape-time) metrics** and grouped via [`fastmetrics::metrics::lazy_group::LazyGroup`]
+so a single OS sampling operation is shared across all metrics per scrape.
 
 ## Usage
 
