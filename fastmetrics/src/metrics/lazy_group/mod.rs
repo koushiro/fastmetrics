@@ -86,8 +86,8 @@ where
 
     /// Creates a lazy counter derived from the shared sample.
     ///
-    /// The returned type is the standard [`LazyCounter`](LazyCounter), with an internal grouped
-    /// source so that all metrics derived from the same `LazyGroup` share one sample per scrape.
+    /// The returned type is the standard [`LazyCounter`], with an internal grouped source
+    /// so that all metrics derived from the same `LazyGroup` share one sample per scrape.
     pub fn counter<N, M>(&self, map: M) -> LazyCounter<N>
     where
         M: Fn(&S) -> N + Send + Sync + 'static,
@@ -107,7 +107,7 @@ where
 
     /// Creates a lazy gauge derived from the shared sample.
     ///
-    /// The returned type is the standard [`LazyGauge`](LazyGauge), with an internal grouped source
+    /// The returned type is the standard [`LazyGauge`], with an internal grouped source
     /// so that all metrics derived from the same `LazyGroup` share one sample per scrape.
     pub fn gauge<N, M>(&self, map: M) -> LazyGauge<N>
     where

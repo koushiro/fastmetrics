@@ -26,7 +26,8 @@ pub(crate) trait LazySource<T>: Send + Sync {
 
 /// A simple [`LazySource`] implementation backed by a closure.
 ///
-/// This is used by `LazyGauge::new(...)` / `LazyCounter::new(...)` when the user provides a fetcher.
+/// This is used by `LazyGauge::new(...)` / `LazyCounter::new(...)` when the user provides a
+/// fetcher.
 pub(crate) struct PlainLazySource<T> {
     fetch: Arc<dyn Fn() -> T + Send + Sync>,
 }

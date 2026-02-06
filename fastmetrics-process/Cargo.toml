@@ -1,0 +1,22 @@
+[package]
+name = "fastmetrics-process"
+version = "0.1.0"
+authors = ["Qinxuan Chen <https://github.com/koushiro>"]
+description = "Prometheus-style process metrics built on fastmetrics."
+keywords = ["openmetrics", "metrics", "prometheus", "process"]
+documentation = "https://docs.rs/fastmetrics-process"
+readme = "README.md"
+edition.workspace = true
+rust-version = "1.88"
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+fastmetrics = { path = "../fastmetrics", version = "0.6.0" }
+parking_lot = "0.12"
+sysinfo = "0.38"

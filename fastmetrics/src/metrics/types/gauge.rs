@@ -4,9 +4,10 @@
 //!
 //! ## Overflow/underflow behavior
 //!
-//! - Integer gauges (`i32`, `i64`, `isize`) use **wrapping** arithmetic for `inc*`/`dec*` on overflow/underflow by default.
-//!   If you need clamping behavior, use the `saturating_*` methods.
-//! - Floating-point gauges follow IEEE-754 semantics (they do not saturate; results may become `inf`/`-inf`/`NaN`).
+//! - Integer gauges (`i32`, `i64`, `isize`) use **wrapping** arithmetic for `inc*`/`dec*` on
+//!   overflow/underflow by default. If you need clamping behavior, use the `saturating_*` methods.
+//! - Floating-point gauges follow IEEE-754 semantics (they do not saturate; results may become
+//!   `inf`/`-inf`/`NaN`).
 
 use std::{
     fmt::{self, Debug},

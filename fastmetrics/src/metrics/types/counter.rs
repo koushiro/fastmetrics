@@ -4,9 +4,10 @@
 //!
 //! ## Overflow/underflow behavior
 //!
-//! - Integer counters (`u32`, `u64`, `usize`) use **wrapping** arithmetic for `inc*` on overflow by default.
-//!   If you need clamping behavior, use the `saturating_*` methods.
-//! - Floating-point counters follow IEEE-754 semantics (they do not saturate; results may become `inf`/`NaN`).
+//! - Integer counters (`u32`, `u64`, `usize`) use **wrapping** arithmetic for `inc*` on overflow by
+//!   default. If you need clamping behavior, use the `saturating_*` methods.
+//! - Floating-point counters follow IEEE-754 semantics (they do not saturate; results may become
+//!   `inf`/`NaN`).
 
 use std::{
     fmt::{self, Debug},
@@ -328,8 +329,8 @@ impl<N: EncodeCounterValue + CounterValue> EncodeMetric for ConstCounter<N> {
 ///
 /// # Grouped sampling
 ///
-/// When constructed via [`crate::metrics::lazy_group::LazyGroup`], multiple lazy counters can share a
-/// single expensive sample per scrape.
+/// When constructed via [`crate::metrics::lazy_group::LazyGroup`], multiple lazy counters can share
+/// a single expensive sample per scrape.
 pub struct LazyCounter<N> {
     source: Arc<dyn LazySource<N>>,
     created: Option<Duration>,

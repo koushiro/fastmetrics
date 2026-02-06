@@ -12,17 +12,16 @@ anyhow = "1.0"
 axum = "0.8"
 bytes = "1.7"
 fastmetrics = { path = "../fastmetrics", features = ["derive", "prost"] }
+fastmetrics-process = { path = "../fastmetrics-process" }
 futures = "0.3"
 http-body-util = "0.1"
 hyper = { version = "1.8", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 libc = "0.2"
-parking_lot = "0.12"
 pin-project = "1.1"
 poem = { version = "3.1", features = ["websocket", "tower-compat"] }
 rand = "0.9"
 rocket = { version = "0.5", features = ["json"] }
-sysinfo = "0.38.0"
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["net", "macros", "rt-multi-thread"] }
 tower = "0.5"
