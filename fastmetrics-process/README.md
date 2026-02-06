@@ -4,7 +4,7 @@
 [![](https://img.shields.io/docsrs/fastmetrics-process)][docs.rs]
 [![](https://img.shields.io/crates/v/fastmetrics-process)][crates.io]
 [![](https://img.shields.io/crates/l/fastmetrics-process)][crates.io]
-[![](https://img.shields.io/crates/d/fastmetrics-process.svg)][crates.io]
+[![](https://img.shields.io/crates/d/fastmetrics-process)][crates.io]
 [![](https://img.shields.io/badge/MSRV-1.88.0-green?logo=rust)][whatrustisit]
 
 [actions]: https://github.com/koushiro/fastmetrics/actions

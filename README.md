@@ -4,7 +4,7 @@
 [![](https://img.shields.io/docsrs/fastmetrics)][docs.rs]
 [![](https://img.shields.io/crates/v/fastmetrics)][crates.io]
 [![](https://img.shields.io/crates/l/fastmetrics)][crates.io]
-[![](https://img.shields.io/crates/d/fastmetrics.svg)][crates.io]
+[![](https://img.shields.io/crates/d/fastmetrics)][crates.io]
 [![](https://img.shields.io/badge/MSRV-1.85.0-green?logo=rust)][whatrustisit]
 [![](https://deepwiki.com/badge.svg)][deepwiki]
 
