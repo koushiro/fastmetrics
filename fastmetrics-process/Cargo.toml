@@ -5,6 +5,7 @@ authors = ["Qinxuan Chen <https://github.com/koushiro>"]
 description = "Prometheus-style process metrics built on fastmetrics."
 keywords = ["openmetrics", "metrics", "prometheus", "process"]
 documentation = "https://docs.rs/fastmetrics-process"
+readme = "README.md"
 edition.workspace = true
 rust-version = "1.88"
 license.workspace = true

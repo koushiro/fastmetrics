@@ -1,40 +1,4 @@
-//! Prometheus-style process metrics.
-//!
-//! This crate provides a small set of commonly used process metrics, aligned with Prometheus'
-//! standard naming conventions (e.g. `process_cpu_seconds_total`).
-//!
-//! The metrics are implemented as lazy (scrape-time) metrics and are grouped via
-//! [`fastmetrics::metrics::lazy_group::LazyGroup`] so that a single OS sampling operation is
-//! shared across all metrics *per scrape*.
-//!
-//! # Registration
-//!
-//! [`ProcessMetrics`] implements [`fastmetrics::registry::Register`]. It registers **base names**
-//! so you can choose prefixing strategy:
-//!
-//! - Register into `registry.subsystem("process")?` to get `process_*` names.
-//! - Register at root to get unprefixed names (useful if you already have a namespace that should
-//!   prefix everything).
-//!
-//! ```rust
-//! use fastmetrics::{error::Result, registry::{Register, Registry}};
-//! use fastmetrics_process::ProcessMetrics;
-//!
-//! # fn main() -> Result<()> {
-//! let metrics = ProcessMetrics::default();
-//! let mut registry = Registry::default();
-//!
-//! // Standard Prometheus-style names: `process_cpu_seconds_total`, ...
-//! let process = registry.subsystem("process")?;
-//! metrics.register(process)?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Platform support and fallbacks
-//!
-//! Some values may not be available on all platforms or may be blocked by permissions.
-//! Unavailable values fall back to `0`.
+#![doc = include_str!("../README.md")]
 
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
