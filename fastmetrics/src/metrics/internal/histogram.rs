@@ -22,8 +22,8 @@ pub enum BoundsFilter {
 /// Notes:
 /// - Buckets always include a `+Inf` upper bound.
 /// - Bucket counts are **non-cumulative** (each observation increments exactly one bucket).
-/// - `sum` is stored as an `AtomicU64` containing the IEEE754 bits of an accumulated `f64`
-///   using the crate's `raw::Atomic` extension methods.
+/// - `sum` is stored as an `AtomicU64` containing the IEEE754 bits of an accumulated `f64` using
+///   the crate's `raw::Atomic` extension methods.
 pub struct HistogramCore {
     buckets: Vec<BucketCell>,
     count: AtomicU64,

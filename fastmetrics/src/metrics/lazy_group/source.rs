@@ -10,10 +10,10 @@ use std::{marker::PhantomData, sync::Arc, time::Duration};
 
 use crate::{
     encoder::{EncodeCounterValue, EncodeGaugeValue},
-    metrics::internal::lazy::LazySource,
     metrics::{
         counter::{CounterValue, LazyCounter},
         gauge::{GaugeValue, LazyGauge},
+        internal::lazy::LazySource,
         lazy_group::LazyGroup,
     },
 };

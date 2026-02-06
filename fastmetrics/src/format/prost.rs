@@ -77,9 +77,9 @@ pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Re
 ///
 /// ## Scrape-scoped caching (grouped lazy metrics)
 ///
-/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an expensive
-/// sampling operation within a single scrape. To enable this, pass a closure that enters a scrape
-/// scope (internally used by the crate's default [`encode`] implementation).
+/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an
+/// expensive sampling operation within a single scrape. To enable this, pass a closure that enters
+/// a scrape scope (internally used by the crate's default [`encode`] implementation).
 ///
 /// ## Example
 ///

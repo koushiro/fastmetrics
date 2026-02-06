@@ -79,7 +79,8 @@ pub struct MeasuredRegistry {
 impl MeasuredRegistry {
     pub fn encode_text(&self) -> bytes::Bytes {
         use measured::{
-            metric::MetricFamilyEncoding, metric::name::MetricName, text::BufferedTextEncoder,
+            metric::{MetricFamilyEncoding, name::MetricName},
+            text::BufferedTextEncoder,
         };
 
         let mut encoder = BufferedTextEncoder::new();
