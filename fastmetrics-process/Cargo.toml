@@ -19,4 +19,4 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 fastmetrics = { path = "../fastmetrics", version = "0.6.0" }
 parking_lot = "0.12"
-sysinfo = "0.38"
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
