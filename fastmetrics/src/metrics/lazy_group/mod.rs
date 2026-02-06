@@ -86,7 +86,7 @@ where
 
     /// Creates a lazy counter derived from the shared sample.
     ///
-    /// The returned type is the standard [`LazyCounter`, with an internal grouped source
+    /// The returned type is the standard [`LazyCounter`], with an internal grouped source
     /// so that all metrics derived from the same `LazyGroup` share one sample per scrape.
     pub fn counter<N, M>(&self, map: M) -> LazyCounter<N>
     where
