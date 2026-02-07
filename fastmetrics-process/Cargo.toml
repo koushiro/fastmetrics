@@ -1,6 +1,6 @@
 [package]
 name = "fastmetrics-process"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Qinxuan Chen <https://github.com/koushiro>"]
 description = "Prometheus-style process metrics built on fastmetrics."
 keywords = ["openmetrics", "metrics", "prometheus", "process"]
