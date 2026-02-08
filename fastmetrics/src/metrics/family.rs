@@ -88,16 +88,11 @@ cfg_if::cfg_if! {
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Clone)]
 pub struct Family<LS, M, S = RandomState> {
     // label set => metric points
     metrics: Arc<RwLock<HashMap<LS, M, S>>>,
     metric_factory: Arc<MetricFactory<LS, M>>,
-}
-
-impl<LS, M, S> Clone for Family<LS, M, S> {
-    fn clone(&self) -> Self {
-        Self { metrics: self.metrics.clone(), metric_factory: self.metric_factory.clone() }
-    }
 }
 
 impl<LS, M, S> Debug for Family<LS, M, S>
