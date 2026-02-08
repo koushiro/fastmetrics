@@ -121,7 +121,7 @@ mod prometheus_client_setup {
 mod fastmetrics_setup {
     use fastmetrics::metrics::{
         counter::Counter,
-        family::Family,
+        family::{Family, IndexedFamily, LabelIndexMapping},
         histogram::{Histogram, exponential_buckets},
     };
 
@@ -136,15 +136,28 @@ mod fastmetrics_setup {
             Family::<L, Histogram>::new(|| Histogram::new(exponential_buckets(0.005f64, 2f64, 10)));
         Families { counter, histogram }
     }
+
+    pub struct IndexedFamilies<L> {
+        pub counter: IndexedFamily<L, Counter>,
+        pub histogram: IndexedFamily<L, Histogram>,
+    }
+
+    pub fn setup_indexed_families<L: LabelIndexMapping>() -> IndexedFamilies<L> {
+        let counter = IndexedFamily::<L, Counter>::default();
+        let histogram = IndexedFamily::<L, Histogram>::new(|| {
+            Histogram::new(exponential_buckets(0.005f64, 2f64, 10))
+        });
+        IndexedFamilies { counter, histogram }
+    }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, fastmetrics::derive::LabelIndexMapping)]
 enum Method {
     Get,
     Put,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, fastmetrics::derive::LabelIndexMapping)]
 struct Labels {
     method: Method,
 }
@@ -303,6 +316,26 @@ fn bench_family_with_empty_labels(c: &mut Criterion) {
             BatchSize::SmallInput,
         );
     });
+    group.bench_function("fastmetrics_indexed", |b| {
+        let families = fastmetrics_setup::setup_indexed_families::<()>();
+        let labels = ();
+        let label_index = fastmetrics::metrics::family::LabelIndex::new(&labels);
+        let counter = families.counter.get_by_index(label_index);
+        let histogram = families.histogram.get_by_index(label_index);
+
+        b.iter_batched(
+            || {
+                let mut rng = rand::rng();
+                rng.random_range(0f64..100f64)
+            },
+            |input| {
+                let value = black_box(input);
+                counter.inc();
+                histogram.observe(value);
+            },
+            BatchSize::SmallInput,
+        );
+    });
     group.finish();
 }
 
@@ -431,6 +464,21 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
                 families
                     .histogram
                     .with_or_new(black_box(&input.labels), |hist| hist.observe(value));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics_indexed", |b| {
+        let families = fastmetrics_setup::setup_indexed_families::<Labels>();
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                let labels = black_box(input.labels);
+                let value = black_box(input.value);
+                let label_index = fastmetrics::metrics::family::LabelIndex::new(&labels);
+                families.counter.get_by_index(label_index).inc();
+                families.histogram.get_by_index(label_index).observe(value);
             },
             BatchSize::SmallInput,
         );
