@@ -141,10 +141,10 @@ family with empty labels/fastmetrics_cached
 family with empty labels/fastmetrics_dynamic
                         time:   [17.144 ns 17.184 ns 17.227 ns]
 
-family with custom labels/metrics_dynamic
-                        time:   [158.01 ns 158.35 ns 158.72 ns]
 family with custom labels/metrics_cached
                         time:   [12.474 ns 12.551 ns 12.640 ns]
+family with custom labels/metrics_dynamic
+                        time:   [158.01 ns 158.35 ns 158.72 ns]
 family with custom labels/measured
                         time:   [15.481 ns 15.528 ns 15.581 ns]
 family with custom labels/prometheus
