@@ -19,23 +19,7 @@ use crate::{
     raw::{LabelSetSchema, MetricLabelSet, MetricType, TypedMetric},
 };
 
-/// A trait for creating new metric instances.
-///
-/// This trait is implemented by factory functions or objects that can create
-/// new instances of metrics to be used in a metric family.
-pub trait MetricFactory<M> {
-    /// Creates a new metric instance.
-    ///
-    /// This method is called when a new metric needs to be created for a label set
-    /// that doesn't have an associated metric yet.
-    fn new_metric(&self) -> M;
-}
-
-impl<M, F: Fn() -> M> MetricFactory<M> for F {
-    fn new_metric(&self) -> M {
-        self()
-    }
-}
+type MetricFactory<LS, M> = dyn Fn(&LS) -> M + Send + Sync + 'static;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "foldhash")] {
@@ -50,7 +34,6 @@ cfg_if::cfg_if! {
 /// The type parameters are:
 /// - `LS`: The label set type that uniquely identifies a metric within the family
 /// - `M`: The specific metric type (e.g., Counter, Gauge) stored in this family
-/// - `MF`: The metric factory type that creates new metric instances
 /// - `S`: The hash algorithm of internal HashMap type.
 ///
 /// A metric family maintains a map of label sets to metric instances. Each combination
@@ -105,22 +88,14 @@ cfg_if::cfg_if! {
 /// # Ok(())
 /// # }
 /// ```
-pub struct Family<LS, M, MF = fn() -> M, S = RandomState> {
+#[derive(Clone)]
+pub struct Family<LS, M, S = RandomState> {
     // label set => metric points
     metrics: Arc<RwLock<HashMap<LS, M, S>>>,
-    metric_factory: MF,
+    metric_factory: Arc<MetricFactory<LS, M>>,
 }
 
-impl<LS, M, MF, S> Clone for Family<LS, M, MF, S>
-where
-    MF: Clone,
-{
-    fn clone(&self) -> Self {
-        Self { metrics: self.metrics.clone(), metric_factory: self.metric_factory.clone() }
-    }
-}
-
-impl<LS, M, MF, S> Debug for Family<LS, M, MF, S>
+impl<LS, M, S> Debug for Family<LS, M, S>
 where
     LS: Debug,
     M: Debug,
@@ -130,9 +105,9 @@ where
     }
 }
 
-impl<LS, M, S> Default for Family<LS, M, fn() -> M, S>
+impl<LS, M, S> Default for Family<LS, M, S>
 where
-    M: Default,
+    M: Default + 'static,
     S: Default,
 {
     fn default() -> Self {
@@ -140,7 +115,7 @@ where
     }
 }
 
-impl<LS, M, MF, S> Family<LS, M, MF, S> {
+impl<LS, M, S> Family<LS, M, S> {
     pub(crate) fn read(&self) -> RwLockReadGuard<'_, HashMap<LS, M, S>> {
         self.metrics.read()
     }
@@ -150,17 +125,14 @@ impl<LS, M, MF, S> Family<LS, M, MF, S> {
     }
 }
 
-impl<LS, M, MF, S> Family<LS, M, MF, S>
-where
-    MF: MetricFactory<M>,
-{
+impl<LS, M, S> Family<LS, M, S> {
     /// Creates a new metric family with a custom metric factory.
     ///
     /// The factory is used to create new metric instances when they are needed.
     ///
     /// # Parameters
     ///
-    /// - `factory`: A factory function or object that creates new metric instances
+    /// - `factory`: A factory function or closure that creates new metric instances
     ///
     /// # Returns
     ///
@@ -206,11 +178,65 @@ where
     ///     Histogram::new(exponential_buckets(1.0, 2.0, 10))
     /// });
     /// ```
-    pub fn new(metric_factory: MF) -> Self
+    pub fn new(metric_factory: impl Fn() -> M + Send + Sync + 'static) -> Self
     where
         S: Default,
     {
-        Self { metrics: Arc::new(RwLock::new(HashMap::default())), metric_factory }
+        Self::new_with_labels(move |_| metric_factory())
+    }
+
+    /// Creates a new metric family with a label-aware factory.
+    ///
+    /// This is useful for metric types whose constructor needs label values.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use fastmetrics::{
+    /// #     encoder::{EncodeLabelSet, LabelSetEncoder},
+    /// #     error::Result,
+    /// #     metrics::{counter::LazyCounter, family::Family},
+    /// #     raw::LabelSetSchema,
+    /// # };
+    /// #
+    /// #[derive(Clone, Eq, PartialEq, Hash)]
+    /// struct Labels {
+    ///     method: &'static str,
+    /// }
+    ///
+    /// impl LabelSetSchema for Labels {
+    ///     fn names() -> Option<&'static [&'static str]> {
+    ///         Some(&["method"])
+    ///     }
+    /// }
+    ///
+    /// impl EncodeLabelSet for Labels {
+    ///     fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
+    ///         encoder.encode(&("method", self.method))?;
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// # fn main() -> Result<()> {
+    /// let family = Family::<Labels, LazyCounter<u64>>::new_with_labels(|labels| {
+    ///     let method = labels.method;
+    ///     LazyCounter::new(move || if method == "GET" { 1u64 } else { 2u64 })
+    /// });
+    ///
+    /// let labels = Labels { method: "GET" };
+    /// let value = family.with_or_new(&labels, |counter| counter.fetch());
+    /// assert_eq!(value, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_with_labels(metric_factory: impl Fn(&LS) -> M + Send + Sync + 'static) -> Self
+    where
+        S: Default,
+    {
+        Self {
+            metrics: Arc::new(RwLock::new(HashMap::default())),
+            metric_factory: Arc::new(metric_factory),
+        }
     }
 
     /// Gets a reference to the metric with the specified labels and applies a function to it.
@@ -284,13 +310,13 @@ where
         guard.get(labels).map(func)
     }
 
-    /// Gets a reference to an existing metric or creates a new one using given metric factory
-    /// if it doesn't exist, then applies a function to it.
+    /// Gets a reference to an existing metric or creates a new one using this family's metric
+    /// factory if it doesn't exist, then applies a function to it.
     ///
     /// This method will:
     /// 1. Check if a metric exists for the given labels
     /// 2. If it exists, apply the function to it
-    /// 3. If it doesn't exist, create a metric using given metric factory and then apply the
+    /// 3. If it doesn't exist, create a metric using this family's metric factory and then apply the
     ///    function
     ///
     /// # Parameters
@@ -362,7 +388,7 @@ where
         // Previously we constructed new metrics while holding the write lock, e.g.:
         // let mut write_guard = self.write();
         // let metric =
-        // write_guard.entry(labels.clone()).or_insert(self.metric_factory.new_metric());
+        // write_guard.entry(labels.clone()).or_insert((self.metric_factory)(labels));
         // func(metric)
 
         // That approach kept potentially expensive constructors inside the critical section,
@@ -383,7 +409,7 @@ where
                         drop(write_guard);
                         // Construct the metric outside the lock so expensive constructors cannot
                         // stall other threads.
-                        new_metric = Some(self.metric_factory.new_metric());
+                        new_metric = Some((self.metric_factory)(labels));
                     }
                 },
             }
@@ -399,11 +425,10 @@ impl<LS: LabelSetSchema, M, S> MetricLabelSet for Family<LS, M, S> {
     type LabelSet = LS;
 }
 
-impl<LS, M, MF, S> EncodeMetric for Family<LS, M, MF, S>
+impl<LS, M, S> EncodeMetric for Family<LS, M, S>
 where
     LS: EncodeLabelSet + Send + Sync,
     M: EncodeMetric,
-    MF: Send + Sync,
     S: Send + Sync,
 {
     fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
@@ -426,7 +451,7 @@ mod tests {
         encoder::{EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
         metrics::{
             check_text_encoding,
-            counter::Counter,
+            counter::{Counter, LazyCounter},
             histogram::{Histogram, exponential_buckets},
         },
     };
@@ -573,5 +598,36 @@ mod tests {
                 assert!(output.contains(r#"http_requests_total{method="GET",status="200"} 0"#));
             },
         );
+    }
+
+    #[test]
+    fn test_new_uses_label_aware_factory() {
+        let family = Family::<Labels, LazyCounter<u64>>::new_with_labels(|labels| {
+            let method = labels.method.clone();
+            let status = u64::from(labels.status);
+            let error = labels.error.unwrap_or(false);
+            LazyCounter::new(move || {
+                let method_value = match method {
+                    Method::Get => 1_000_u64,
+                    Method::Put => 2_000_u64,
+                };
+                let error_value = if error { 10_000_u64 } else { 0_u64 };
+                method_value + error_value + status
+            })
+        });
+
+        let labels_get = Labels { method: Method::Get, status: 200, error: None };
+        let labels_put = Labels { method: Method::Put, status: 404, error: Some(true) };
+
+        let get_total = family.with_or_new(&labels_get, |counter| counter.fetch());
+        assert_eq!(get_total, 1_200_u64);
+
+        let get_total_reused = family.with_or_new(&labels_get, |counter| counter.fetch());
+        assert_eq!(get_total_reused, 1_200_u64);
+
+        let put_total = family.with_or_new(&labels_put, |counter| counter.fetch());
+        assert_eq!(put_total, 12_404_u64);
+
+        assert_eq!(family.with(&labels_get, |counter| counter.fetch()), Some(1_200_u64));
     }
 }

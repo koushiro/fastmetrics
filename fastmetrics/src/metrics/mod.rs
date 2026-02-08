@@ -8,7 +8,7 @@
 //! - [Info]: Static key-value information about the target
 //! - [Histogram]: Statistical distribution of values
 //! - [GaugeHistogram]: Like histogram but values can decrease
-//! - [Summary] (TODO): Similar to histogram, with quantiles
+//! - [Summary] (Not Implemented): Similar to histogram, with quantiles
 //!
 //! The module also provides:
 //!

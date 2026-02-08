@@ -2,13 +2,72 @@ use std::hint::black_box;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 // use pprof::criterion::{Output, PProfProfiler};
-use rand::{
-    Rng,
-    distr::{Distribution, StandardUniform},
-};
+use rand::Rng;
 
 mod common;
 use self::common::with_metrics_recorder;
+
+mod measured_setup {
+    use measured::{CounterVec, HistogramVec, label::LabelGroupSet, metric::histogram::Thresholds};
+
+    pub struct Families<L: LabelGroupSet> {
+        pub counter: CounterVec<L>,
+        pub histogram: HistogramVec<L, 10>,
+    }
+
+    pub fn setup_families<L, F>(mut new_label_set: F) -> Families<L>
+    where
+        L: LabelGroupSet,
+        F: FnMut() -> L,
+    {
+        let counter = CounterVec::with_label_set(new_label_set());
+        let histogram = HistogramVec::with_label_set_and_metadata(
+            new_label_set(),
+            Thresholds::<10>::exponential_buckets(0.005f64, 2f64),
+        );
+
+        Families { counter, histogram }
+    }
+
+    #[derive(Clone, PartialEq, Eq, Hash, measured::LabelGroup)]
+    #[label(set = HttpLabelsSet)]
+    pub struct MeasuredLabels {
+        method: MeasuredMethod,
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, measured::FixedCardinalityLabel)]
+    pub enum MeasuredMethod {
+        Get,
+        Put,
+    }
+
+    impl From<super::Method> for MeasuredMethod {
+        fn from(value: super::Method) -> Self {
+            match value {
+                super::Method::Get => Self::Get,
+                super::Method::Put => Self::Put,
+            }
+        }
+    }
+
+    impl From<super::Labels> for MeasuredLabels {
+        fn from(value: super::Labels) -> Self {
+            Self { method: value.method.into() }
+        }
+    }
+
+    pub fn setup_http_families() -> Families<HttpLabelsSet> {
+        setup_families(HttpLabelsSet::new)
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, measured::LabelGroup)]
+    #[label(set = EmptyLabelsSet)]
+    pub struct EmptyLabels {}
+
+    pub fn setup_empty_families() -> Families<EmptyLabelsSet> {
+        setup_families(EmptyLabelsSet::new)
+    }
+}
 
 mod prometheus_setup {
     use prometheus::{HistogramVec, IntCounterVec, exponential_buckets, histogram_opts, opts};
@@ -79,55 +138,27 @@ mod fastmetrics_setup {
     }
 }
 
-mod measured_setup {
-    use measured::{CounterVec, HistogramVec, metric::histogram::Thresholds};
-
-    use super::HttpLabelsSet;
-
-    pub struct Families {
-        pub counter: CounterVec<HttpLabelsSet>,
-        pub histogram: HistogramVec<HttpLabelsSet, 10>,
-    }
-
-    pub fn setup_families() -> Families {
-        let counter = CounterVec::with_label_set(HttpLabelsSet::new());
-        let histogram = HistogramVec::with_label_set_and_metadata(
-            HttpLabelsSet::new(),
-            Thresholds::<10>::exponential_buckets(0.005f64, 2f64),
-        );
-
-        Families { counter, histogram }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, measured::LabelGroup)]
-#[label(set = HttpLabelsSet)]
-struct Labels {
-    method: Method,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, measured::FixedCardinalityLabel)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Method {
     Get,
     Put,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct Labels {
+    method: Method,
+}
+
 impl Labels {
+    const fn new(method: Method) -> Self {
+        Self { method }
+    }
+
     const fn method(&self) -> &'static str {
         match self.method {
             Method::Get => "GET",
             Method::Put => "PUT",
         }
-    }
-}
-
-impl Distribution<Labels> for StandardUniform {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Labels {
-        let method = match rng.random_ratio(8, 10) {
-            true => Method::Get,
-            false => Method::Put,
-        };
-        Labels { method }
     }
 }
 
@@ -138,17 +169,22 @@ struct Input {
 
 fn setup_input() -> Input {
     let mut rng = rand::rng();
-    let labels = rng.random::<Labels>();
+    let method = match rng.random_ratio(8, 10) {
+        true => Method::Get,
+        false => Method::Put,
+    };
+    let labels = Labels::new(method);
     let value = rng.random_range(0f64..100f64);
     Input { labels, value }
 }
 
-fn bench_family_without_labels(c: &mut Criterion) {
-    let mut group = c.benchmark_group("family without labels");
-    group.bench_function("metrics", |b| {
+fn bench_family_with_empty_labels(c: &mut Criterion) {
+    let mut group = c.benchmark_group("family with empty labels");
+    group.bench_function("metrics_cached", |b| {
         with_metrics_recorder(|| {
-            let counter = metrics::counter!("without_labels");
-            let histogram = metrics::histogram!("without_labels");
+            let labels: &[(&str, &str)] = &[];
+            let counter = metrics::counter!("with_empty_labels", labels);
+            let histogram = metrics::histogram!("with_empty_labels", labels);
 
             b.iter_batched(
                 || {
@@ -156,12 +192,48 @@ fn bench_family_without_labels(c: &mut Criterion) {
                     rng.random_range(0f64..100f64)
                 },
                 |input| {
+                    let value = black_box(input);
                     counter.increment(1);
-                    histogram.record(black_box(input));
+                    histogram.record(value);
                 },
                 BatchSize::SmallInput,
             );
         });
+    });
+    group.bench_function("metrics_dynamic", |b| {
+        with_metrics_recorder(|| {
+            let labels: &[(&str, &str)] = &[];
+
+            b.iter_batched(
+                || {
+                    let mut rng = rand::rng();
+                    rng.random_range(0f64..100f64)
+                },
+                |input| {
+                    let value = black_box(input);
+                    metrics::counter!("with_empty_labels", labels).increment(1);
+                    metrics::histogram!("with_empty_labels", labels).record(value);
+                },
+                BatchSize::SmallInput,
+            );
+        });
+    });
+    group.bench_function("measured", |b| {
+        let families = measured_setup::setup_empty_families();
+
+        b.iter_batched(
+            || {
+                let mut rng = rand::rng();
+                rng.random_range(0f64..100f64)
+            },
+            |input| {
+                let value = black_box(input);
+                let labels = black_box(measured_setup::EmptyLabels {});
+                families.counter.inc(labels);
+                families.histogram.observe(labels, value);
+            },
+            BatchSize::SmallInput,
+        );
     });
     group.bench_function("prometheus", |b| {
         let empty_labels: &[&str] = &[];
@@ -173,8 +245,9 @@ fn bench_family_without_labels(c: &mut Criterion) {
                 rng.random_range(0f64..100f64)
             },
             |input| {
+                let value = black_box(input);
                 families.counter.with_label_values(black_box(empty_labels)).inc();
-                families.histogram.with_label_values(black_box(empty_labels)).observe(input);
+                families.histogram.with_label_values(black_box(empty_labels)).observe(value);
             },
             BatchSize::SmallInput,
         );
@@ -188,13 +261,33 @@ fn bench_family_without_labels(c: &mut Criterion) {
                 rng.random_range(0f64..100f64)
             },
             |input| {
+                let value = black_box(input);
                 families.counter.get_or_create(black_box(&())).inc();
-                families.histogram.get_or_create(black_box(&())).observe(input);
+                families.histogram.get_or_create(black_box(&())).observe(value);
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("fastmetrics", |b| {
+    group.bench_function("fastmetrics_cached", |b| {
+        let families = fastmetrics_setup::setup_families::<()>();
+        let labels = ();
+        let counter = families.counter.with_or_new(&labels, Clone::clone);
+        let histogram = families.histogram.with_or_new(&labels, Clone::clone);
+
+        b.iter_batched(
+            || {
+                let mut rng = rand::rng();
+                rng.random_range(0f64..100f64)
+            },
+            |input| {
+                let value = black_box(input);
+                counter.inc();
+                histogram.observe(value);
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics_dynamic", |b| {
         let families = fastmetrics_setup::setup_families::<()>();
 
         b.iter_batched(
@@ -203,8 +296,9 @@ fn bench_family_without_labels(c: &mut Criterion) {
                 rng.random_range(0f64..100f64)
             },
             |input| {
+                let value = black_box(input);
                 families.counter.with_or_new(black_box(&()), |counter| counter.inc());
-                families.histogram.with_or_new(black_box(&()), |hist| hist.observe(input));
+                families.histogram.with_or_new(black_box(&()), |hist| hist.observe(value));
             },
             BatchSize::SmallInput,
         );
@@ -214,35 +308,58 @@ fn bench_family_without_labels(c: &mut Criterion) {
 
 fn bench_family_with_custom_labels(c: &mut Criterion) {
     let mut group = c.benchmark_group("family with custom labels");
-    group.bench_function("metrics", |b| {
+    group.bench_function("metrics_cached", |b| {
         with_metrics_recorder(|| {
-            // The metric handles should be created outside the batched iteration to only
-            // measure the label lookup and operation overhead, matching the pattern used
-            // by other libraries.
-            // But the metrics-rs API doesn't provide this pattern due to its design.
+            let counter_get = metrics::counter!("family_custom_labels_counter", "method" => "GET");
+            let counter_put = metrics::counter!("family_custom_labels_counter", "method" => "PUT");
+            let hist_get = metrics::histogram!("family_custom_labels_histogram", "method" => "GET");
+            let hist_put = metrics::histogram!("family_custom_labels_histogram", "method" => "PUT");
 
             b.iter_batched(
                 setup_input,
                 |input| {
+                    let value = black_box(input.value);
+                    match input.labels.method {
+                        Method::Get => {
+                            counter_get.increment(1);
+                            hist_get.record(value);
+                        },
+                        Method::Put => {
+                            counter_put.increment(1);
+                            hist_put.record(value);
+                        },
+                    }
+                },
+                BatchSize::SmallInput,
+            );
+        });
+    });
+    group.bench_function("metrics_dynamic", |b| {
+        with_metrics_recorder(|| {
+            b.iter_batched(
+                setup_input,
+                |input| {
                     let method = black_box(input.labels.method());
+                    let value = black_box(input.value);
                     metrics::counter!("family_custom_labels_counter", "method" => method)
                         .increment(1);
                     metrics::histogram!("family_custom_labels_histogram", "method" => method)
-                        .record(input.value);
+                        .record(value);
                 },
                 BatchSize::SmallInput,
             );
         });
     });
     group.bench_function("measured", |b| {
-        let families = measured_setup::setup_families();
+        let families = measured_setup::setup_http_families();
 
         b.iter_batched(
             setup_input,
             |input| {
-                let labels = black_box(input.labels);
+                let labels = black_box(measured_setup::MeasuredLabels::from(input.labels));
+                let value = black_box(input.value);
                 families.counter.inc(labels.clone());
-                families.histogram.observe(labels, input.value);
+                families.histogram.observe(labels, value);
             },
             BatchSize::SmallInput,
         );
@@ -256,6 +373,7 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
                 ([input.labels.method()], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.with_label_values(black_box(&labels)).inc();
                 families.histogram.with_label_values(black_box(&labels)).observe(value);
             },
@@ -268,22 +386,51 @@ fn bench_family_with_custom_labels(c: &mut Criterion) {
         b.iter_batched(
             setup_input,
             |input| {
+                let value = black_box(input.value);
                 families.counter.get_or_create(black_box(&input.labels)).inc();
-                families.histogram.get_or_create(black_box(&input.labels)).observe(input.value);
+                families.histogram.get_or_create(black_box(&input.labels)).observe(value);
             },
             BatchSize::SmallInput,
         );
     });
-    group.bench_function("fastmetrics", |b| {
+    group.bench_function("fastmetrics_cached", |b| {
+        let families = fastmetrics_setup::setup_families::<Labels>();
+        let labels_get = Labels::new(Method::Get);
+        let labels_put = Labels::new(Method::Put);
+        let counter_get = families.counter.with_or_new(&labels_get, Clone::clone);
+        let counter_put = families.counter.with_or_new(&labels_put, Clone::clone);
+        let hist_get = families.histogram.with_or_new(&labels_get, Clone::clone);
+        let hist_put = families.histogram.with_or_new(&labels_put, Clone::clone);
+
+        b.iter_batched(
+            setup_input,
+            |input| {
+                let value = black_box(input.value);
+                match input.labels.method {
+                    Method::Get => {
+                        counter_get.inc();
+                        hist_get.observe(value);
+                    },
+                    Method::Put => {
+                        counter_put.inc();
+                        hist_put.observe(value);
+                    },
+                }
+            },
+            BatchSize::SmallInput,
+        );
+    });
+    group.bench_function("fastmetrics_dynamic", |b| {
         let families = fastmetrics_setup::setup_families::<Labels>();
 
         b.iter_batched(
             setup_input,
             |input| {
+                let value = black_box(input.value);
                 families.counter.with_or_new(black_box(&input.labels), |counter| counter.inc());
                 families
                     .histogram
-                    .with_or_new(black_box(&input.labels), |hist| hist.observe(input.value));
+                    .with_or_new(black_box(&input.labels), |hist| hist.observe(value));
             },
             BatchSize::SmallInput,
         );
@@ -303,6 +450,7 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
                 ([("method", input.labels.method())], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.get_or_create(black_box(&labels)).inc();
                 families.histogram.get_or_create(black_box(&labels)).observe(value)
             },
@@ -318,6 +466,7 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
                 ([("method", input.labels.method())], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.with_or_new(black_box(&labels), |counter| counter.inc());
                 families.histogram.with_or_new(black_box(&labels), |hist| hist.observe(value));
             },
@@ -337,6 +486,7 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
                 (vec![("method", input.labels.method())], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.get_or_create(black_box(&labels)).inc();
                 families.histogram.get_or_create(black_box(&labels)).observe(value)
             },
@@ -352,6 +502,7 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
                 (vec![("method", input.labels.method())], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.with_or_new(black_box(&labels), |counter| counter.inc());
                 families.histogram.with_or_new(black_box(&labels), |hist| hist.observe(value));
             },
@@ -371,6 +522,7 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
                 (vec![("method".to_owned(), input.labels.method().to_owned())], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.get_or_create(black_box(&labels)).inc();
                 families.histogram.get_or_create(black_box(&labels)).observe(value)
             },
@@ -386,6 +538,7 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
                 (vec![("method".to_owned(), input.labels.method().to_owned())], input.value)
             },
             |(labels, value)| {
+                let value = black_box(value);
                 families.counter.with_or_new(black_box(&labels), |counter| counter.inc());
                 families.histogram.with_or_new(black_box(&labels), |hist| hist.observe(value));
             },
@@ -398,6 +551,6 @@ fn bench_family_with_string_labels(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default()/*.with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))*/;
-    targets = bench_family_without_labels, bench_family_with_custom_labels, bench_family_with_string_labels
+    targets = bench_family_with_empty_labels, bench_family_with_custom_labels, bench_family_with_string_labels
 );
 criterion_main!(benches);
