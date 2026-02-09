@@ -174,14 +174,15 @@ pub fn encode_with<G>(
 /// // Update a counter
 /// requests.inc();
 ///
-/// // Encode metrics in text format
-/// let mut output = String::new();
-/// // OpenMetrics profile, no additional scope:
-/// text::encode_profile_with(&mut output, &registry, TextProfile::OpenMetrics1, || ())?;
-///
+/// // Encode metrics in Prometheus text format
 /// let mut output = String::new();
 /// // Prometheus 0.0.4 profile, also without additional scope:
 /// text::encode_profile_with(&mut output, &registry, TextProfile::Prometheus004, || ())?;
+///
+/// // Encode metrics in OpenMetrics text format
+/// let mut output = String::new();
+/// // OpenMetrics profile, no additional scope:
+/// text::encode_profile_with(&mut output, &registry, TextProfile::OpenMetrics1, || ())?;
 /// # Ok(())
 /// # }
 /// ```
