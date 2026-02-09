@@ -12,7 +12,7 @@ use fastmetrics::{
     },
     registry::*,
 };
-use rand::Rng;
+use rand::RngExt;
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct HttpLabels {

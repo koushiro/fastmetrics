@@ -8,7 +8,7 @@ use fastmetrics::{
     },
     registry::{Register, Registry},
 };
-use rand::Rng;
+use rand::RngExt;
 
 pub struct Metrics {
     counter: Counter,

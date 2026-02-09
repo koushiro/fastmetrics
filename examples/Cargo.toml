@@ -20,7 +20,7 @@ hyper-util = { version = "0.1", features = ["tokio"] }
 libc = "0.2"
 pin-project = "1.1"
 poem = { version = "3.1", features = ["websocket", "tower-compat"] }
-rand = "0.9"
+rand = "0.10"
 rocket = { version = "0.5", features = ["json"] }
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["net", "macros", "rt-multi-thread"] }
