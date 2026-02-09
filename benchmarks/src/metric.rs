@@ -2,7 +2,7 @@ use std::{hint::black_box, sync::atomic::AtomicU64};
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 // use pprof::criterion::{Output, PProfProfiler};
-use rand::Rng;
+use rand::RngExt;
 
 mod common;
 use self::common::with_metrics_recorder;

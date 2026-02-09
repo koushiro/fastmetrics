@@ -2,7 +2,7 @@ use std::hint::black_box;
 
 use criterion::{Criterion, criterion_group, criterion_main};
 // use pprof::criterion::{Output, PProfProfiler};
-use rand::Rng;
+use rand::RngExt;
 
 mod common;
 use self::common::{

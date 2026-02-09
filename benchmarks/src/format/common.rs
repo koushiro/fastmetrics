@@ -1,5 +1,5 @@
 use rand::{
-    Rng,
+    RngExt,
     distr::{Distribution, StandardUniform},
 };
 
@@ -127,7 +127,7 @@ pub enum Method {
 }
 
 impl Distribution<Labels> for StandardUniform {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Labels {
+    fn sample<R: RngExt + ?Sized>(&self, rng: &mut R) -> Labels {
         let method = match rng.random_ratio(8, 10) {
             true => Method::Get,
             false => Method::Put,

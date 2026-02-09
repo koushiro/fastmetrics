@@ -10,7 +10,7 @@ use fastmetrics::{
     registry::*,
 };
 use rand::{
-    Rng,
+    RngExt,
     distr::{Distribution, StandardUniform},
 };
 
@@ -47,7 +47,7 @@ enum Error {
 }
 
 impl Distribution<Labels> for StandardUniform {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Labels {
+    fn sample<R: RngExt + ?Sized>(&self, rng: &mut R) -> Labels {
         let operation = match rng.random_range(0..=3) {
             0 => Operation::Read,
             1 => Operation::Write,
