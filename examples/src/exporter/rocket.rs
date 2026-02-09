@@ -66,7 +66,8 @@ impl Fairing for MetricsFairing {
 #[rocket::get("/metrics")]
 async fn metrics_text(state: &State<AppState>) -> (Status, (ContentType, String)) {
     let mut output = String::new();
-    if let Err(e) = text::encode(&mut output, &state.registry) {
+    let profile = text::TextProfile::Prometheus004;
+    if let Err(e) = text::encode_profile(&mut output, &state.registry, profile) {
         return (
             Status::InternalServerError,
             (ContentType::Plain, format!("text encode error: {e}")),

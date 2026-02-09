@@ -42,7 +42,8 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
     state.metrics.http.inc_in_flight();
 
     let mut output = String::new();
-    let result = text::encode(&mut output, &state.registry);
+    let profile = text::TextProfile::Prometheus004;
+    let result = text::encode_profile(&mut output, &state.registry, profile);
 
     match result {
         Ok(()) => {
@@ -52,7 +53,10 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
             state.metrics.http.observe(req.method(), status.as_u16(), start);
             state.metrics.http.dec_in_flight();
 
-            Response::builder().status(status).body(body)
+            Response::builder()
+                .content_type(profile.content_type())
+                .status(status)
+                .body(body)
         },
         Err(e) => {
             let status = StatusCode::INTERNAL_SERVER_ERROR;
