@@ -111,7 +111,7 @@
 //!
 //! // Export metrics in text format
 //! let mut output = String::new();
-//! text::encode(&mut output, &registry)?;
+//! text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1)?;
 //! // println!("{}", output);
 //! assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="Get",status="200"} 1"#));
 //! # Ok(())

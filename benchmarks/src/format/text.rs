@@ -141,7 +141,7 @@ fn bench_text_encoding(c: &mut Criterion) {
 
             let metric_id = format!("{count} metrics * {times} times");
 
-            let id = format!("metrics_exporter_prometheus: {metric_id}");
+            let id = format!("metrics_exporter_prometheus (prometheus 0.0.4): {metric_id}");
             group.sample_size(20).bench_function(id, |b| {
                 let handle = setup_metrics_exporter_prometheus_handle(count, times);
                 let mut buffer = Vec::new();
@@ -152,7 +152,7 @@ fn bench_text_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("measured: {metric_id}");
+            let id = format!("measured (prometheus 0.0.4): {metric_id}");
             group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_measured_registry(count, times);
                 b.iter(|| {
@@ -161,7 +161,7 @@ fn bench_text_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("prometheus: {metric_id}");
+            let id = format!("prometheus (prometheus 0.0.4): {metric_id}");
             group.sample_size(100).bench_function(id, move |b| {
                 let registry = setup_prometheus_registry(count, times);
                 let mut buffer = String::new();
@@ -175,7 +175,7 @@ fn bench_text_encoding(c: &mut Criterion) {
                 })
             });
 
-            let id = format!("prometheus_client: {metric_id}");
+            let id = format!("prometheus_client (openmetrics 1): {metric_id}");
             group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
                 let mut buffer = String::new();
@@ -186,13 +186,28 @@ fn bench_text_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics: {metric_id}");
+            let id = format!("fastmetrics (prometheus 0.0.4): {metric_id}");
             group.sample_size(50).bench_function(id, |b| {
+                use fastmetrics::format::text::{TextProfile, encode};
+
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
-                    fastmetrics::format::text::encode(&mut buffer, &registry).unwrap();
+                    encode(&mut buffer, &registry, TextProfile::Prometheus004).unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics (openmetrics 1): {metric_id}");
+            group.sample_size(50).bench_function(id, |b| {
+                use fastmetrics::format::text::{TextProfile, encode};
+
+                let registry = setup_fastmetrics_registry(count, times);
+                let mut buffer = String::new();
+                b.iter(|| {
+                    buffer.clear();
+                    encode(&mut buffer, &registry, TextProfile::OpenMetrics1).unwrap();
                     black_box(&mut buffer);
                 });
             });

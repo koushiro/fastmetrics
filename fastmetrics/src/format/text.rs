@@ -16,33 +16,121 @@ use crate::{
     registry::Registry,
 };
 
-/// Encodes metrics from a registry into the [OpenMetrics text format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format).
+/// Text exposition profile.
 ///
-/// The text format is human-readable and follows the format:
-/// ```text
-/// # TYPE metric_name type
-/// # HELP metric_name help_text
-/// # UNIT metric_name unit
-/// metric_name{label="value"} value
-/// ```
+/// This controls how metrics are serialized in text format.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum TextProfile {
+    /// Prometheus text 0.0.4 profile.
+    Prometheus004,
+    /// OpenMetrics text 1.x profile.
+    #[default]
+    OpenMetrics1,
+}
+
+impl TextProfile {
+    /// Returns the HTTP content type for this profile.
+    pub const fn content_type(self) -> &'static str {
+        match self {
+            Self::OpenMetrics1 => "application/openmetrics-text; version=1.0.0; charset=utf-8",
+            Self::Prometheus004 => "text/plain; version=0.0.4; charset=utf-8",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ProfileConfig {
+    emit_eof: bool,
+    emit_unit: bool,
+    append_unit_suffix: bool,
+    append_counter_total_suffix: bool,
+    emit_created_series: bool,
+    emit_exemplars: bool,
+    timestamp_format: TimestampFormat,
+}
+
+#[derive(Clone, Copy)]
+enum TimestampFormat {
+    SecondsMillis,
+    MillisecondsInteger,
+}
+
+impl From<TextProfile> for ProfileConfig {
+    fn from(profile: TextProfile) -> Self {
+        match profile {
+            TextProfile::OpenMetrics1 => Self {
+                emit_eof: true,
+                emit_unit: true,
+                append_unit_suffix: true,
+                append_counter_total_suffix: true,
+                emit_created_series: true,
+                emit_exemplars: true,
+                timestamp_format: TimestampFormat::SecondsMillis,
+            },
+            TextProfile::Prometheus004 => Self {
+                emit_eof: false,
+                emit_unit: false,
+                append_unit_suffix: true,
+                append_counter_total_suffix: false,
+                emit_created_series: false,
+                emit_exemplars: false,
+                timestamp_format: TimestampFormat::MillisecondsInteger,
+            },
+        }
+    }
+}
+
+/// Encodes metrics from a [`Registry`] into text format with an explicit profile.
+///
+/// This is the default text-encoding entrypoint for most users.
+/// It installs the standard scrape scope hook ([`crate::metrics::lazy_group::enter_scope`]) so
+/// grouped lazy metrics can use scrape-scoped caching.
+pub fn encode(
+    writer: &mut impl fmt::Write,
+    registry: &Registry,
+    profile: TextProfile,
+) -> Result<()> {
+    encode_with(writer, registry, profile, crate::metrics::lazy_group::enter_scope)
+}
+
+/// Encodes metrics from a [`Registry`] into text format with explicit profile and scope hook.
+///
+/// This is the advanced text-encoding entrypoint. The [`encode`] helper is a thin wrapper around
+/// this function:
+///
+/// - [`encode`] = `encode_with(..., profile, lazy_group::enter_scope)`
+///
+/// The `enter_scope` closure runs once before encoding starts. Its return value is kept alive for
+/// the entire encoding pass and then dropped. This is used by grouped lazy metrics for
+/// scrape-scoped caching.
+///
+/// ## Scrape-scoped caching (grouped lazy metrics)
+///
+/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an
+/// expensive sampling operation within a single scrape.
+///
+/// To enable this behavior, pass a closure that enters a scrape scope for the full encoding pass.
+/// The default wrapper [`encode`] already installs this scope hook internally.
+/// If you need the same default hook explicitly, use [`crate::metrics::lazy_group::enter_scope`].
 ///
 /// # Arguments
 ///
-/// * `writer` - A mutable reference to any type implementing `fmt::Write` where the text format
-///   will be written.
-/// * `registry` - A reference to the [`Registry`] containing the metrics to encode.
+/// - `writer`: Output destination implementing [`fmt::Write`].
+/// - `registry`: Source registry.
+/// - `profile`: Text format profile selection.
+/// - `enter_scope`: Pre-encode scope hook.
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if encoding was successful, or a [`Error`](crate::error::Error) if there was an
-/// error writing to the output.
+/// Returns `Ok(())` on success, or an [`Error`](crate::error::Error) if writing fails.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```rust
 /// # use fastmetrics::{
 /// #     error::Result,
-/// #     format::text,
+/// #     format::text::{self, TextProfile},
 /// #     metrics::counter::Counter,
 /// #     registry::Registry,
 /// # };
@@ -60,70 +148,50 @@ use crate::{
 /// // Update a counter
 /// requests.inc();
 ///
-/// // Encode metrics in text format
+/// // Encode metrics in Prometheus text format
 /// let mut output = String::new();
-/// text::encode(&mut output, &registry)?;
-/// assert!(output.contains("http_requests_total"));
-/// # Ok(())
-/// # }
-/// ```
-pub fn encode(writer: &mut impl fmt::Write, registry: &Registry) -> Result<()> {
-    encode_with(writer, registry, crate::metrics::lazy_group::scrape_ctx::enter)
-}
-
-/// Encodes metrics in text format, running a user-provided "scope/guard" for the duration of the
-/// encoding pass.
+/// // Prometheus 0.0.4 profile, no additional scope:
+/// text::encode_with(&mut output, &registry, TextProfile::Prometheus004, || ())?;
 ///
-/// This is the underlying primitive used by [`encode`]. The `before` closure is called once before
-/// encoding starts, and the value it returns is kept alive for the duration of encoding and then
-/// dropped.
-///
-/// ## Scrape-scoped caching (grouped lazy metrics)
-///
-/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an
-/// expensive sampling operation within a single scrape. To enable this, pass a closure that enters
-/// a scrape scope (internally used by the crate's default [`encode`] implementation).
-///
-/// ## Example
-///
-/// ```rust
-/// # use fastmetrics::{error::Result, format::text, registry::Registry};
-/// # fn main() -> Result<()> {
-/// let registry = Registry::default();
-/// let mut out = String::new();
-///
-/// // Encode without adding any additional per-encode scope:
-/// text::encode_with(&mut out, &registry, || ())?;
+/// // Encode metrics in OpenMetrics text format
+/// let mut output = String::new();
+/// // OpenMetrics 1.0.0 profile, no additional scope:
+/// text::encode_with(&mut output, &registry, TextProfile::OpenMetrics1, || ())?;
 /// # Ok(())
 /// # }
 /// ```
 pub fn encode_with<G>(
     writer: &mut impl fmt::Write,
     registry: &Registry,
-    before: impl FnOnce() -> G,
+    profile: TextProfile,
+    enter_scope: impl FnOnce() -> G,
 ) -> Result<()> {
     // The returned value is kept alive for the duration of encoding and then dropped.
-    let _guard = before();
+    let _guard = enter_scope();
 
-    Encoder::new(writer, registry).encode()
+    Encoder::new(writer, registry, profile.into()).encode()
 }
 
 struct Encoder<'a, W> {
     writer: &'a mut W,
     registry: &'a Registry,
+    config: ProfileConfig,
 }
 
 impl<'a, W> Encoder<'a, W>
 where
     W: fmt::Write,
 {
-    fn new(writer: &'a mut W, registry: &'a Registry) -> Self {
-        Self { writer, registry }
+    fn new(writer: &'a mut W, registry: &'a Registry, config: ProfileConfig) -> Self {
+        Self { writer, registry, config }
     }
 
     fn encode(&mut self) -> Result<()> {
         self.encode_registry(self.registry)?;
-        self.encode_eof()
+        if self.config.emit_eof {
+            self.encode_eof()?;
+        }
+        Ok(())
     }
 
     fn encode_registry(&mut self, registry: &Registry) -> Result<()> {
@@ -132,6 +200,7 @@ where
                 writer: self.writer,
                 namespace: registry.namespace(),
                 const_labels: registry.constant_labels(),
+                config: self.config,
             }
             .encode(metadata, metric)?;
         }
@@ -151,6 +220,7 @@ struct MetricFamilyEncoder<'a, W> {
     writer: &'a mut W,
     namespace: Option<&'a str>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
+    config: ProfileConfig,
 }
 
 impl<W> MetricFamilyEncoder<'_, W>
@@ -172,10 +242,12 @@ where
 
     #[inline]
     fn encode_unit(&mut self, metric_name: &str, unit: Option<&Unit>) -> Result<()> {
-        if let Some(unit) = unit {
-            let unit = unit.as_str();
-            self.writer.write_fmt(format_args!("# UNIT {metric_name} {unit}"))?;
-            self.encode_newline()?;
+        if self.config.emit_unit {
+            if let Some(unit) = unit {
+                let unit = unit.as_str();
+                self.writer.write_fmt(format_args!("# UNIT {metric_name} {unit}"))?;
+                self.encode_newline()?;
+            }
         }
         Ok(())
     }
@@ -187,7 +259,19 @@ where
     }
 }
 
-fn metric_name<'a>(namespace: Option<&str>, name: &'a str, unit: Option<&Unit>) -> Cow<'a, str> {
+fn metric_name<'a>(
+    namespace: Option<&str>,
+    name: &'a str,
+    unit: Option<&Unit>,
+    append_unit_suffix: bool,
+) -> Cow<'a, str> {
+    if !append_unit_suffix {
+        return match namespace {
+            Some(namespace) => Cow::Owned(format!("{namespace}_{name}")),
+            None => Cow::Borrowed(name),
+        };
+    }
+
     match (namespace, unit) {
         (Some(namespace), Some(unit)) => {
             Cow::Owned(format!("{namespace}_{}_{}", name, unit.as_str()))
@@ -196,6 +280,26 @@ fn metric_name<'a>(namespace: Option<&str>, name: &'a str, unit: Option<&Unit>) 
         (None, Some(unit)) => Cow::Owned(format!("{name}_{}", unit.as_str())),
         (None, None) => Cow::Borrowed(name),
     }
+}
+
+fn write_timestamp(
+    writer: &mut impl fmt::Write,
+    duration: Duration,
+    format: TimestampFormat,
+) -> Result<()> {
+    match format {
+        TimestampFormat::SecondsMillis => {
+            writer.write_fmt(format_args!(
+                " {}.{}",
+                duration.as_secs(),
+                duration.as_millis() % 1000
+            ))?;
+        },
+        TimestampFormat::MillisecondsInteger => {
+            writer.write_fmt(format_args!(" {}", duration.as_millis()))?;
+        },
+    }
+    Ok(())
 }
 
 impl<W> encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_, W>
@@ -208,7 +312,12 @@ where
             return Ok(());
         }
 
-        let metric_name = metric_name(self.namespace, metadata.name(), metadata.unit());
+        let metric_name = metric_name(
+            self.namespace,
+            metadata.name(),
+            metadata.unit(),
+            self.config.append_unit_suffix,
+        );
 
         self.encode_type(metric_name.as_ref(), metadata.metric_type())?;
         self.encode_help(metric_name.as_ref(), metadata.help())?;
@@ -221,6 +330,7 @@ where
             timestamp: metric.timestamp(),
             const_labels: self.const_labels,
             family_labels: None,
+            config: self.config,
         })
     }
 }
@@ -233,6 +343,7 @@ struct MetricEncoder<'a, W> {
     timestamp: Option<Duration>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
+    config: ProfileConfig,
 }
 
 impl<W> MetricEncoder<'_, W>
@@ -386,9 +497,14 @@ where
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_timestamp()?;
-            if let Some(exemplars) = exemplars {
-                if let Some(exemplar) = exemplars[idx] {
-                    exemplar.encode(&mut ExemplarEncoder { writer: self.writer })?;
+            if self.config.emit_exemplars {
+                if let Some(exemplars) = exemplars {
+                    if let Some(exemplar) = exemplars[idx] {
+                        exemplar.encode(&mut ExemplarEncoder {
+                            writer: self.writer,
+                            timestamp_format: self.config.timestamp_format,
+                        })?;
+                    }
                 }
             }
             self.encode_newline()?;
@@ -448,11 +564,7 @@ where
     #[inline]
     fn encode_timestamp(&mut self) -> Result<()> {
         if let Some(timestamp) = self.timestamp {
-            self.writer.write_fmt(format_args!(
-                " {}.{}",
-                timestamp.as_secs(),
-                timestamp.as_millis() % 1000
-            ))?;
+            write_timestamp(self.writer, timestamp, self.config.timestamp_format)?;
         }
         Ok(())
     }
@@ -490,20 +602,27 @@ where
         exemplar: Option<&dyn EncodeExemplar>,
         created: Option<Duration>,
     ) -> Result<()> {
-        // encode `*_total` metric
         self.encode_metric_name()?;
-        self.writer.write_str("_total")?;
+        if self.config.append_counter_total_suffix {
+            self.writer.write_str("_total")?;
+        }
         self.encode_label_set(None)?;
         total.encode(&mut CounterValueEncoder { writer: self.writer })?;
         self.encode_timestamp()?;
-        if let Some(exemplar) = exemplar {
-            exemplar.encode(&mut ExemplarEncoder { writer: self.writer })?;
+        if self.config.emit_exemplars {
+            if let Some(exemplar) = exemplar {
+                exemplar.encode(&mut ExemplarEncoder {
+                    writer: self.writer,
+                    timestamp_format: self.config.timestamp_format,
+                })?;
+            }
         }
         self.encode_newline()?;
 
-        // encode `*_created` metric if available
-        if let Some(created) = created {
-            self.encode_created(created)?;
+        if self.config.emit_created_series {
+            if let Some(created) = created {
+                self.encode_created(created)?;
+            }
         }
 
         Ok(())
@@ -555,9 +674,10 @@ where
         // encode `*_sum` metric
         self.encode_sum(sum)?;
 
-        // encode `*_created` metric if available
-        if let Some(created) = created {
-            self.encode_created(created)?;
+        if self.config.emit_created_series {
+            if let Some(created) = created {
+                self.encode_created(created)?;
+            }
         }
 
         Ok(())
@@ -605,9 +725,10 @@ where
         // encode `*_sum` metric
         self.encode_sum(sum)?;
 
-        // encode `*_created` metric if available
-        if let Some(created) = created {
-            self.encode_created(created)?;
+        if self.config.emit_created_series {
+            if let Some(created) = created {
+                self.encode_created(created)?;
+            }
         }
 
         Ok(())
@@ -622,6 +743,7 @@ where
             timestamp: self.timestamp,
             const_labels: self.const_labels,
             family_labels: Some(label_set),
+            config: self.config,
         })
     }
 }
@@ -795,6 +917,7 @@ where
 
 struct ExemplarEncoder<'a, W> {
     writer: &'a mut W,
+    timestamp_format: TimestampFormat,
 }
 
 impl<W> encoder::ExemplarEncoder for ExemplarEncoder<'_, W>
@@ -815,11 +938,7 @@ where
         self.writer.write_str(zmij::Buffer::new().format(value))?;
 
         if let Some(timestamp) = timestamp {
-            self.writer.write_fmt(format_args!(
-                " {}.{}",
-                timestamp.as_secs(),
-                timestamp.as_millis() % 1000
-            ))?;
+            write_timestamp(self.writer, timestamp, self.timestamp_format)?;
         }
 
         Ok(())

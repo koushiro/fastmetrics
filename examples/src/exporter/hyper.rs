@@ -14,7 +14,7 @@ use fastmetrics::{
 };
 use http_body_util::Full;
 use hyper::{
-    Method, Request, Response, StatusCode, body::Incoming, http, server::conn::http1,
+    Method, Request, Response, StatusCode, body::Incoming, header, http, server::conn::http1,
     service::service_fn,
 };
 use hyper_util::rt::TokioIo;
@@ -61,10 +61,14 @@ impl AppError {
 
 fn text_response(state: &AppState) -> Result<MetricsResponse, AppError> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry)?;
+    let profile = text::TextProfile::Prometheus004;
+    text::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 
-    Ok(Response::builder().status(StatusCode::OK).body(body)?)
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .status(StatusCode::OK)
+        .body(body)?)
 }
 
 fn protobuf_response(state: &AppState) -> Result<MetricsResponse, AppError> {

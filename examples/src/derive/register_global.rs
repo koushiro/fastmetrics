@@ -133,7 +133,9 @@ fn main() -> Result<()> {
     }
 
     let mut output = String::new();
-    with_global_registry(|registry| text::encode(&mut output, registry))?;
+    with_global_registry(|registry| {
+        text::encode(&mut output, registry, text::TextProfile::OpenMetrics1)
+    })?;
     println!("{}", &output);
 
     Ok(())

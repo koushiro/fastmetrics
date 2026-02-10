@@ -125,7 +125,9 @@ fn main() -> Result<()> {
 
     // Export metrics
     let mut output = String::new();
-    with_global_registry(|registry| text::encode(&mut output, registry))?;
+    with_global_registry(|registry| {
+        text::encode(&mut output, registry, text::TextProfile::OpenMetrics1)
+    })?;
 
     println!("\n=== Exported Metrics ===");
     println!("{output}");

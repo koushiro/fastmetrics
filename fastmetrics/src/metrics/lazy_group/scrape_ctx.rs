@@ -9,7 +9,7 @@
 
 use std::{any::Any, cell::RefCell, collections::HashMap};
 
-use crate::metrics::lazy_group::LazyGroupId;
+use super::LazyGroupId;
 
 thread_local! {
     static STACK: RefCell<Vec<ScrapeContext>> = const { RefCell::new(Vec::new()) };

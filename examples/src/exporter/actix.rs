@@ -8,7 +8,7 @@ use actix_web::{
     App, Error, HttpResponse, HttpServer, Responder,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     error::ErrorInternalServerError,
-    http::StatusCode,
+    http::{StatusCode, header},
     web::{self, Data},
 };
 use anyhow::Result;
@@ -107,8 +107,11 @@ where
 
 async fn text_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry).map_err(ErrorInternalServerError)?;
-    Ok(HttpResponse::Ok().body(output))
+    let profile = text::TextProfile::Prometheus004;
+    text::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::CONTENT_TYPE, profile.content_type()))
+        .body(output))
 }
 
 async fn protobuf_handler(state: Data<AppState>) -> Result<impl Responder, Error> {

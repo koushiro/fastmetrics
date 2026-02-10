@@ -12,7 +12,7 @@ use fastmetrics::{
 };
 use warp::{
     Filter, Rejection, Reply,
-    http::{Method, StatusCode},
+    http::{Method, StatusCode, header},
 };
 
 #[path = "../metrics/mod.rs"]
@@ -39,8 +39,13 @@ impl warp::reject::Reject for TextEncodeReject {}
 
 fn metrics_encode_text(state: AppState) -> Result<impl Reply, TextEncodeReject> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry).map_err(|_| TextEncodeReject)?;
-    Ok(warp::reply::with_status(output, StatusCode::OK))
+    let profile = text::TextProfile::Prometheus004;
+    text::encode(&mut output, &state.registry, profile).map_err(|_| TextEncodeReject)?;
+    Ok(warp::reply::with_header(
+        warp::reply::with_status(output, StatusCode::OK),
+        header::CONTENT_TYPE,
+        profile.content_type(),
+    ))
 }
 
 #[derive(Debug)]

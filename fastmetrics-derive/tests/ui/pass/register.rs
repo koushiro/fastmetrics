@@ -77,6 +77,6 @@ fn main() {
     metrics.register(&mut registry).unwrap();
 
     let mut output = String::new();
-    text::encode(&mut output, &registry).unwrap();
+    text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1).unwrap();
     // println!("{}", output);
 }
