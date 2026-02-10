@@ -16,28 +16,7 @@ use crate::{
     registry::Registry,
 };
 
-/// Text exposition profile.
-///
-/// This controls how metrics are serialized in text format.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum TextProfile {
-    /// Prometheus text 0.0.4 profile.
-    Prometheus004,
-    /// OpenMetrics text 1.x profile.
-    #[default]
-    OpenMetrics1,
-}
-
-impl TextProfile {
-    /// Returns the HTTP content type for this profile.
-    pub const fn content_type(self) -> &'static str {
-        match self {
-            Self::OpenMetrics1 => "application/openmetrics-text; version=1.0.0; charset=utf-8",
-            Self::Prometheus004 => "text/plain; version=0.0.4; charset=utf-8",
-        }
-    }
-}
+pub use super::profile::TextProfile;
 
 #[derive(Clone, Copy)]
 struct ProfileConfig {
@@ -99,7 +78,7 @@ pub fn encode(
 /// This is the advanced text-encoding entrypoint. The [`encode`] helper is a thin wrapper around
 /// this function:
 ///
-/// - [`encode`] = `encode_with(..., profile, lazy_group::enter_scope)`
+/// - [`encode`] = `encode_with(..., lazy_group::enter_scope)`
 ///
 /// The `enter_scope` closure runs once before encoding starts. Its return value is kept alive for
 /// the entire encoding pass and then dropped. This is used by grouped lazy metrics for

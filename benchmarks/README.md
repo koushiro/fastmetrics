@@ -292,7 +292,7 @@ text::encode/fastmetrics (openmetrics 1): 100 metrics * 100000 times
 - metrics-exporter-prometheus: use the [prost] crate for (prometheus) protobuf encoding
 - prometheus: use the [protobuf] crate for (prometheus) protobuf encoding
 - prometheus-client: use the [prost] crate for (openmetrics) protobuf encoding
-- fastmetrics: use [prost] or [protobuf] crate for (openmetrics) protobuf encoding
+- fastmetrics: use [prost] or [protobuf] crate for both (prometheus) and (openmetrics) protobuf encoding
 
 [prost]: https://crates.io/crates/prost
 [protobuf]: https://crates.io/crates/protobuf

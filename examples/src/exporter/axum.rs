@@ -163,8 +163,12 @@ async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
 
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry)?;
-    let response = Response::builder().status(StatusCode::OK).body(Body::from(output))?;
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile)?;
+    let response = Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .status(StatusCode::OK)
+        .body(Body::from(output))?;
     Ok(response)
 }
 

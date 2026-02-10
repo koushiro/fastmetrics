@@ -1,23 +1,52 @@
-//! Wire formats
+//! Wire formats.
 //!
-//! This module provides implementations of different metric exposition formats.
+//! This module contains all metric exposition backends used by FastMetrics.
 //!
-//! Supported formats:
+//! ## Module availability
 //!
-//! # Text format
+//! - [`text`] is always available.
+//! - `prost` module is available when feature `prost` is enabled.
+//! - `protobuf` module is available when feature `protobuf` is enabled.
 //!
-//! [OpenMetrics text format] MUST be supported and is the default.
+//! ## Text format
+//!
+//! The [`text`] module exposes [`text::encode`] and [`text::encode_with`].
+//!
+//! It follows the [OpenMetrics text format] and supports the [Prometheus text format]:
+//!
+//! - `TextProfile::OpenMetrics1` (default)
+//! - `TextProfile::Prometheus004`
+//!
+//! ## Protobuf format
+//!
+//! Protobuf support is feature-gated and available through two interchangeable modules:
+//! - [`prost`] (feature `prost`)
+//! - [`protobuf`] (feature `protobuf`)
+//!
+//! Both modules expose:
+//! - [`prost::encode`] / [`prost::encode_with`]
+//! - [`protobuf::encode`] / [`protobuf::encode_with`]
+//!
+//! Both modules re-export the same profile type:
+//! - [`prost::ProtobufProfile`]
+//! - [`protobuf::ProtobufProfile`]
+//!
+//! Protobuf profiles:
+//! - `Prometheus` (default): a length-delimited stream of `io.prometheus.client.MetricFamily`.
+//! - `OpenMetrics1`: a single `openmetrics.MetricSet` message.
+//!
+//! References:
+//! - [Prometheus protobuf format], [Prometheus protobuf schema]
+//! - [OpenMetrics protobuf format], [OpenMetrics protobuf schema]
 //!
 //! [OpenMetrics text format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format
-//!
-//! # Protobuf format
-//!
-//! [OpenMetrics protobuf format] MUST follow the proto3 version of the protocol buffer language and
-//! all payloads MUST be a single binary encoded MetricSet message, as defined by the [OpenMetrics
-//! protobuf schema].
-//!
+//! [Prometheus text format]: https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details
 //! [OpenMetrics protobuf format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format
 //! [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
+//! [Prometheus protobuf format]: https://prometheus.io/docs/instrumenting/exposition_formats/#protobuf-format
+//! [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
+
+mod profile;
 
 #[cfg(feature = "prost")]
 pub mod prost;
