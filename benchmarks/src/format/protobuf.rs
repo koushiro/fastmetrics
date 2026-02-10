@@ -20,7 +20,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             let metric_id = format!("{count} metrics * {times} times");
 
             let id = format!("metrics_exporter_prometheus (prost/prometheus): {metric_id}");
-            group.sample_size(20).bench_function(id, |b| {
+            group.sample_size(10).bench_function(id, |b| {
                 let handle = setup_metrics_exporter_prometheus_handle(count, times);
                 b.iter(|| {
                     let payload = handle.render_protobuf();

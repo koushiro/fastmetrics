@@ -5,8 +5,8 @@
 //! ## Module availability
 //!
 //! - [`text`] is always available.
-//! - `prost` module is available when feature `prost` is enabled.
-//! - `protobuf` module is available when feature `protobuf` is enabled.
+//! - [`prost`] module is available when feature `prost` is enabled.
+//! - [`protobuf`] module is available when feature `protobuf` is enabled.
 //!
 //! ## Text format
 //!
