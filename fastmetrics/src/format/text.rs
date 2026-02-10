@@ -81,55 +81,29 @@ impl From<TextProfile> for ProfileConfig {
     }
 }
 
-/// Convenience wrapper around [`encode_profile_with`] using:
+/// Encodes metrics from a [`Registry`] into text format with an explicit profile.
 ///
-/// - profile: [`TextProfile::OpenMetrics1`]
-/// - scope hook: [`crate::metrics::lazy_group::scrape_ctx::enter`]
-pub fn encode(writer: &mut impl fmt::Write, registry: &Registry) -> Result<()> {
-    encode_profile_with(
-        writer,
-        registry,
-        TextProfile::OpenMetrics1,
-        crate::metrics::lazy_group::scrape_ctx::enter,
-    )
-}
-
-/// Convenience wrapper around [`encode_profile_with`] using:
-///
-/// - profile: user-provided `profile`
-/// - scope hook: [`crate::metrics::lazy_group::scrape_ctx::enter`]
-pub fn encode_profile(
+/// This is the default text-encoding entrypoint for most users.
+/// It installs the standard scrape scope hook ([`crate::metrics::lazy_group::enter_scope`]) so
+/// grouped lazy metrics can use scrape-scoped caching.
+pub fn encode(
     writer: &mut impl fmt::Write,
     registry: &Registry,
     profile: TextProfile,
 ) -> Result<()> {
-    encode_profile_with(writer, registry, profile, crate::metrics::lazy_group::scrape_ctx::enter)
-}
-
-/// Convenience wrapper around [`encode_profile_with`] using:
-///
-/// - profile: [`TextProfile::OpenMetrics1`]
-/// - scope hook: user-provided `before`
-pub fn encode_with<G>(
-    writer: &mut impl fmt::Write,
-    registry: &Registry,
-    before: impl FnOnce() -> G,
-) -> Result<()> {
-    encode_profile_with(writer, registry, TextProfile::OpenMetrics1, before)
+    encode_with(writer, registry, profile, crate::metrics::lazy_group::enter_scope)
 }
 
 /// Encodes metrics from a [`Registry`] into text format with explicit profile and scope hook.
 ///
-/// This is the canonical text-encoding entrypoint. Other public helpers are thin wrappers around
+/// This is the advanced text-encoding entrypoint. The [`encode`] helper is a thin wrapper around
 /// this function:
 ///
-/// - [`encode`] = `encode_profile_with(..., TextProfile::OpenMetrics1, scrape_ctx::enter)`
-/// - [`encode_profile`] = `encode_profile_with(..., profile, scrape_ctx::enter)`
-/// - [`encode_with`] = `encode_profile_with(..., TextProfile::OpenMetrics1, before)`
+/// - [`encode`] = `encode_with(..., profile, lazy_group::enter_scope)`
 ///
-/// The `before` closure runs once before encoding starts. Its return value is kept alive for the
-/// entire encoding pass and then dropped. This is used by grouped lazy metrics for scrape-scoped
-/// caching.
+/// The `enter_scope` closure runs once before encoding starts. Its return value is kept alive for
+/// the entire encoding pass and then dropped. This is used by grouped lazy metrics for
+/// scrape-scoped caching.
 ///
 /// ## Scrape-scoped caching (grouped lazy metrics)
 ///
@@ -137,15 +111,15 @@ pub fn encode_with<G>(
 /// expensive sampling operation within a single scrape.
 ///
 /// To enable this behavior, pass a closure that enters a scrape scope for the full encoding pass.
-/// The default wrappers [`encode`] and [`encode_profile`] already install this scope hook
-/// internally.
+/// The default wrapper [`encode`] already installs this scope hook internally.
+/// If you need the same default hook explicitly, use [`crate::metrics::lazy_group::enter_scope`].
 ///
 /// # Arguments
 ///
 /// - `writer`: Output destination implementing [`fmt::Write`].
 /// - `registry`: Source registry.
 /// - `profile`: Text format profile selection.
-/// - `before`: Pre-encode scope hook.
+/// - `enter_scope`: Pre-encode scope hook.
 ///
 /// # Returns
 ///
@@ -176,24 +150,24 @@ pub fn encode_with<G>(
 ///
 /// // Encode metrics in Prometheus text format
 /// let mut output = String::new();
-/// // Prometheus 0.0.4 profile, also without additional scope:
-/// text::encode_profile_with(&mut output, &registry, TextProfile::Prometheus004, || ())?;
+/// // Prometheus 0.0.4 profile, no additional scope:
+/// text::encode_with(&mut output, &registry, TextProfile::Prometheus004, || ())?;
 ///
 /// // Encode metrics in OpenMetrics text format
 /// let mut output = String::new();
-/// // OpenMetrics profile, no additional scope:
-/// text::encode_profile_with(&mut output, &registry, TextProfile::OpenMetrics1, || ())?;
+/// // OpenMetrics 1.0.0 profile, no additional scope:
+/// text::encode_with(&mut output, &registry, TextProfile::OpenMetrics1, || ())?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn encode_profile_with<G>(
+pub fn encode_with<G>(
     writer: &mut impl fmt::Write,
     registry: &Registry,
     profile: TextProfile,
-    before: impl FnOnce() -> G,
+    enter_scope: impl FnOnce() -> G,
 ) -> Result<()> {
     // The returned value is kept alive for the duration of encoding and then dropped.
-    let _guard = before();
+    let _guard = enter_scope();
 
     Encoder::new(writer, registry, profile.into()).encode()
 }

@@ -153,7 +153,7 @@ impl IntoResponse for AppError {
 async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = String::new();
     let profile = text::TextProfile::Prometheus004;
-    text::encode_profile(&mut output, &state.registry, profile)?;
+    text::encode(&mut output, &state.registry, profile)?;
     let response = Response::builder()
         .header(header::CONTENT_TYPE, profile.content_type())
         .status(StatusCode::OK)

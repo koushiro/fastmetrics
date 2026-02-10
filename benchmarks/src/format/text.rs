@@ -188,26 +188,26 @@ fn bench_text_encoding(c: &mut Criterion) {
 
             let id = format!("fastmetrics (prometheus 0.0.4): {metric_id}");
             group.sample_size(50).bench_function(id, |b| {
-                use fastmetrics::format::text::{TextProfile, encode_profile};
+                use fastmetrics::format::text::{TextProfile, encode};
 
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode_profile(&mut buffer, &registry, TextProfile::Prometheus004).unwrap();
+                    encode(&mut buffer, &registry, TextProfile::Prometheus004).unwrap();
                     black_box(&mut buffer);
                 });
             });
 
             let id = format!("fastmetrics (openmetrics 1): {metric_id}");
             group.sample_size(50).bench_function(id, |b| {
-                use fastmetrics::format::text::{TextProfile, encode_profile};
+                use fastmetrics::format::text::{TextProfile, encode};
 
                 let registry = setup_fastmetrics_registry(count, times);
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode_profile(&mut buffer, &registry, TextProfile::OpenMetrics1).unwrap();
+                    encode(&mut buffer, &registry, TextProfile::OpenMetrics1).unwrap();
                     black_box(&mut buffer);
                 });
             });

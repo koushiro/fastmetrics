@@ -43,7 +43,7 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
 
     let mut output = String::new();
     let profile = text::TextProfile::Prometheus004;
-    let result = text::encode_profile(&mut output, &state.registry, profile);
+    let result = text::encode(&mut output, &state.registry, profile);
 
     match result {
         Ok(()) => {

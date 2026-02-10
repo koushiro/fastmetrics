@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 
     // Export metrics in text format
     let mut output = String::new();
-    text::encode(&mut output, &registry)?;
+    text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1)?;
     println!("{}", output);
 
     Ok(())

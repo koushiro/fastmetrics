@@ -67,7 +67,7 @@ mod openmetrics_data_model {
 /// # }
 /// ```
 pub fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> Result<()> {
-    encode_with(buffer, registry, crate::metrics::lazy_group::scrape_ctx::enter)
+    encode_with(buffer, registry, crate::metrics::lazy_group::enter_scope)
 }
 
 /// Encodes metrics in protobuf format, running a user-provided "scope/guard" for the duration of
@@ -96,10 +96,10 @@ pub fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> Result<()> {
 pub fn encode_with<G>(
     buffer: &mut dyn io::Write,
     registry: &Registry,
-    before: impl FnOnce() -> G,
+    enter_scope: impl FnOnce() -> G,
 ) -> Result<()> {
     // The returned value is kept alive for the duration of encoding and then dropped.
-    let _guard = before();
+    let _guard = enter_scope();
 
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     Encoder::new(&mut metric_set, registry).encode()?;

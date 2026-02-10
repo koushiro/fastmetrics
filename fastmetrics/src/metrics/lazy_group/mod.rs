@@ -35,10 +35,22 @@ use crate::{
 };
 
 mod id;
-pub(crate) mod scrape_ctx;
+mod scrape_ctx;
 mod source;
 
-pub(crate) use self::id::LazyGroupId;
+use self::id::LazyGroupId;
+
+/// Enters a scrape scope on the current thread and returns a guard.
+///
+/// While the guard is alive, grouped lazy metrics derived from [`LazyGroup`] can share a single
+/// cached sample within the current scrape.
+///
+/// This function is intended for advanced integrations that need to pass an explicit scope hook to
+/// encoders (e.g. [`crate::format::text::encode_with`]).
+#[inline]
+pub fn enter_scope() -> impl Drop {
+    scrape_ctx::enter()
+}
 
 /// A group of lazily-evaluated metrics sharing a single sample per scrape.
 ///

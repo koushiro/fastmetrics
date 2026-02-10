@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     metrics.register(&mut registry)?;
 
     let mut encoded = String::new();
-    text::encode(&mut encoded, &registry)?;
+    text::encode(&mut encoded, &registry, text::TextProfile::OpenMetrics1)?;
     println!("\n=== Exported Metrics ===\n{encoded}");
 
     Ok(())
