@@ -116,8 +116,11 @@ async fn text_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
 
 async fn protobuf_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry).map_err(ErrorInternalServerError)?;
-    Ok(HttpResponse::Ok().body(output))
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::CONTENT_TYPE, profile.content_type()))
+        .body(output))
 }
 
 #[actix_web::main]

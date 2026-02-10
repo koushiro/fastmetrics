@@ -54,8 +54,13 @@ impl warp::reject::Reject for ProtobufEncodeReject {}
 
 fn metrics_encode_protobuf(state: AppState) -> Result<impl Reply, ProtobufEncodeReject> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry).map_err(|_| ProtobufEncodeReject)?;
-    Ok(warp::reply::with_status(output, StatusCode::OK))
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile).map_err(|_| ProtobufEncodeReject)?;
+    Ok(warp::reply::with_header(
+        warp::reply::with_status(output, StatusCode::OK),
+        header::CONTENT_TYPE,
+        profile.content_type(),
+    ))
 }
 
 async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {

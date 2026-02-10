@@ -73,7 +73,10 @@ async fn metrics_text(state: &State<AppState>) -> (Status, (ContentType, String)
             (ContentType::Plain, format!("text encode error: {e}")),
         );
     }
-    (Status::Ok, (ContentType::Plain, output))
+    (
+        Status::Ok,
+        (ContentType::parse_flexible(profile.content_type()).unwrap_or(ContentType::Plain), output),
+    )
 }
 
 #[rocket::get("/metrics/text")]
@@ -84,13 +87,20 @@ async fn metrics_text_explicit(state: &State<AppState>) -> (Status, (ContentType
 #[rocket::get("/metrics/protobuf")]
 async fn metrics_protobuf(state: &State<AppState>) -> (Status, (ContentType, Vec<u8>)) {
     let mut output = Vec::new();
-    if let Err(e) = prost::encode(&mut output, &state.registry) {
+    let profile = prost::ProtobufProfile::Prometheus;
+    if let Err(e) = prost::encode(&mut output, &state.registry, profile) {
         return (
             Status::InternalServerError,
             (ContentType::Plain, format!("protobuf encode error: {e}").into_bytes()),
         );
     }
-    (Status::Ok, (ContentType::Binary, output))
+    (
+        Status::Ok,
+        (
+            ContentType::parse_flexible(profile.content_type()).unwrap_or(ContentType::Binary),
+            output,
+        ),
+    )
 }
 
 #[rocket::catch(404)]

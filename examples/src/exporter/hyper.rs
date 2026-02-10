@@ -73,10 +73,14 @@ fn text_response(state: &AppState) -> Result<MetricsResponse, AppError> {
 
 fn protobuf_response(state: &AppState) -> Result<MetricsResponse, AppError> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry)?;
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 
-    Ok(Response::builder().status(StatusCode::OK).body(body)?)
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .status(StatusCode::OK)
+        .body(body)?)
 }
 
 fn not_found_response(path: &str) -> Result<MetricsResponse, AppError> {

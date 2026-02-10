@@ -1,6 +1,4 @@
-//! Protobuf exposition format using [protobuf](https://github.com/stepancheg/rust-protobuf) crate.
-
-use std::{borrow::Cow, io, time::Duration};
+use std::{borrow::Cow, time::Duration};
 
 use crate::{
     encoder::{
@@ -12,98 +10,12 @@ use crate::{
     registry::Registry,
 };
 
-/// Data models that are automatically generated from [OpenMetrics protobuf schema].
-///
-/// [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
-#[allow(missing_docs)]
-#[allow(clippy::all)]
-mod openmetrics_data_model {
-    include!(concat!(env!("OUT_DIR"), "/protobuf/mod.rs"));
+use super::openmetrics_data_model;
 
-    pub use self::openmetrics_data_model::*;
-}
-
-/// Encodes metrics from a registry into the [OpenMetrics protobuf format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format).
-///
-/// # Arguments
-///
-/// * `buffer` - A mutable reference to any type implementing [`io::Write`] trait where the encoded
-///   protobuf data will be written.
-/// * `registry` - A reference to the [`Registry`] containing the metrics to encode.
-///
-/// # Returns
-///
-/// Returns `Ok(())` if encoding was successful, or a [`Error`] if there was an error during
-/// protobuf encoding.
-///
-/// # Example
-///
-/// ```rust
-/// # use fastmetrics::{
-/// #     error::Result,
-/// #     format::protobuf,
-/// #     metrics::counter::Counter,
-/// #     registry::Registry,
-/// # };
-/// #
-/// # fn main() -> Result<()> {
-/// let mut registry = Registry::default();
-///
-/// // Register a counter
-/// let requests = <Counter>::default();
-/// registry.register(
-///     "http_requests_total",
-///     "Total number of HTTP requests",
-///     requests.clone()
-/// )?;
-/// // Update a counter
-/// requests.inc();
-///
-/// // Encode metrics in protobuf format
-/// let mut output = Vec::new();
-/// protobuf::encode(&mut output, &registry)?;
-/// assert!(!output.is_empty());
-/// # Ok(())
-/// # }
-/// ```
-pub fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> Result<()> {
-    encode_with(buffer, registry, crate::metrics::lazy_group::enter_scope)
-}
-
-/// Encodes metrics in protobuf format, running a user-provided "scope/guard" for the duration of
-/// the encoding pass.
-///
-/// Pass a closure that enters a scrape scope (e.g. `metrics::lazy_group::scrape_ctx::enter`) to
-/// enable scrape-scoped caching for grouped lazy metrics created via
-/// [`crate::metrics::lazy_group::LazyGroup`].
-///
-/// The returned value is kept alive for the duration of encoding and then dropped.
-///
-/// # Example
-///
-/// ```rust
-/// # use fastmetrics::{error::Result, format::protobuf, registry::Registry};
-/// # fn main() -> Result<()> {
-/// let registry = Registry::default();
-/// let mut out = Vec::new();
-///
-/// // No additional scope:
-/// protobuf::encode_with(&mut out, &registry, || ())?;
-///
-/// # Ok(())
-/// # }
-/// ```
-pub fn encode_with<G>(
-    buffer: &mut dyn io::Write,
-    registry: &Registry,
-    enter_scope: impl FnOnce() -> G,
-) -> Result<()> {
-    // The returned value is kept alive for the duration of encoding and then dropped.
-    let _guard = enter_scope();
-
+pub(super) fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     Encoder::new(&mut metric_set, registry).encode()?;
-    protobuf::Message::write_to_writer(&metric_set, buffer)
+    prost::Message::encode(&metric_set, buffer)
         .map_err(|err| Error::unexpected(err.to_string()).set_source(err))
 }
 
@@ -150,14 +62,14 @@ struct MetricFamilyEncoder<'a> {
 impl From<MetricType> for openmetrics_data_model::MetricType {
     fn from(metric_type: MetricType) -> Self {
         match metric_type {
-            MetricType::Unknown => openmetrics_data_model::MetricType::UNKNOWN,
-            MetricType::Gauge => openmetrics_data_model::MetricType::GAUGE,
-            MetricType::Counter => openmetrics_data_model::MetricType::COUNTER,
-            MetricType::StateSet => openmetrics_data_model::MetricType::STATE_SET,
-            MetricType::Info => openmetrics_data_model::MetricType::INFO,
-            MetricType::Histogram => openmetrics_data_model::MetricType::HISTOGRAM,
-            MetricType::GaugeHistogram => openmetrics_data_model::MetricType::GAUGE_HISTOGRAM,
-            MetricType::Summary => openmetrics_data_model::MetricType::SUMMARY,
+            MetricType::Unknown => openmetrics_data_model::MetricType::Unknown,
+            MetricType::Gauge => openmetrics_data_model::MetricType::Gauge,
+            MetricType::Counter => openmetrics_data_model::MetricType::Counter,
+            MetricType::StateSet => openmetrics_data_model::MetricType::StateSet,
+            MetricType::Info => openmetrics_data_model::MetricType::Info,
+            MetricType::Histogram => openmetrics_data_model::MetricType::Histogram,
+            MetricType::GaugeHistogram => openmetrics_data_model::MetricType::GaugeHistogram,
+            MetricType::Summary => openmetrics_data_model::MetricType::Summary,
         }
     }
 }
@@ -176,7 +88,10 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
                     None => metadata.name().to_owned(),
                 }
             },
-            type_: openmetrics_data_model::MetricType::from(metadata.metric_type()).into(),
+            r#type: {
+                let metric_type = openmetrics_data_model::MetricType::from(metadata.metric_type());
+                metric_type as i32
+            },
             unit: if let Some(unit) = metadata.unit() {
                 unit.as_str().to_owned()
             } else {
@@ -184,7 +99,6 @@ impl encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_> {
             },
             help: metadata.help().to_owned(),
             metrics: vec![],
-            special_fields: protobuf::SpecialFields::new(),
         };
 
         let mut labels = vec![];
@@ -208,11 +122,10 @@ struct MetricEncoder<'a> {
     timestamp: Option<Duration>,
 }
 
-fn into_protobuf_timestamp(duration: Duration) -> protobuf::well_known_types::timestamp::Timestamp {
-    protobuf::well_known_types::timestamp::Timestamp {
+fn into_prost_timestamp(duration: Duration) -> prost_types::Timestamp {
+    prost_types::Timestamp {
         seconds: duration.as_secs() as i64,
         nanos: duration.subsec_nanos() as i32,
-        special_fields: protobuf::SpecialFields::new(),
     }
 }
 
@@ -225,15 +138,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             labels: self.labels.clone(),
             metric_points: vec![openmetrics_data_model::MetricPoint {
                 value: Some(openmetrics_data_model::metric_point::Value::UnknownValue(
-                    openmetrics_data_model::UnknownValue {
-                        value: Some(v),
-                        special_fields: protobuf::SpecialFields::new(),
-                    },
+                    openmetrics_data_model::UnknownValue { value: Some(v) },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -247,15 +155,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             labels: self.labels.clone(),
             metric_points: vec![openmetrics_data_model::MetricPoint {
                 value: Some(openmetrics_data_model::metric_point::Value::GaugeValue(
-                    openmetrics_data_model::GaugeValue {
-                        value: Some(v),
-                        special_fields: protobuf::SpecialFields::new(),
-                    },
+                    openmetrics_data_model::GaugeValue { value: Some(v) },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -284,15 +187,12 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                 value: Some(openmetrics_data_model::metric_point::Value::CounterValue(
                     openmetrics_data_model::CounterValue {
                         total: Some(t),
-                        created: created.map(into_protobuf_timestamp).into(),
-                        exemplar: exemplar.into(),
-                        special_fields: protobuf::SpecialFields::new(),
+                        created: created.map(into_prost_timestamp),
+                        exemplar,
                     },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -304,7 +204,6 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             .map(|(state, enabled)| openmetrics_data_model::state_set_value::State {
                 name: state.to_owned(),
                 enabled,
-                special_fields: protobuf::SpecialFields::new(),
             })
             .collect::<Vec<_>>();
 
@@ -312,15 +211,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             labels: self.labels.clone(),
             metric_points: vec![openmetrics_data_model::MetricPoint {
                 value: Some(openmetrics_data_model::metric_point::Value::StateSetValue(
-                    openmetrics_data_model::StateSetValue {
-                        states,
-                        special_fields: protobuf::SpecialFields::new(),
-                    },
+                    openmetrics_data_model::StateSetValue { states },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -334,15 +228,10 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             labels: self.labels.clone(),
             metric_points: vec![openmetrics_data_model::MetricPoint {
                 value: Some(openmetrics_data_model::metric_point::Value::InfoValue(
-                    openmetrics_data_model::InfoValue {
-                        info: info_labels,
-                        special_fields: protobuf::SpecialFields::new(),
-                    },
+                    openmetrics_data_model::InfoValue { info: info_labels },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -377,9 +266,7 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                         }
                     } else {
                         None
-                    }
-                    .into(),
-                    special_fields: protobuf::SpecialFields::new(),
+                    },
                 })
             })
             .collect::<Result<Vec<_>, Error>>()?;
@@ -392,14 +279,11 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                         buckets,
                         count,
                         sum: Some(openmetrics_data_model::histogram_value::Sum::DoubleValue(sum)),
-                        created: created.map(into_protobuf_timestamp).into(),
-                        special_fields: protobuf::SpecialFields::new(),
+                        created: created.map(into_prost_timestamp),
                     },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -427,7 +311,6 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
             .map(|q| openmetrics_data_model::summary_value::Quantile {
                 quantile: q.quantile(),
                 value: q.value(),
-                special_fields: protobuf::SpecialFields::new(),
             })
             .collect::<Vec<_>>();
 
@@ -439,14 +322,11 @@ impl encoder::MetricEncoder for MetricEncoder<'_> {
                         quantile,
                         count,
                         sum: Some(openmetrics_data_model::summary_value::Sum::DoubleValue(sum)),
-                        created: created.map(into_protobuf_timestamp).into(),
-                        special_fields: protobuf::SpecialFields::new(),
+                        created: created.map(into_prost_timestamp),
                     },
                 )),
-                timestamp: self.timestamp.map(into_protobuf_timestamp).into(),
-                special_fields: protobuf::SpecialFields::new(),
+                timestamp: self.timestamp.map(into_prost_timestamp),
             }],
-            special_fields: protobuf::SpecialFields::new(),
         });
 
         Ok(())
@@ -627,7 +507,7 @@ impl encoder::ExemplarEncoder for ExemplarEncoder<'_> {
     ) -> Result<()> {
         label_set.encode(&mut LabelSetEncoder { labels: &mut self.exemplar.label })?;
         self.exemplar.value = value;
-        self.exemplar.timestamp = timestamp.map(into_protobuf_timestamp).into();
+        self.exemplar.timestamp = timestamp.map(into_prost_timestamp);
         Ok(())
     }
 }

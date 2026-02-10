@@ -76,7 +76,8 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
     state.metrics.http.inc_in_flight();
 
     let mut output = Vec::new();
-    let result = prost::encode(&mut output, &state.registry);
+    let profile = prost::ProtobufProfile::Prometheus;
+    let result = prost::encode(&mut output, &state.registry, profile);
 
     match result {
         Ok(()) => {
@@ -86,7 +87,10 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
             state.metrics.http.observe(req.method(), status.as_u16(), start);
             state.metrics.http.dec_in_flight();
 
-            Response::builder().status(status).body(body)
+            Response::builder()
+                .content_type(profile.content_type())
+                .status(status)
+                .body(body)
         },
         Err(e) => {
             let status = StatusCode::INTERNAL_SERVER_ERROR;
