@@ -1,43 +1,40 @@
-//! Wire formats.
+//! Wire format encoders.
 //!
-//! This module contains all metric exposition backends used by FastMetrics.
+//! This module groups all metric exposition backends used by FastMetrics.
 //!
-//! ## Module availability
+//! ## Availability
 //!
 //! - [`text`] is always available.
-//! - [`prost`] module is available when feature `prost` is enabled.
-//! - [`protobuf`] module is available when feature `protobuf` is enabled.
+//! - [`prost`] is available with feature `prost`.
+//! - [`protobuf`] is available with feature `protobuf`.
 //!
 //! ## Text format
 //!
-//! The [`text`] module exposes [`text::encode`] and [`text::encode_with`].
+//! The [`text`] module exposes the API:
+//! - `encode(buffer, registry, profile)`
+//! - `encode_with(buffer, registry, profile, enter_scope)`.
 //!
-//! It follows the [OpenMetrics text format] and supports the [Prometheus text format]:
-//!
-//! - `TextProfile::OpenMetrics1` (default)
-//! - `TextProfile::Prometheus004`
+//! Text profiles:
+//! - `OpenMetrics1` (default): [OpenMetrics text format]
+//! - `Prometheus004`: [Prometheus text format]
 //!
 //! ## Protobuf format
 //!
-//! Protobuf support is feature-gated and available through two interchangeable modules:
+//! Protobuf support is feature-gated and provided by two interchangeable backends:
 //! - [`prost`] (feature `prost`)
 //! - [`protobuf`] (feature `protobuf`)
 //!
-//! Both modules expose:
-//! - [`prost::encode`] / [`prost::encode_with`]
-//! - [`protobuf::encode`] / [`protobuf::encode_with`]
-//!
-//! Both modules re-export the same profile type:
-//! - [`prost::ProtobufProfile`]
-//! - [`protobuf::ProtobufProfile`]
+//! Both backends expose the same API shape:
+//! - `encode(buffer, registry, profile)`
+//! - `encode_with(buffer, registry, profile, enter_scope)`
 //!
 //! Protobuf profiles:
-//! - `Prometheus` (default): a length-delimited stream of `io.prometheus.client.MetricFamily`.
-//! - `OpenMetrics1`: a single `openmetrics.MetricSet` message.
-//!
-//! References:
-//! - [Prometheus protobuf format], [Prometheus protobuf schema]
-//! - [OpenMetrics protobuf format], [OpenMetrics protobuf schema]
+//! - `Prometheus` (default): length-delimited `io.prometheus.client.MetricFamily` stream
+//!   - [Prometheus protobuf format]
+//!   - [Prometheus protobuf schema]
+//! - `OpenMetrics1`: single `openmetrics.MetricSet` message
+//!   - [OpenMetrics protobuf format]
+//!   - [OpenMetrics protobuf schema]
 //!
 //! [OpenMetrics text format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format
 //! [Prometheus text format]: https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details
