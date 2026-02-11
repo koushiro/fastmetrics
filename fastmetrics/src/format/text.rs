@@ -7,7 +7,7 @@ use crate::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
         EncodeMetric, EncodeUnknownValue, MetricFamilyEncoder as _,
     },
-    error::Result,
+    error::{Error, Result},
     raw::{
         Metadata, MetricType, Unit,
         bucket::{BUCKET_LABEL, Bucket},
@@ -26,6 +26,7 @@ struct ProfileConfig {
     append_counter_total_suffix: bool,
     emit_created_series: bool,
     emit_exemplars: bool,
+    prometheus_type_compat: bool,
     timestamp_format: TimestampFormat,
 }
 
@@ -45,6 +46,7 @@ impl From<TextProfile> for ProfileConfig {
                 append_counter_total_suffix: true,
                 emit_created_series: true,
                 emit_exemplars: true,
+                prometheus_type_compat: false,
                 timestamp_format: TimestampFormat::SecondsMillis,
             },
             TextProfile::Prometheus004 => Self {
@@ -54,6 +56,7 @@ impl From<TextProfile> for ProfileConfig {
                 append_counter_total_suffix: false,
                 emit_created_series: false,
                 emit_exemplars: false,
+                prometheus_type_compat: true,
                 timestamp_format: TimestampFormat::MillisecondsInteger,
             },
         }
@@ -207,15 +210,15 @@ where
     W: fmt::Write,
 {
     #[inline]
-    fn encode_type(&mut self, metric_name: &str, ty: MetricType) -> Result<()> {
-        let ty = ty.as_str();
+    fn encode_type(&mut self, metric_name: &str, ty: &str) -> Result<()> {
         self.writer.write_fmt(format_args!("# TYPE {metric_name} {ty}"))?;
         self.encode_newline()
     }
 
     #[inline]
     fn encode_help(&mut self, metric_name: &str, help: &str) -> Result<()> {
-        self.writer.write_fmt(format_args!("# HELP {metric_name} {help}"))?;
+        self.writer.write_fmt(format_args!("# HELP {metric_name} "))?;
+        self.encode_escaped_help(help)?;
         self.encode_newline()
     }
 
@@ -234,6 +237,27 @@ where
     #[inline]
     fn encode_newline(&mut self) -> Result<()> {
         self.writer.write_str("\n")?;
+        Ok(())
+    }
+
+    fn encode_escaped_help(&mut self, help: &str) -> Result<()> {
+        let mut chars = help.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            match ch {
+                '\\' => match chars.peek().copied() {
+                    Some('\\') | Some('"') | Some('n') => {
+                        self.writer.write_char('\\')?;
+                        self.writer.write_char(chars.next().expect("peeked help escape char"))?;
+                    },
+                    _ => self.writer.write_str("\\\\")?,
+                },
+                '\n' => self.writer.write_str("\\n")?,
+                '"' => self.writer.write_str("\\\"")?,
+                _ => self.writer.write_char(ch)?,
+            }
+        }
+
         Ok(())
     }
 }
@@ -261,24 +285,27 @@ fn metric_name<'a>(
     }
 }
 
-fn write_timestamp(
-    writer: &mut impl fmt::Write,
-    duration: Duration,
-    format: TimestampFormat,
-) -> Result<()> {
-    match format {
-        TimestampFormat::SecondsMillis => {
-            writer.write_fmt(format_args!(
-                " {}.{}",
-                duration.as_secs(),
-                duration.as_millis() % 1000
-            ))?;
+fn metric_type_name(metric_type: MetricType, prometheus_type_compat: bool) -> Result<&'static str> {
+    if !prometheus_type_compat {
+        return Ok(metric_type.as_str());
+    }
+
+    match metric_type {
+        MetricType::Unknown => Ok("untyped"),
+        MetricType::Counter => Ok("counter"),
+        MetricType::Gauge => Ok("gauge"),
+        MetricType::Histogram => Ok("histogram"),
+        MetricType::Summary => Ok("summary"),
+        MetricType::StateSet => {
+            Err(Error::unsupported("stateset is unsupported in Prometheus text profile"))
         },
-        TimestampFormat::MillisecondsInteger => {
-            writer.write_fmt(format_args!(" {}", duration.as_millis()))?;
+        MetricType::Info => {
+            Err(Error::unsupported("info is unsupported in Prometheus text profile"))
+        },
+        MetricType::GaugeHistogram => {
+            Err(Error::unsupported("gaugehistogram is unsupported in Prometheus text profile"))
         },
     }
-    Ok(())
 }
 
 impl<W> encoder::MetricFamilyEncoder for MetricFamilyEncoder<'_, W>
@@ -297,8 +324,9 @@ where
             metadata.unit(),
             self.config.append_unit_suffix,
         );
+        let ty = metric_type_name(metadata.metric_type(), self.config.prometheus_type_compat)?;
 
-        self.encode_type(metric_name.as_ref(), metadata.metric_type())?;
+        self.encode_type(metric_name.as_ref(), ty)?;
         self.encode_help(metric_name.as_ref(), metadata.help())?;
         self.encode_unit(metric_name.as_ref(), metadata.unit())?;
 
@@ -555,6 +583,26 @@ where
     }
 }
 
+fn write_timestamp(
+    writer: &mut impl fmt::Write,
+    duration: Duration,
+    format: TimestampFormat,
+) -> Result<()> {
+    match format {
+        TimestampFormat::SecondsMillis => {
+            writer.write_fmt(format_args!(
+                " {}.{}",
+                duration.as_secs(),
+                duration.as_millis() % 1000
+            ))?;
+        },
+        TimestampFormat::MillisecondsInteger => {
+            writer.write_fmt(format_args!(" {}", duration.as_millis()))?;
+        },
+    }
+    Ok(())
+}
+
 impl<W> encoder::MetricEncoder for MetricEncoder<'_, W>
 where
     W: fmt::Write,
@@ -754,6 +802,23 @@ struct LabelEncoder<'a, W> {
     first: bool,
 }
 
+impl<W> LabelEncoder<'_, W>
+where
+    W: fmt::Write,
+{
+    fn encode_escaped_label_value(&mut self, value: &str) -> Result<()> {
+        for ch in value.chars() {
+            match ch {
+                '\\' => self.writer.write_str("\\\\")?,
+                '\n' => self.writer.write_str("\\n")?,
+                '"' => self.writer.write_str("\\\"")?,
+                _ => self.writer.write_char(ch)?,
+            }
+        }
+        Ok(())
+    }
+}
+
 macro_rules! encode_integer_value_impls {
     ($($integer:ty),*) => (
         paste::paste! { $(
@@ -798,7 +863,7 @@ where
     #[inline]
     fn encode_str_value(&mut self, value: &str) -> Result<()> {
         self.writer.write_str("=\"")?;
-        self.writer.write_str(value)?;
+        self.encode_escaped_label_value(value)?;
         self.writer.write_str("\"")?;
         Ok(())
     }
@@ -921,5 +986,115 @@ where
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        error::ErrorKind,
+        metrics::{
+            gauge_histogram::GaugeHistogram,
+            info::Info,
+            state_set::{StateSet, StateSetValue},
+            unknown::Unknown,
+        },
+        registry::Registry,
+    };
+
+    #[test]
+    fn escape_help_and_label_values() {
+        let mut registry = Registry::default();
+        let info = Info::new(vec![("quote", "a\"b"), ("slash", "a\\b"), ("newline", "a\nb")]);
+
+        registry
+            .register("build", r#"Help with \"quote\", \\ slash and \n newline"#, info)
+            .unwrap();
+
+        let mut output = String::new();
+        encode(&mut output, &registry, TextProfile::OpenMetrics1).unwrap();
+
+        assert!(
+            output.contains(r#"# HELP build Help with \"quote\", \\ slash and \n newline"#),
+            "help line should keep canonical escaping: {output}"
+        );
+        assert!(output.contains(r#"quote="a\"b""#), "quote label should be escaped: {output}");
+        assert!(output.contains(r#"slash="a\\b""#), "slash label should be escaped: {output}");
+        assert!(output.contains(r#"newline="a\nb""#), "newline label should be escaped: {output}");
+    }
+
+    #[test]
+    fn prometheus_profile_maps_unknown_to_untyped() {
+        let mut registry = Registry::default();
+        registry.register("raw_value", "Raw value", Unknown::new(42_i64)).unwrap();
+
+        let mut output = String::new();
+        encode(&mut output, &registry, TextProfile::Prometheus004).unwrap();
+
+        assert!(
+            output.contains("# TYPE raw_value untyped"),
+            "unknown should map to untyped: {output}"
+        );
+        assert!(output.contains("raw_value 42"), "unknown sample missing: {output}");
+    }
+
+    #[test]
+    fn prometheus_profile_rejects_info() {
+        let mut registry = Registry::default();
+
+        let info = Info::new(vec![("version", "1.0.0")]);
+        registry.register("release_version", "Build info", info).unwrap();
+
+        let mut output = String::new();
+        let err = encode(&mut output, &registry, TextProfile::Prometheus004).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Unsupported);
+    }
+
+    #[test]
+    fn prometheus_profile_rejects_stateset() {
+        let mut registry = Registry::default();
+
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        enum TestState {
+            Ready,
+            Busy,
+        }
+
+        impl StateSetValue for TestState {
+            fn variants() -> &'static [Self] {
+                &[Self::Ready, Self::Busy]
+            }
+
+            fn as_str(&self) -> &str {
+                match self {
+                    Self::Ready => "ready",
+                    Self::Busy => "busy",
+                }
+            }
+        }
+
+        let stateset = StateSet::new(TestState::Ready);
+        registry.register("worker_state", "Worker state", stateset).unwrap();
+
+        let mut output = String::new();
+        let err = encode(&mut output, &registry, TextProfile::Prometheus004).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Unsupported);
+    }
+
+    #[test]
+    fn prometheus_profile_rejects_gauge_histogram() {
+        let mut registry = Registry::default();
+        registry
+            .register(
+                "temperature_distribution",
+                "Temperature distribution",
+                GaugeHistogram::default(),
+            )
+            .unwrap();
+
+        let mut output = String::new();
+        let err = encode(&mut output, &registry, TextProfile::Prometheus004).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::Unsupported);
     }
 }
