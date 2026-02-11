@@ -15,7 +15,7 @@ use crate::{
         bucket::{BUCKET_LABEL, Bucket},
         quantile::{QUANTILE_LABEL, Quantile},
     },
-    registry::Registry,
+    registry::{NameRule, Registry},
 };
 
 pub(super) fn encode(
@@ -41,7 +41,7 @@ where
     }
 
     fn encode(&mut self) -> Result<()> {
-        if self.config.name_policy.is_lossy() {
+        if self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy() {
             let mut escaped_to_canonical = HashMap::new();
             self.check_family_name_collisions(self.registry, &mut escaped_to_canonical)?;
         }
@@ -66,6 +66,11 @@ where
         for subsystem in registry.subsystems.values() {
             self.encode_registry(subsystem)?;
         }
+        Ok(())
+    }
+
+    fn encode_eof(&mut self) -> Result<()> {
+        self.writer.write_str("# EOF\n")?;
         Ok(())
     }
 
@@ -108,11 +113,6 @@ where
             self.check_family_name_collisions(subsystem, escaped_to_canonical)?;
         }
 
-        Ok(())
-    }
-
-    fn encode_eof(&mut self) -> Result<()> {
-        self.writer.write_str("# EOF\n")?;
         Ok(())
     }
 }

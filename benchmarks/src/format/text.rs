@@ -186,7 +186,7 @@ fn bench_text_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics (prometheus 0.0.4): {metric_id}");
+            let id = format!("fastmetrics (prometheus 1.0.0): {metric_id}");
             group.sample_size(50).bench_function(id, |b| {
                 use fastmetrics::format::text::{TextProfile, encode};
 
@@ -194,7 +194,12 @@ fn bench_text_encoding(c: &mut Criterion) {
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode(&mut buffer, &registry, TextProfile::PrometheusV0_0_4).unwrap();
+                    encode(
+                        &mut buffer,
+                        &registry,
+                        TextProfile::PrometheusV1_0_0 { escaping_scheme: Default::default() },
+                    )
+                    .unwrap();
                     black_box(&mut buffer);
                 });
             });
