@@ -107,7 +107,7 @@ where
 
 async fn text_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
     let mut output = String::new();
-    let profile = text::TextProfile::Prometheus004;
+    let profile = text::TextProfile::PrometheusV0_0_4;
     text::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
     Ok(HttpResponse::Ok()
         .insert_header((header::CONTENT_TYPE, profile.content_type()))

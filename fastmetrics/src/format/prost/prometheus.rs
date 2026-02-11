@@ -1,5 +1,6 @@
 use std::{borrow::Cow, time::Duration};
 
+use super::prometheus_data_model;
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
@@ -9,8 +10,6 @@ use crate::{
     raw::{Metadata, MetricType, bucket::Bucket, quantile::Quantile},
     registry::Registry,
 };
-
-use super::prometheus_data_model;
 
 pub(super) fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Result<()> {
     let mut metric_families = vec![];

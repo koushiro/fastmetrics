@@ -37,7 +37,7 @@
 //! use fastmetrics::{
 //!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
 //!     error::Result,
-//!     format::text,
+//!     format::text::{self, TextProfile},
 //!     metrics::{counter::Counter, family::Family},
 //!     raw::LabelSetSchema,
 //!     registry::Registry,
@@ -111,7 +111,7 @@
 //!
 //! // Export metrics in text format
 //! let mut output = String::new();
-//! text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1)?;
+//! text::encode(&mut output, &registry, TextProfile::default())?;
 //! // println!("{}", output);
 //! assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="Get",status="200"} 1"#));
 //! # Ok(())

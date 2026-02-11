@@ -35,7 +35,7 @@ and it's compatible with [Prometheus].
 use fastmetrics::{
     derive::*,
     error::Result,
-    format::text,
+    format::text::{self, TextProfile},
     metrics::{counter::Counter, family::Family},
     registry::*,
 };
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 
     // Export metrics in text format
     let mut output = String::new();
-    text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1)?;
+    text::encode(&mut output, &registry, TextProfile::default())?;
     println!("{}", output);
 
     Ok(())

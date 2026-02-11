@@ -42,7 +42,7 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
     state.metrics.http.inc_in_flight();
 
     let mut output = String::new();
-    let profile = text::TextProfile::Prometheus004;
+    let profile = text::TextProfile::PrometheusV0_0_4;
     let result = text::encode(&mut output, &state.registry, profile);
 
     match result {

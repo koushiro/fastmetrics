@@ -61,7 +61,7 @@ impl AppError {
 
 fn text_response(state: &AppState) -> Result<MetricsResponse, AppError> {
     let mut output = String::new();
-    let profile = text::TextProfile::Prometheus004;
+    let profile = text::TextProfile::PrometheusV0_0_4;
     text::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 

@@ -175,7 +175,7 @@ fn bench_text_encoding(c: &mut Criterion) {
                 })
             });
 
-            let id = format!("prometheus_client (openmetrics 1): {metric_id}");
+            let id = format!("prometheus_client (openmetrics 0.0.1): {metric_id}");
             group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
                 let mut buffer = String::new();
@@ -194,12 +194,12 @@ fn bench_text_encoding(c: &mut Criterion) {
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode(&mut buffer, &registry, TextProfile::Prometheus004).unwrap();
+                    encode(&mut buffer, &registry, TextProfile::PrometheusV0_0_4).unwrap();
                     black_box(&mut buffer);
                 });
             });
 
-            let id = format!("fastmetrics (openmetrics 1): {metric_id}");
+            let id = format!("fastmetrics (openmetrics 1.0.0): {metric_id}");
             group.sample_size(50).bench_function(id, |b| {
                 use fastmetrics::format::text::{TextProfile, encode};
 
@@ -207,7 +207,12 @@ fn bench_text_encoding(c: &mut Criterion) {
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode(&mut buffer, &registry, TextProfile::OpenMetrics1).unwrap();
+                    encode(
+                        &mut buffer,
+                        &registry,
+                        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: Default::default() },
+                    )
+                    .unwrap();
                     black_box(&mut buffer);
                 });
             });
