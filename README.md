@@ -17,17 +17,27 @@
 A pure-Rust implementation of the [OpenMetrics] specification for transmitting cloud-native metrics at scale,
 and it's compatible with [Prometheus].
 
-[OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 [Prometheus]: https://prometheus.io
+[OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 
 ## Features
 
 - Full support for [OpenMetrics] specification
 - Fast encoding in both text and (optional) protobuf exposition format
+  - Text
+    - Prometheus text: `0.0.4`, `1.0.0`
+    - OpenMetrics text: `0.0.1`, `1.0.0`
+    - V1 escaping schemes: `allow-utf-8`, `underscores`, `dots`, `values`
+  - Protobuf
+    - [Prometheus protobuf schema]
+    - [OpenMetrics protobuf schema]
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
 - Derive macros to simplify code (e.g., like registering metrics, label handling, etc.)
+
+[Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
+[OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 
 ## Usage
 
