@@ -1,12 +1,16 @@
 use super::*;
 use crate::{
-    error::ErrorKind,
+    encoder::{EncodeLabelSet, LabelSetEncoder},
+    error::{ErrorKind, Result},
     metrics::{
+        counter::Counter,
+        family::Family,
         gauge_histogram::GaugeHistogram,
         info::Info,
         state_set::{StateSet, StateSetValue},
         unknown::Unknown,
     },
+    raw::LabelSetSchema,
     registry::{NameRule, Registry},
 };
 
@@ -137,10 +141,10 @@ fn legacy_profiles_reject_utf8_metric_name() {
     let mut output = String::new();
 
     let err = encode(&mut output, &registry, TextProfile::PrometheusV0_0_4).unwrap_err();
-    assert_eq!(err.kind(), ErrorKind::Unsupported);
+    assert_eq!(err.kind(), ErrorKind::Invalid);
 
     let err = encode(&mut output, &registry, TextProfile::OpenMetricsV0_0_1).unwrap_err();
-    assert_eq!(err.kind(), ErrorKind::Unsupported);
+    assert_eq!(err.kind(), ErrorKind::Invalid);
 }
 
 #[test]
@@ -245,4 +249,135 @@ fn v1_dots_rejects_family_name_collisions_after_escaping() {
     .unwrap_err();
     assert_eq!(err.kind(), ErrorKind::Duplicated);
     assert_eq!(err.message(), "metric family names collide after escaping");
+}
+
+#[test]
+fn v1_underscores_rejects_const_label_name_collisions_after_escaping() {
+    let mut registry = Registry::builder()
+        .with_name_rule(NameRule::Utf8)
+        .with_const_labels([("a-b", "x"), ("a/b", "y")])
+        .build()
+        .unwrap();
+    registry.register("req_total", "help", Unknown::new(1_i64)).unwrap();
+
+    let mut output = String::new();
+    let err = encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Underscores },
+    )
+    .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Duplicated);
+    assert_eq!(err.message(), "label names collide after escaping");
+}
+
+#[test]
+fn v1_dots_rejects_family_label_name_collisions_after_escaping() {
+    #[derive(Clone, Eq, PartialEq, Hash)]
+    struct CollisionLabels {
+        left: &'static str,
+        right: &'static str,
+    }
+
+    impl LabelSetSchema for CollisionLabels {
+        fn names() -> Option<&'static [&'static str]> {
+            Some(&["a-b", "a/b"])
+        }
+    }
+
+    impl EncodeLabelSet for CollisionLabels {
+        fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
+            encoder.encode(&("a-b", self.left))?;
+            encoder.encode(&("a/b", self.right))?;
+            Ok(())
+        }
+    }
+
+    let mut registry = Registry::builder().with_name_rule(NameRule::Utf8).build().unwrap();
+    let family = Family::<CollisionLabels, Counter>::default();
+    registry.register("req_total", "help", family.clone()).unwrap();
+    family.with_or_new(&CollisionLabels { left: "get", right: "200" }, |counter| counter.inc());
+
+    let mut output = String::new();
+    let err = encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Dots },
+    )
+    .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Duplicated);
+    assert_eq!(err.message(), "label names collide after escaping");
+}
+
+#[test]
+fn v1_underscores_rejects_stateset_label_name_collisions_after_escaping() {
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    enum TestState {
+        Ready,
+    }
+
+    impl StateSetValue for TestState {
+        fn variants() -> &'static [Self] {
+            &[Self::Ready]
+        }
+
+        fn as_str(&self) -> &str {
+            "ready"
+        }
+    }
+
+    let mut registry = Registry::builder()
+        .with_name_rule(NameRule::Utf8)
+        .with_const_labels([("state/label", "prod")])
+        .build()
+        .unwrap();
+    registry
+        .register("state-label", "help", StateSet::new(TestState::Ready))
+        .unwrap();
+
+    let mut output = String::new();
+    let err = encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Underscores },
+    )
+    .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Duplicated);
+    assert_eq!(err.message(), "label names collide after escaping");
+}
+
+#[test]
+fn v1_dots_stateset_escapes_state_label_name_once() {
+    #[derive(Copy, Clone, Debug, PartialEq)]
+    enum TestState {
+        Ready,
+    }
+
+    impl StateSetValue for TestState {
+        fn variants() -> &'static [Self] {
+            &[Self::Ready]
+        }
+
+        fn as_str(&self) -> &str {
+            "ready"
+        }
+    }
+
+    let mut registry = Registry::builder().with_name_rule(NameRule::Utf8).build().unwrap();
+    registry
+        .register("state.metric", "help", StateSet::new(TestState::Ready))
+        .unwrap();
+
+    let mut output = String::new();
+    encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Dots },
+    )
+    .unwrap();
+
+    assert!(
+        output.contains(r#"state_dot_metric{state_dot_metric="ready"} 1"#),
+        "stateset label name should be escaped once in dots mode: {output}"
+    );
 }

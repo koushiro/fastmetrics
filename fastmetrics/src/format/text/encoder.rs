@@ -41,30 +41,42 @@ where
     }
 
     fn encode(&mut self) -> Result<()> {
-        if self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy() {
+        // Registration validates canonical names. We only need extra checks in
+        // lossy profile escaping modes where different UTF-8 names can collapse
+        // to the same escaped identifier.
+        let check_escaped_name_collisions =
+            self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
+
+        if check_escaped_name_collisions {
+            // mapping: escaped metric name => canonical metric name
             let mut escaped_to_canonical = HashMap::new();
             self.check_family_name_collisions(self.registry, &mut escaped_to_canonical)?;
         }
 
-        self.encode_registry(self.registry)?;
+        self.encode_registry(self.registry, check_escaped_name_collisions)?;
         if self.config.emit_eof {
             self.encode_eof()?;
         }
         Ok(())
     }
 
-    fn encode_registry(&mut self, registry: &Registry) -> Result<()> {
+    fn encode_registry(
+        &mut self,
+        registry: &Registry,
+        check_label_name_collisions: bool,
+    ) -> Result<()> {
         for (metadata, metric) in &registry.metrics {
             MetricFamilyEncoder {
                 writer: self.writer,
                 namespace: registry.namespace(),
                 const_labels: registry.constant_labels(),
                 config: self.config,
+                check_label_name_collisions,
             }
             .encode(metadata, metric)?;
         }
         for subsystem in registry.subsystems.values() {
-            self.encode_registry(subsystem)?;
+            self.encode_registry(subsystem, check_label_name_collisions)?;
         }
         Ok(())
     }
@@ -122,6 +134,7 @@ struct MetricFamilyEncoder<'a, W> {
     namespace: Option<&'a str>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     config: ProfileConfig,
+    check_label_name_collisions: bool,
 }
 
 impl<W> MetricFamilyEncoder<'_, W>
@@ -260,21 +273,52 @@ where
             const_labels: self.const_labels,
             family_labels: None,
             config: self.config,
+            check_label_name_collisions: self.check_label_name_collisions,
         })
     }
 }
 
 struct MetricEncoder<'a, W> {
     writer: &'a mut W,
+
     // Escaped [namespace_]name[_unit] used for rendering samples.
     metric_name: Cow<'a, str>,
     // Canonical [namespace_]name[_unit] before profile escaping.
     canonical_metric_name: Cow<'a, str>,
     metric_type: MetricType,
     timestamp: Option<Duration>,
+
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
+
     config: ProfileConfig,
+    check_label_name_collisions: bool,
+}
+
+struct CommonLabels {
+    encoded: String,
+    // Escaped label names that were already emitted in `encoded`.
+    // We keep this map only when lossy escaping collision checks are enabled,
+    // so `encode_label_set_with_common` can perform incremental checks for
+    // additional labels (for example `le`/`quantile`/stateset labels).
+    escaped_to_canonical: Option<HashMap<String, String>>,
+}
+
+enum AdditionalLabelValue<'a> {
+    Str(&'a str),
+    F64(f64),
+}
+
+fn write_escaped_label_value(writer: &mut impl fmt::Write, value: &str) -> Result<()> {
+    for ch in value.chars() {
+        match ch {
+            '\\' => writer.write_str("\\\\")?,
+            '\n' => writer.write_str("\\n")?,
+            '"' => writer.write_str("\\\"")?,
+            _ => writer.write_char(ch)?,
+        }
+    }
+    Ok(())
 }
 
 impl<W> MetricEncoder<'_, W>
@@ -288,8 +332,27 @@ where
         Ok(())
     }
 
+    fn encode_labels<T: fmt::Write>(
+        writer: &mut T,
+        labels: &dyn EncodeLabelSet,
+        name_policy: NamePolicy,
+        collision_existing: Option<&HashMap<String, String>>,
+        collision_seen: Option<&mut HashMap<String, String>>,
+    ) -> Result<()> {
+        if let Some(collision_seen) = collision_seen {
+            labels.encode(&mut LabelSetEncoder::new_with_collision_tracking(
+                writer,
+                name_policy,
+                collision_existing,
+                collision_seen,
+            ))
+        } else {
+            labels.encode(&mut LabelSetEncoder::new(writer, name_policy))
+        }
+    }
+
     /// Pre-encode common labels (const_labels + family_labels) to a string buffer
-    fn encode_common_labels_to_string(&self) -> Result<Option<String>> {
+    fn encode_common_labels_to_string(&self) -> Result<Option<CommonLabels>> {
         let has_const_labels = !self.const_labels.is_empty();
         let has_family_labels = matches!(self.family_labels, Some(labels) if !labels.is_empty());
 
@@ -298,57 +361,82 @@ where
         }
 
         let mut common_labels = String::new();
+        // mapping: escaped label name => canonical label name
+        let mut escaped_to_canonical = self.check_label_name_collisions.then(HashMap::new);
 
         if has_const_labels {
-            self.const_labels
-                .encode(&mut LabelSetEncoder::new(&mut common_labels, self.config.name_policy))?;
+            Self::encode_labels(
+                &mut common_labels,
+                &self.const_labels,
+                self.config.name_policy,
+                None,
+                escaped_to_canonical.as_mut(),
+            )?;
         }
 
         if has_family_labels {
             if has_const_labels {
                 common_labels.push(',');
             }
-            self.family_labels
-                .expect("family_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(&mut common_labels, self.config.name_policy))?;
+
+            Self::encode_labels(
+                &mut common_labels,
+                self.family_labels.expect("family_labels should be `Some` value"),
+                self.config.name_policy,
+                None,
+                escaped_to_canonical.as_mut(),
+            )?;
         }
 
-        Ok(Some(common_labels))
+        Ok(Some(CommonLabels { encoded: common_labels, escaped_to_canonical }))
     }
 
-    /// Encode label set with pre-computed common labels for better performance
+    /// Escape a single additional label name and check for collisions against
+    /// already-encoded common labels when collision checking is enabled.
+    fn prepare_additional_label_name<'n>(
+        &self,
+        common_labels: Option<&CommonLabels>,
+        canonical_label_name: &'n str,
+    ) -> Result<Cow<'n, str>> {
+        let escaped_label_name = escape_label_name(canonical_label_name, self.config.name_policy)?;
+        if self.check_label_name_collisions {
+            if let Some(existing_name) = common_labels
+                .and_then(|labels| labels.escaped_to_canonical.as_ref())
+                .and_then(|existing| existing.get(escaped_label_name.as_ref()))
+            {
+                return Err(Error::duplicated("label names collide after escaping")
+                    .with_context("escaped_label", escaped_label_name.as_ref())
+                    .with_context("existing_label", existing_name)
+                    .with_context("conflicting_label", canonical_label_name));
+            }
+        }
+        Ok(escaped_label_name)
+    }
+
+    /// Encode label set with pre-computed common labels plus exactly one
+    /// additional label, optimized for histogram/summary/stateset hot loops.
     fn encode_label_set_with_common(
         &mut self,
-        common_labels: Option<&str>,
-        additional_labels: Option<&dyn EncodeLabelSet>,
+        common_labels: Option<&CommonLabels>,
+        escaped_label_name: &str,
+        value: AdditionalLabelValue<'_>,
     ) -> Result<()> {
-        let has_common_labels = common_labels.is_some();
-        let has_additional_labels = matches!(additional_labels, Some(labels) if !labels.is_empty());
-
-        if !has_common_labels && !has_additional_labels {
-            self.writer.write_str(" ")?;
-            return Ok(());
-        }
-
         self.writer.write_str("{")?;
 
-        let mut wrote_any = false;
-        if has_common_labels {
-            let common_labels = common_labels.expect("common_labels should be `Some` value");
-            self.writer.write_str(common_labels)?;
-            wrote_any = true;
+        if let Some(common_labels) = common_labels {
+            self.writer.write_str(common_labels.encoded.as_str())?;
+            self.writer.write_str(",")?;
         }
 
-        if has_additional_labels {
-            if wrote_any {
-                self.writer.write_str(",")?;
-            }
-            additional_labels
-                .expect("additional_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(self.writer, self.config.name_policy))?;
+        self.writer.write_str(escaped_label_name)?;
+        self.writer.write_str("=\"")?;
+        match value {
+            AdditionalLabelValue::Str(value) => write_escaped_label_value(self.writer, value)?,
+            AdditionalLabelValue::F64(value) => {
+                self.writer.write_str(zmij::Buffer::new().format(value))?;
+            },
         }
-
-        self.writer.write_str("} ")?;
+        self.writer.write_str("\"} ")?;
         Ok(())
     }
 
@@ -363,11 +451,18 @@ where
         }
 
         self.writer.write_str("{")?;
+        // mapping: escaped label name => canonical label name
+        let mut collision_seen = self.check_label_name_collisions.then(HashMap::new);
 
         let mut wrote_any = false;
         if has_const_labels {
-            self.const_labels
-                .encode(&mut LabelSetEncoder::new(self.writer, self.config.name_policy))?;
+            Self::encode_labels(
+                self.writer,
+                &self.const_labels,
+                self.config.name_policy,
+                None,
+                collision_seen.as_mut(),
+            )?;
             wrote_any = true;
         }
 
@@ -375,9 +470,14 @@ where
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            self.family_labels
-                .expect("family_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(self.writer, self.config.name_policy))?;
+
+            Self::encode_labels(
+                self.writer,
+                self.family_labels.expect("family_labels should be `Some` value"),
+                self.config.name_policy,
+                None,
+                collision_seen.as_mut(),
+            )?;
             wrote_any = true;
         }
 
@@ -385,9 +485,14 @@ where
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            additional_labels
-                .expect("additional_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(self.writer, self.config.name_policy))?;
+
+            Self::encode_labels(
+                self.writer,
+                additional_labels.expect("additional_labels should be `Some` value"),
+                self.config.name_policy,
+                None,
+                collision_seen.as_mut(),
+            )?;
         }
 
         self.writer.write_str("} ")?;
@@ -405,6 +510,8 @@ where
 
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
+        let escaped_bucket_label_name =
+            self.prepare_additional_label_name(common_labels.as_ref(), BUCKET_LABEL)?;
 
         let mut cumulative_count = 0;
         for (idx, bucket) in buckets.iter().enumerate() {
@@ -417,13 +524,15 @@ where
             // use pre-computed common labels
             if upper_bound == f64::INFINITY {
                 self.encode_label_set_with_common(
-                    common_labels.as_deref(),
-                    Some(&[(BUCKET_LABEL, "+Inf")]),
+                    common_labels.as_ref(),
+                    escaped_bucket_label_name.as_ref(),
+                    AdditionalLabelValue::Str("+Inf"),
                 )?;
             } else {
                 self.encode_label_set_with_common(
-                    common_labels.as_deref(),
-                    Some(&[(BUCKET_LABEL, upper_bound)]),
+                    common_labels.as_ref(),
+                    escaped_bucket_label_name.as_ref(),
+                    AdditionalLabelValue::F64(upper_bound),
                 )?;
             }
 
@@ -587,15 +696,19 @@ where
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
-        // encode state metrics
-        let state_label_name =
-            escape_label_name(self.canonical_metric_name.as_ref(), self.config.name_policy)?
-                .into_owned();
+        let canonical_state_label = self.canonical_metric_name.clone();
+        let escaped_state_label = self.prepare_additional_label_name(
+            common_labels.as_ref(),
+            canonical_state_label.as_ref(),
+        )?;
 
         for (state, enabled) in states {
             self.encode_metric_name()?;
-            let state_label = [(state_label_name.as_str(), state)];
-            self.encode_label_set_with_common(common_labels.as_deref(), Some(&state_label))?;
+            self.encode_label_set_with_common(
+                common_labels.as_ref(),
+                escaped_state_label.as_ref(),
+                AdditionalLabelValue::Str(state),
+            )?;
             if enabled {
                 self.writer.write_str("1")?;
             } else {
@@ -665,12 +778,16 @@ where
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
+        let escaped_quantile_label =
+            self.prepare_additional_label_name(common_labels.as_ref(), QUANTILE_LABEL)?;
+
         // encode quantile metrics
         for quantile in quantiles {
             self.encode_metric_name()?;
             self.encode_label_set_with_common(
-                common_labels.as_deref(),
-                Some(&[(QUANTILE_LABEL, quantile.quantile())]),
+                common_labels.as_ref(),
+                escaped_quantile_label.as_ref(),
+                AdditionalLabelValue::F64(quantile.quantile()),
             )?;
             self.writer.write_str(zmij::Buffer::new().format(quantile.value()))?;
             self.encode_timestamp()?;
@@ -702,57 +819,108 @@ where
             const_labels: self.const_labels,
             family_labels: Some(label_set),
             config: self.config,
+            check_label_name_collisions: self.check_label_name_collisions,
         })
     }
 }
 
-struct LabelSetEncoder<'a, W> {
+struct LabelSetEncoder<'a, 'b, W> {
     writer: &'a mut W,
     first: bool,
+
     name_policy: NamePolicy,
+    // `existing`: escaped names that were already encoded earlier
+    // (used by the common-label fast path).
+    collision_existing: Option<&'b HashMap<String, String>>,
+    // `seen`: escaped names encoded in the current label segment.
+    collision_seen: Option<&'b mut HashMap<String, String>>,
 }
 
-impl<'a, W> LabelSetEncoder<'a, W> {
-    fn new(writer: &'a mut W, name_policy: NamePolicy) -> LabelSetEncoder<'a, W> {
-        Self { writer, first: true, name_policy }
+impl<'a, 'b, W> LabelSetEncoder<'a, 'b, W> {
+    fn new(writer: &'a mut W, name_policy: NamePolicy) -> LabelSetEncoder<'a, 'b, W> {
+        Self { writer, first: true, name_policy, collision_existing: None, collision_seen: None }
+    }
+
+    fn new_with_collision_tracking(
+        writer: &'a mut W,
+        name_policy: NamePolicy,
+        collision_existing: Option<&'b HashMap<String, String>>,
+        collision_seen: &'b mut HashMap<String, String>,
+    ) -> LabelSetEncoder<'a, 'b, W> {
+        Self {
+            writer,
+            first: true,
+            name_policy,
+            collision_existing,
+            collision_seen: Some(collision_seen),
+        }
     }
 }
 
-impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, W>
+impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, '_, W>
 where
     W: fmt::Write,
 {
     fn encode(&mut self, label: &dyn EncodeLabel) -> Result<()> {
         let first = self.first;
         self.first = false;
+        let collision_guard =
+            self.collision_seen
+                .as_deref_mut()
+                .map(|collision_seen| LabelNameCollisionGuard {
+                    existing: self.collision_existing,
+                    seen: collision_seen,
+                });
+
         label.encode(&mut LabelEncoder {
             writer: self.writer,
             first,
             name_policy: self.name_policy,
+            collision_guard,
         })
     }
 }
 
-struct LabelEncoder<'a, W> {
-    writer: &'a mut W,
-    first: bool,
-    name_policy: NamePolicy,
+struct LabelNameCollisionGuard<'a> {
+    existing: Option<&'a HashMap<String, String>>,
+    seen: &'a mut HashMap<String, String>,
 }
 
-impl<W> LabelEncoder<'_, W>
+impl LabelNameCollisionGuard<'_> {
+    fn check_and_record(&mut self, canonical_name: &str, escaped_name: &str) -> Result<()> {
+        if let Some(existing_name) = self.existing.and_then(|existing| existing.get(escaped_name)) {
+            return Err(Error::duplicated("label names collide after escaping")
+                .with_context("escaped_label", escaped_name)
+                .with_context("existing_label", existing_name)
+                .with_context("conflicting_label", canonical_name));
+        }
+
+        if let Some(existing_name) = self.seen.get(escaped_name) {
+            return Err(Error::duplicated("label names collide after escaping")
+                .with_context("escaped_label", escaped_name)
+                .with_context("existing_label", existing_name)
+                .with_context("conflicting_label", canonical_name));
+        }
+
+        self.seen.insert(escaped_name.to_owned(), canonical_name.to_owned());
+        Ok(())
+    }
+}
+
+struct LabelEncoder<'a, 'b, W> {
+    writer: &'a mut W,
+    first: bool,
+
+    name_policy: NamePolicy,
+    collision_guard: Option<LabelNameCollisionGuard<'b>>,
+}
+
+impl<W> LabelEncoder<'_, '_, W>
 where
     W: fmt::Write,
 {
     fn encode_escaped_label_value(&mut self, value: &str) -> Result<()> {
-        for ch in value.chars() {
-            match ch {
-                '\\' => self.writer.write_str("\\\\")?,
-                '\n' => self.writer.write_str("\\n")?,
-                '"' => self.writer.write_str("\\\"")?,
-                _ => self.writer.write_char(ch)?,
-            }
-        }
-        Ok(())
+        write_escaped_label_value(self.writer, value)
     }
 }
 
@@ -784,7 +952,7 @@ macro_rules! encode_float_value_impls {
     )
 }
 
-impl<W> encoder::LabelEncoder for LabelEncoder<'_, W>
+impl<W> encoder::LabelEncoder for LabelEncoder<'_, '_, W>
 where
     W: fmt::Write,
 {
@@ -793,8 +961,14 @@ where
         if !self.first {
             self.writer.write_str(",")?;
         }
-        let name = escape_label_name(name, self.name_policy)?;
-        self.writer.write_str(name.as_ref())?;
+
+        let escaped_name = escape_label_name(name, self.name_policy)?;
+
+        if let Some(collision_guard) = self.collision_guard.as_mut() {
+            collision_guard.check_and_record(name, escaped_name.as_ref())?;
+        }
+
+        self.writer.write_str(escaped_name.as_ref())?;
         Ok(())
     }
 

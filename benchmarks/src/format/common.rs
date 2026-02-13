@@ -174,6 +174,7 @@ pub fn setup_prometheus_client_registry(
 pub fn setup_fastmetrics_registry(
     metric_count: u32,
     observe_time: u32,
+    name_rule: fastmetrics::registry::NameRule,
 ) -> fastmetrics::registry::Registry {
     use fastmetrics::metrics::{
         counter::Counter,
@@ -183,7 +184,10 @@ pub fn setup_fastmetrics_registry(
 
     let mut rng = rand::rng();
 
-    let mut registry = fastmetrics::registry::Registry::default();
+    let mut registry = fastmetrics::registry::Registry::builder()
+        .with_name_rule(name_rule)
+        .build()
+        .unwrap();
 
     for i in 0..metric_count {
         let counter_family = Family::<Labels, Counter>::default();

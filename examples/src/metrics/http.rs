@@ -22,11 +22,10 @@ pub struct HttpLabels {
 #[derive(Clone, Register)]
 pub struct HttpMetrics {
     /// Total number of HTTP requests received.
-    #[register(rename = "http_requests_total")]
     http_requests: Family<HttpLabels, Counter>,
 
     /// Latency of HTTP requests in seconds (histogram).
-    #[register(rename = "http_request_duration_seconds", unit(Seconds))]
+    #[register(unit(Seconds))]
     http_request_duration: Family<HttpLabels, Histogram>,
 
     /// Number of in-flight (currently processing) HTTP requests.

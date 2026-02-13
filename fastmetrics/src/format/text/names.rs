@@ -64,7 +64,7 @@ fn escape_name<'a>(name: Cow<'a, str>, policy: NamePolicy, kind: NameKind) -> Re
             if kind.is_legacy_name(name.as_ref()) {
                 Ok(name)
             } else {
-                Err(Error::unsupported(format!(
+                Err(Error::invalid(format!(
                     "{kind_name} name `{name}` is not valid for legacy text profiles",
                     kind_name = kind.as_str()
                 )))

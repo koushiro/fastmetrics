@@ -186,36 +186,124 @@ fn bench_text_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics (prometheus 1.0.0): {metric_id}");
+            let id = format!("fastmetrics (prometheus 0.0.4): {metric_id}");
             group.sample_size(50).bench_function(id, |b| {
-                use fastmetrics::format::text::{TextProfile, encode};
+                use fastmetrics::{
+                    format::text::{TextProfile, encode},
+                    registry::NameRule,
+                };
 
-                let registry = setup_fastmetrics_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times, NameRule::Legacy);
+                let mut buffer = String::new();
+                b.iter(|| {
+                    buffer.clear();
+                    encode(&mut buffer, &registry, TextProfile::PrometheusV0_0_4).unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics (prometheus 1.0.0, allow utf8): {metric_id}");
+            group.sample_size(50).bench_function(id, |b| {
+                use fastmetrics::{
+                    format::text::{EscapingScheme, TextProfile, encode},
+                    registry::NameRule,
+                };
+
+                let registry = setup_fastmetrics_registry(count, times, NameRule::Utf8);
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
                     encode(
                         &mut buffer,
                         &registry,
-                        TextProfile::PrometheusV1_0_0 { escaping_scheme: Default::default() },
+                        TextProfile::PrometheusV1_0_0 {
+                            escaping_scheme: EscapingScheme::AllowUtf8,
+                        },
                     )
                     .unwrap();
                     black_box(&mut buffer);
                 });
             });
 
-            let id = format!("fastmetrics (openmetrics 1.0.0): {metric_id}");
-            group.sample_size(50).bench_function(id, |b| {
-                use fastmetrics::format::text::{TextProfile, encode};
+            let id = format!("fastmetrics (prometheus 1.0.0, utf8 => underscores): {metric_id}");
+            group.sample_size(30).bench_function(id, |b| {
+                use fastmetrics::{
+                    format::text::{EscapingScheme, TextProfile, encode},
+                    registry::NameRule,
+                };
 
-                let registry = setup_fastmetrics_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times, NameRule::Utf8);
                 let mut buffer = String::new();
                 b.iter(|| {
                     buffer.clear();
                     encode(
                         &mut buffer,
                         &registry,
-                        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: Default::default() },
+                        TextProfile::PrometheusV1_0_0 {
+                            escaping_scheme: EscapingScheme::Underscores,
+                        },
+                    )
+                    .unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics (openmetrics 0.0.1): {metric_id}");
+            group.sample_size(50).bench_function(id, |b| {
+                use fastmetrics::{
+                    format::text::{TextProfile, encode},
+                    registry::NameRule,
+                };
+
+                let registry = setup_fastmetrics_registry(count, times, NameRule::Legacy);
+                let mut buffer = String::new();
+                b.iter(|| {
+                    buffer.clear();
+                    encode(&mut buffer, &registry, TextProfile::OpenMetricsV0_0_1).unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics (openmetrics 1.0.0, allow utf8): {metric_id}");
+            group.sample_size(50).bench_function(id, |b| {
+                use fastmetrics::{
+                    format::text::{EscapingScheme, TextProfile, encode},
+                    registry::NameRule,
+                };
+
+                let registry = setup_fastmetrics_registry(count, times, NameRule::Utf8);
+                let mut buffer = String::new();
+                b.iter(|| {
+                    buffer.clear();
+                    encode(
+                        &mut buffer,
+                        &registry,
+                        TextProfile::OpenMetricsV1_0_0 {
+                            escaping_scheme: EscapingScheme::AllowUtf8,
+                        },
+                    )
+                    .unwrap();
+                    black_box(&mut buffer);
+                });
+            });
+
+            let id = format!("fastmetrics (openmetrics 1.0.0, utf8 => underscores): {metric_id}");
+            group.sample_size(30).bench_function(id, |b| {
+                use fastmetrics::{
+                    format::text::{EscapingScheme, TextProfile, encode},
+                    registry::NameRule,
+                };
+
+                let registry = setup_fastmetrics_registry(count, times, NameRule::Utf8);
+                let mut buffer = String::new();
+                b.iter(|| {
+                    buffer.clear();
+                    encode(
+                        &mut buffer,
+                        &registry,
+                        TextProfile::OpenMetricsV1_0_0 {
+                            escaping_scheme: EscapingScheme::Underscores,
+                        },
                     )
                     .unwrap();
                     black_box(&mut buffer);
