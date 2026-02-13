@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    encoder::{EncodeLabelSet, LabelSetEncoder},
+    encoder::*,
     error::{ErrorKind, Result},
     metrics::{
         counter::Counter,
@@ -10,7 +10,7 @@ use crate::{
         state_set::{StateSet, StateSetValue},
         unknown::Unknown,
     },
-    raw::LabelSetSchema,
+    raw::{LabelSetSchema, MetricLabelSet, MetricType, TypedMetric},
     registry::{NameRule, Registry},
 };
 
@@ -380,4 +380,46 @@ fn v1_dots_stateset_escapes_state_label_name_once() {
         output.contains(r#"state_dot_metric{state_dot_metric="ready"} 1"#),
         "stateset label name should be escaped once in dots mode: {output}"
     );
+}
+
+#[test]
+fn v1_underscores_rejects_exemplar_label_name_collisions_after_escaping() {
+    struct CollidingExemplar;
+
+    impl EncodeExemplar for CollidingExemplar {
+        fn encode(&self, encoder: &mut dyn ExemplarEncoder) -> Result<()> {
+            encoder.encode(&[("a-b", "x"), ("a/b", "y")], 1.0, None)
+        }
+    }
+
+    #[derive(Copy, Clone)]
+    struct ExemplarCounterMetric;
+
+    impl TypedMetric for ExemplarCounterMetric {
+        const TYPE: MetricType = MetricType::Counter;
+    }
+
+    impl MetricLabelSet for ExemplarCounterMetric {
+        type LabelSet = ();
+    }
+
+    impl EncodeMetric for ExemplarCounterMetric {
+        fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
+            encoder.encode_counter(&1_u64, Some(&CollidingExemplar), None)
+        }
+    }
+
+    let mut registry = Registry::builder().with_name_rule(NameRule::Utf8).build().unwrap();
+    registry.register("exemplar_metric", "help", ExemplarCounterMetric).unwrap();
+
+    let mut output = String::new();
+    let err = encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Underscores },
+    )
+    .unwrap_err();
+
+    assert_eq!(err.kind(), ErrorKind::Duplicated);
+    assert_eq!(err.message(), "label names collide after escaping");
 }

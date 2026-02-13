@@ -544,8 +544,9 @@ where
                     if let Some(exemplar) = exemplars[idx] {
                         exemplar.encode(&mut ExemplarEncoder {
                             writer: self.writer,
-                            name_policy: self.config.name_policy,
                             timestamp_format: self.config.timestamp_format,
+                            name_policy: self.config.name_policy,
+                            check_label_name_collisions: self.check_label_name_collisions,
                         })?;
                     }
                 }
@@ -676,8 +677,9 @@ where
             if let Some(exemplar) = exemplar {
                 exemplar.encode(&mut ExemplarEncoder {
                     writer: self.writer,
-                    name_policy: self.config.name_policy,
                     timestamp_format: self.config.timestamp_format,
+                    name_policy: self.config.name_policy,
+                    check_label_name_collisions: self.check_label_name_collisions,
                 })?;
             }
         }
@@ -1073,8 +1075,10 @@ where
 
 struct ExemplarEncoder<'a, W> {
     writer: &'a mut W,
-    name_policy: NamePolicy,
     timestamp_format: TimestampFormat,
+
+    name_policy: NamePolicy,
+    check_label_name_collisions: bool,
 }
 
 impl<W> encoder::ExemplarEncoder for ExemplarEncoder<'_, W>
@@ -1089,7 +1093,19 @@ where
     ) -> Result<()> {
         // # { labels } value [timestamp]
         self.writer.write_str(" # {")?;
-        labels.encode(&mut LabelSetEncoder::new(self.writer, self.name_policy))?;
+
+        if self.check_label_name_collisions {
+            let mut collision_seen = HashMap::new();
+            labels.encode(&mut LabelSetEncoder::new_with_collision_tracking(
+                self.writer,
+                self.name_policy,
+                None,
+                &mut collision_seen,
+            ))?;
+        } else {
+            labels.encode(&mut LabelSetEncoder::new(self.writer, self.name_policy))?;
+        }
+
         self.writer.write_str("} ")?;
 
         self.writer.write_str(zmij::Buffer::new().format(value))?;

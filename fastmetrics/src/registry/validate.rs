@@ -3,8 +3,8 @@ use std::fmt;
 /// Validation strategy for metric and label names at registry registration time.
 ///
 /// - [`NameRule::Legacy`] enforces the legacy OpenMetrics ABNF name rules.
-/// - [`NameRule::Utf8`] accepts any non-empty UTF-8 name and defers profile/scheme-specific
-///   checks to exposition-time encoding.
+/// - [`NameRule::Utf8`] accepts UTF-8 names and rejects control/whitespace characters,
+///   while deferring escaping/scheme-specific compatibility checks to exposition-time encoding.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum NameRule {
@@ -135,7 +135,7 @@ impl fmt::Display for UnitViolation {
     }
 }
 
-pub fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), MetricNameViolation> {
+fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), MetricNameViolation> {
     if name.is_empty() {
         return Err(MetricNameViolation::Empty);
     }
@@ -160,6 +160,27 @@ pub fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), Met
     Ok(())
 }
 
+fn validate_utf8_name(name: &str) -> Result<(), MetricNameViolation> {
+    if name.is_empty() {
+        return Err(MetricNameViolation::Empty);
+    }
+
+    let mut chars = name.chars();
+    let first = chars.next().expect("non-empty string has a first char");
+
+    if first.is_whitespace() || first.is_control() {
+        return Err(MetricNameViolation::InvalidFirstChar(first));
+    }
+
+    for ch in chars {
+        if ch.is_whitespace() || ch.is_control() {
+            return Err(MetricNameViolation::InvalidSubsequentChar(ch));
+        }
+    }
+
+    Ok(())
+}
+
 pub fn validate_metric_name_with_rule(
     name: &str,
     require_initial: bool,
@@ -167,16 +188,11 @@ pub fn validate_metric_name_with_rule(
 ) -> Result<(), MetricNameViolation> {
     match rule {
         NameRule::Legacy => validate_metric_name(name, require_initial),
-        NameRule::Utf8 => {
-            if name.is_empty() {
-                return Err(MetricNameViolation::Empty);
-            }
-            Ok(())
-        },
+        NameRule::Utf8 => validate_utf8_name(name),
     }
 }
 
-pub fn validate_label_name(name: &str) -> Result<(), LabelNameViolation> {
+fn validate_label_name(name: &str) -> Result<(), LabelNameViolation> {
     if name.is_empty() {
         return Err(LabelNameViolation::Empty);
     }
@@ -196,15 +212,31 @@ pub fn validate_label_name(name: &str) -> Result<(), LabelNameViolation> {
     Ok(())
 }
 
+fn validate_utf8_label_name(name: &str) -> Result<(), LabelNameViolation> {
+    if name.is_empty() {
+        return Err(LabelNameViolation::Empty);
+    }
+
+    let mut chars = name.chars();
+    let first = chars.next().expect("non-empty string has a first char");
+
+    if first.is_whitespace() || first.is_control() {
+        return Err(LabelNameViolation::InvalidFirstChar(first));
+    }
+
+    for ch in chars {
+        if ch.is_whitespace() || ch.is_control() {
+            return Err(LabelNameViolation::InvalidSubsequentChar(ch));
+        }
+    }
+
+    Ok(())
+}
+
 pub fn validate_label_name_with_rule(name: &str, rule: NameRule) -> Result<(), LabelNameViolation> {
     match rule {
         NameRule::Legacy => validate_label_name(name),
-        NameRule::Utf8 => {
-            if name.is_empty() {
-                return Err(LabelNameViolation::Empty);
-            }
-            Ok(())
-        },
+        NameRule::Utf8 => validate_utf8_label_name(name),
     }
 }
 
@@ -314,6 +346,14 @@ mod tests {
             validate_metric_name_with_rule("", true, NameRule::Utf8),
             Err(MetricNameViolation::Empty)
         ));
+        assert!(matches!(
+            validate_metric_name_with_rule("with space", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar(' '))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("line\nbreak", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar('\n'))
+        ));
     }
 
     #[test]
@@ -337,6 +377,14 @@ mod tests {
         assert!(matches!(
             validate_label_name_with_rule("", NameRule::Utf8),
             Err(LabelNameViolation::Empty)
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("with space", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar(' '))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("line\nbreak", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar('\n'))
         ));
     }
 
