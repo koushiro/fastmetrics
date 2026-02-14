@@ -65,9 +65,13 @@ impl Fairing for MetricsFairing {
 }
 
 #[rocket::get("/metrics")]
-async fn metrics_text(state: &State<AppState>, accept: &Accept) -> (Status, (ContentType, String)) {
+async fn metrics_text(
+    state: &State<AppState>,
+    accept: Option<&Accept>,
+) -> (Status, (ContentType, String)) {
     let mut output = String::new();
-    let profile = negotiation::text_profile_from_accept(Some(accept.to_string().as_str()));
+    let accept = accept.map(|accept| accept.to_string());
+    let profile = negotiation::text_profile_from_accept(accept.as_deref());
     if let Err(e) = text::encode(&mut output, &state.registry, profile) {
         return (
             Status::InternalServerError,
@@ -83,7 +87,7 @@ async fn metrics_text(state: &State<AppState>, accept: &Accept) -> (Status, (Con
 #[rocket::get("/metrics/text")]
 async fn metrics_text_explicit(
     state: &State<AppState>,
-    accept: &Accept,
+    accept: Option<&Accept>,
 ) -> (Status, (ContentType, String)) {
     metrics_text(state, accept).await
 }

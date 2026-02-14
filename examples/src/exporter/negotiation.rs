@@ -8,7 +8,8 @@ use fastmetrics::format::text::{EscapingScheme, TextProfile};
 /// - `application/openmetrics-text; version=0.0.1` => OpenMetrics 0.0.1.
 /// - `text/plain; version=1.0.0` => Prometheus 1.0.0.
 /// - `text/plain` / `text/plain; version=0.0.4` => Prometheus 0.0.4.
-/// - unsupported media types (or missing header) => `TextProfile::PrometheusV0_0_4`.
+/// - `*/*` (wildcard) => fallback profile.
+/// - unsupported media types (or missing header) => fallback profile.
 pub fn text_profile_from_accept(accept: Option<&str>) -> TextProfile {
     text_profile_from_accept_with_fallback(accept, TextProfile::PrometheusV0_0_4)
 }
@@ -19,6 +20,7 @@ pub fn text_profile_from_accept(accept: Option<&str>) -> TextProfile {
 /// - `application/openmetrics-text; version=0.0.1` => OpenMetrics 0.0.1.
 /// - `text/plain; version=1.0.0` => Prometheus 1.0.0.
 /// - `text/plain` / `text/plain; version=0.0.4` => Prometheus 0.0.4.
+/// - `*/*` (wildcard) => `fallback` profile.
 /// - unsupported media types (or missing header) => `fallback`.
 pub fn text_profile_from_accept_with_fallback(
     accept: Option<&str>,
@@ -31,6 +33,7 @@ pub fn text_profile_from_accept_with_fallback(
 
     let mut selected = fallback;
     let mut best_q = 0.0_f32;
+    let mut selected_is_wildcard = true;
 
     for segment in accept.split(',') {
         let segment = segment.trim();
@@ -40,7 +43,7 @@ pub fn text_profile_from_accept_with_fallback(
 
         let mut parts = segment.split(';');
         let media_type = parts.next().unwrap_or_default().trim().to_ascii_lowercase();
-        if media_type.is_empty() || media_type == "*/*" {
+        if media_type.is_empty() {
             continue;
         }
 
@@ -69,6 +72,7 @@ pub fn text_profile_from_accept_with_fallback(
         }
 
         let profile = match (media_type.as_str(), version) {
+            ("*/*", _) => Some(fallback),
             ("application/openmetrics-text", Some("1.0.0")) => {
                 Some(TextProfile::OpenMetricsV1_0_0 {
                     escaping_scheme: escaping.unwrap_or_default(),
@@ -84,10 +88,12 @@ pub fn text_profile_from_accept_with_fallback(
             _ => None,
         };
 
+        let is_wildcard = media_type == "*/*";
         if let Some(profile) = profile {
-            if quality > best_q {
+            if quality > best_q || (quality == best_q && selected_is_wildcard && !is_wildcard) {
                 selected = profile;
                 best_q = quality;
+                selected_is_wildcard = is_wildcard;
             }
         }
     }
@@ -147,5 +153,27 @@ mod tests {
             TextProfile::PrometheusV1_0_0 { escaping_scheme: EscapingScheme::Underscores };
         let profile = text_profile_from_accept_with_fallback(None, expected);
         assert_eq!(profile, expected);
+    }
+
+    #[test]
+    fn wildcard_uses_quality_weighting() {
+        let fallback = TextProfile::PrometheusV0_0_4;
+        let profile = text_profile_from_accept_with_fallback(
+            Some("*/*;q=1, application/openmetrics-text; version=1.0.0; q=0.1"),
+            fallback,
+        );
+        assert_eq!(profile, fallback);
+    }
+
+    #[test]
+    fn specific_type_preferred_over_wildcard_when_quality_equal() {
+        let profile = text_profile_from_accept_with_fallback(
+            Some("*/*;q=1, application/openmetrics-text; version=1.0.0; q=1"),
+            TextProfile::PrometheusV0_0_4,
+        );
+        assert!(matches!(
+            profile,
+            TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Underscores }
+        ));
     }
 }

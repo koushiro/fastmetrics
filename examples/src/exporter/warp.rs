@@ -39,8 +39,8 @@ struct TextEncodeReject;
 impl warp::reject::Reject for TextEncodeReject {}
 
 fn metrics_encode_text(
-    accept: Option<String>,
     state: AppState,
+    accept: Option<String>,
 ) -> Result<impl Reply, TextEncodeReject> {
     let mut output = String::new();
     let profile = negotiation::text_profile_from_accept(accept.as_deref());
@@ -74,7 +74,7 @@ async fn text_endpoint(
 ) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
     state.metrics.http.inc_in_flight();
-    let result = metrics_encode_text(accept, state.clone());
+    let result = metrics_encode_text(state.clone(), accept);
     match result {
         Ok(reply) => {
             state.metrics.http.observe(method, StatusCode::OK.as_u16(), start);
@@ -140,7 +140,7 @@ fn build_filters(
             let state = state.clone();
             move || state.clone()
         }))
-        .and_then(|method, accept, state| text_endpoint(method, accept, state));
+        .and_then(text_endpoint);
 
     // /metrics/text
     let metrics_text_explicit = warp::path!("metrics" / "text")
@@ -150,7 +150,7 @@ fn build_filters(
             let state = state.clone();
             move || state.clone()
         }))
-        .and_then(|method, accept, state| text_endpoint(method, accept, state));
+        .and_then(text_endpoint);
 
     // /metrics/protobuf
     let metrics_protobuf_route = warp::path!("metrics" / "protobuf")
