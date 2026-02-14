@@ -1,0 +1,5 @@
+error: #[derive(LabelIndexMapping)] can only be used for structs with named fields
+ --> tests/ui/fail/label_index_mapping/tuple_struct_input.rs:4:8
+  |
+4 | struct TupleStruct(bool);
+  |        ^^^^^^^^^^^

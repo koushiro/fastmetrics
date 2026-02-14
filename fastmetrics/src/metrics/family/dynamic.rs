@@ -13,13 +13,12 @@ use std::{
 
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+use super::MetricFactory;
 use crate::{
     encoder::{EncodeLabelSet, EncodeMetric, MetricEncoder},
     error::Result,
     raw::{LabelSetSchema, MetricLabelSet, MetricType, TypedMetric},
 };
-
-type MetricFactory<LS, M> = dyn Fn(&LS) -> M + Send + Sync + 'static;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "foldhash")] {

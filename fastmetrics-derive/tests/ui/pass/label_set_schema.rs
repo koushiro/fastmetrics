@@ -1,3 +1,4 @@
+use fastmetrics::raw::LabelSetSchema;
 use fastmetrics_derive::LabelSetSchema;
 
 #[derive(Clone, Eq, PartialEq, Hash, LabelSetSchema)]
@@ -20,8 +21,5 @@ struct InnerLabels {
 fn main() {
     // Ensure the derived traits are usable.
     let _labels = Labels { method: "GET", inner: InnerLabels { region: "us-east-1" }, _skip: 42 };
-    assert_eq!(
-        <Labels as fastmetrics::raw::LabelSetSchema>::names(),
-        Some(&["method", "region"][..])
-    );
+    assert_eq!(<Labels as LabelSetSchema>::names(), Some(&["method", "region"][..]));
 }

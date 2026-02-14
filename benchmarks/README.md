@@ -127,49 +127,53 @@ Each group of families includes a counter (u64) family and a histogram family.
 
 ```text
 family with empty labels/metrics_cached
-                        time:   [12.247 ns 12.294 ns 12.344 ns]
+                        time:   [12.415 ns 12.549 ns 12.732 ns]
 family with empty labels/metrics_dynamic
-                        time:   [84.531 ns 84.784 ns 85.054 ns]
+                        time:   [84.113 ns 84.422 ns 84.749 ns]
 family with empty labels/measured
-                        time:   [12.758 ns 12.797 ns 12.843 ns]
+                        time:   [12.806 ns 13.097 ns 13.682 ns]
 family with empty labels/prometheus
-                        time:   [24.863 ns 24.942 ns 25.046 ns]
+                        time:   [24.920 ns 25.016 ns 25.125 ns]
 family with empty labels/prometheus_client
-                        time:   [27.119 ns 27.181 ns 27.247 ns]
+                        time:   [27.245 ns 27.323 ns 27.402 ns]
 family with empty labels/fastmetrics_cached
-                        time:   [5.8060 ns 5.8214 ns 5.8389 ns]
+                        time:   [5.8120 ns 5.8285 ns 5.8463 ns]
 family with empty labels/fastmetrics_dynamic
-                        time:   [17.144 ns 17.184 ns 17.227 ns]
+                        time:   [17.332 ns 17.403 ns 17.484 ns]
+family with empty labels/fastmetrics_indexed
+                        time:   [5.8402 ns 5.8672 ns 5.8976 ns]
 
 family with custom labels/metrics_cached
-                        time:   [12.474 ns 12.551 ns 12.640 ns]
+                        time:   [12.558 ns 12.698 ns 12.851 ns]
 family with custom labels/metrics_dynamic
-                        time:   [158.01 ns 158.35 ns 158.72 ns]
+                        time:   [158.36 ns 159.18 ns 160.11 ns]
 family with custom labels/measured
-                        time:   [15.481 ns 15.528 ns 15.581 ns]
+                        time:   [15.430 ns 15.484 ns 15.546 ns]
 family with custom labels/prometheus
-                        time:   [25.950 ns 26.034 ns 26.133 ns]
+                        time:   [25.800 ns 25.865 ns 25.938 ns]
 family with custom labels/prometheus_client
-                        time:   [39.168 ns 39.287 ns 39.416 ns]
+                        time:   [39.400 ns 39.603 ns 39.837 ns]
 family with custom labels/fastmetrics_cached
-                        time:   [6.2012 ns 6.2307 ns 6.2638 ns]
+                        time:   [6.1931 ns 6.2131 ns 6.2328 ns]
 family with custom labels/fastmetrics_dynamic
-                        time:   [20.316 ns 20.406 ns 20.506 ns]
+                        time:   [20.184 ns 20.249 ns 20.323 ns]
+family with custom labels/fastmetrics_indexed
+                        time:   [9.3330 ns 9.5907 ns 10.101 ns]
 
 family with [(&'static str, &'static str)] labels/prometheus_client
-                        time:   [67.111 ns 67.294 ns 67.484 ns]
+                        time:   [67.808 ns 68.202 ns 68.624 ns]
 family with [(&'static str, &'static str)] labels/fastmetrics
-                        time:   [50.827 ns 50.924 ns 51.027 ns]
+                        time:   [50.815 ns 51.082 ns 51.453 ns]
 
 family with Vec<(&'static str, &'static str)> labels/prometheus_client
-                        time:   [89.712 ns 89.958 ns 90.188 ns]
+                        time:   [88.605 ns 88.879 ns 89.144 ns]
 family with Vec<(&'static str, &'static str)> labels/fastmetrics
-                        time:   [65.653 ns 65.816 ns 65.991 ns]
+                        time:   [66.904 ns 67.116 ns 67.341 ns]
 
 family with Vec<(String, String)> labels/prometheus_client
-                        time:   [106.18 ns 106.57 ns 107.05 ns]
+                        time:   [106.45 ns 106.76 ns 107.07 ns]
 family with Vec<(String, String)> labels/fastmetrics
-                        time:   [82.871 ns 83.151 ns 83.447 ns]
+                        time:   [83.354 ns 83.740 ns 84.160 ns]
 ```
 
 ## Text Encoding

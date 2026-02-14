@@ -1,0 +1,5 @@
+error: #[derive(LabelIndexMapping)] can only be used for enums or structs with named fields
+ --> tests/ui/fail/label_index_mapping/union_input.rs:4:7
+  |
+4 | union NotSupported {
+  |       ^^^^^^^^^^^^
