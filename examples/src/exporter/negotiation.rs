@@ -27,7 +27,7 @@ impl MediaCandidate {
             Some(previous) => {
                 self.quality > previous.quality
                     || (self.quality == previous.quality && self.specificity > previous.specificity)
-            }
+            },
         }
     }
 }
@@ -76,7 +76,9 @@ pub fn text_profile_from_accept_with_fallback(
         for part in parts {
             let part = part.trim();
             let (key, value) = match part.split_once('=') {
-                Some((key, value)) => (key.trim().to_ascii_lowercase(), value.trim().trim_matches('"')),
+                Some((key, value)) => {
+                    (key.trim().to_ascii_lowercase(), value.trim().trim_matches('"'))
+                },
                 None => continue,
             };
 
@@ -84,7 +86,7 @@ pub fn text_profile_from_accept_with_fallback(
                 "version" => version = Some(value),
                 "escaping" => escaping = parse_escaping_scheme(value),
                 "q" => quality = value.parse::<f32>().unwrap_or(1.0_f32).clamp(0.0, 1.0),
-                _ => {}
+                _ => {},
             }
         }
 
@@ -141,17 +143,13 @@ fn parse_text_profile(
 ) -> Option<TextProfile> {
     match (media_type, version) {
         ("application/openmetrics-text", Some("1.0.0")) => {
-            Some(TextProfile::OpenMetricsV1_0_0 {
-                escaping_scheme: escaping.unwrap_or_default(),
-            })
-        }
+            Some(TextProfile::OpenMetricsV1_0_0 { escaping_scheme: escaping.unwrap_or_default() })
+        },
         ("application/openmetrics-text", Some("0.0.1")) => Some(TextProfile::OpenMetricsV0_0_1),
-        ("text/plain", Some("1.0.0")) => Some(TextProfile::PrometheusV1_0_0 {
-            escaping_scheme: escaping.unwrap_or_default(),
-        }),
-        ("text/plain", Some("0.0.4")) | ("text/plain", None) => {
-            Some(TextProfile::PrometheusV0_0_4)
-        }
+        ("text/plain", Some("1.0.0")) => {
+            Some(TextProfile::PrometheusV1_0_0 { escaping_scheme: escaping.unwrap_or_default() })
+        },
+        ("text/plain", Some("0.0.4")) | ("text/plain", None) => Some(TextProfile::PrometheusV0_0_4),
         _ => None,
     }
 }
@@ -250,9 +248,6 @@ mod tests {
             Some("text/plain; q=0, */*; q=1"),
             TextProfile::PrometheusV0_0_4,
         );
-        assert!(matches!(
-            profile,
-            TextProfile::PrometheusV0_0_4
-        ));
+        assert!(matches!(profile, TextProfile::PrometheusV0_0_4));
     }
 }

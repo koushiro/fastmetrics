@@ -1,7 +1,6 @@
 use std::{net::Ipv4Addr, sync::Arc, time::Instant};
 
 use anyhow::Result;
-
 use fastmetrics::{
     derive::*,
     format::{prost, text},
