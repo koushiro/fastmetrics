@@ -6,6 +6,9 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[build-dependencies]
+built = { version = "0.8", features = ["git2"] }
+
 [dev-dependencies]
 actix-web = { version = "4", default-features = false, features = ["macros", "rustls"] }
 anyhow = "1.0"
