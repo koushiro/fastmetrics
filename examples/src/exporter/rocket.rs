@@ -21,6 +21,9 @@ mod negotiation;
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
     #[register(flatten)]
+    _release_info: metrics::release_info::ReleaseInfoMetrics,
+
+    #[register(flatten)]
     pub http: metrics::http::HttpMetrics,
 
     #[register(subsystem = "process")]
