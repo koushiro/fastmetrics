@@ -14,7 +14,7 @@ use fastmetrics::{
 };
 use http_body_util::Full;
 use hyper::{
-    Method, Request, Response, StatusCode, body::Incoming, http, server::conn::http1,
+    Method, Request, Response, StatusCode, body::Incoming, header, http, server::conn::http1,
     service::service_fn,
 };
 use hyper_util::rt::TokioIo;
@@ -23,9 +23,13 @@ use tokio::net::{TcpListener, TcpStream};
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
+    #[register(flatten)]
+    _release_info: metrics::release_info::ReleaseInfoMetrics,
+
     #[register(flatten)]
     pub http: metrics::http::HttpMetrics,
 
@@ -59,20 +63,32 @@ impl AppError {
     }
 }
 
-fn text_response(state: &AppState) -> Result<MetricsResponse, AppError> {
+fn text_response_with_accept(
+    state: &AppState,
+    accept: Option<&str>,
+) -> Result<MetricsResponse, AppError> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry)?;
+    let profile = negotiation::text_profile_from_accept(accept);
+    text::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 
-    Ok(Response::builder().status(StatusCode::OK).body(body)?)
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .header(header::VARY, "Accept")
+        .status(StatusCode::OK)
+        .body(body)?)
 }
 
 fn protobuf_response(state: &AppState) -> Result<MetricsResponse, AppError> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry)?;
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 
-    Ok(Response::builder().status(StatusCode::OK).body(body)?)
+    Ok(Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .status(StatusCode::OK)
+        .body(body)?)
 }
 
 fn not_found_response(path: &str) -> Result<MetricsResponse, AppError> {
@@ -103,8 +119,9 @@ async fn route_request(
     req: &Request<Incoming>,
     state: &AppState,
 ) -> Result<MetricsResponse, AppError> {
+    let accept = req.headers().get(header::ACCEPT).and_then(|value| value.to_str().ok());
     match classify_route(req.method(), req.uri().path()) {
-        MetricsRoute::Text => text_response(state),
+        MetricsRoute::Text => text_response_with_accept(state, accept),
         MetricsRoute::Protobuf => protobuf_response(state),
         MetricsRoute::NotFound(path) => not_found_response(path),
     }

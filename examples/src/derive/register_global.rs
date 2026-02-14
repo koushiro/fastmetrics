@@ -1,7 +1,7 @@
 use anyhow::Result;
 use fastmetrics::{
     derive::*,
-    format::text,
+    format::text::{self, TextProfile},
     metrics::{
         counter::Counter,
         family::Family,
@@ -10,7 +10,7 @@ use fastmetrics::{
     },
     registry::*,
 };
-use rand::Rng;
+use rand::RngExt;
 
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
 struct Labels {
@@ -133,7 +133,7 @@ fn main() -> Result<()> {
     }
 
     let mut output = String::new();
-    with_global_registry(|registry| text::encode(&mut output, registry))?;
+    with_global_registry(|registry| text::encode(&mut output, registry, TextProfile::default()))?;
     println!("{}", &output);
 
     Ok(())

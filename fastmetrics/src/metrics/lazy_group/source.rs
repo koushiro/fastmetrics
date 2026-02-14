@@ -8,6 +8,7 @@
 
 use std::{marker::PhantomData, sync::Arc, time::Duration};
 
+use super::scrape_ctx;
 use crate::{
     encoder::{EncodeCounterValue, EncodeGaugeValue},
     metrics::{
@@ -75,7 +76,7 @@ where
     fn load(&self) -> N {
         let map = self.map.as_ref();
 
-        if let Some(r) = super::scrape_ctx::with_current(|ctx| {
+        if let Some(r) = scrape_ctx::with_current(|ctx| {
             let sample = ctx.get_or_init::<S>(self.group.id, || (self.group.sample.as_ref())());
             map(sample)
         }) {

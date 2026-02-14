@@ -315,8 +315,8 @@ impl<LS, M, S> Family<LS, M, S> {
     /// This method will:
     /// 1. Check if a metric exists for the given labels
     /// 2. If it exists, apply the function to it
-    /// 3. If it doesn't exist, create a metric using this family's metric factory and then apply the
-    ///    function
+    /// 3. If it doesn't exist, create a metric using this family's metric factory
+    ///    and then apply the function
     ///
     /// # Parameters
     ///

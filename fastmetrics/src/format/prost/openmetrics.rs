@@ -1,7 +1,6 @@
-//! Protobuf exposition format using [prost](https://github.com/tokio-rs/prost) crate.
-
 use std::{borrow::Cow, time::Duration};
 
+use super::openmetrics_data_model;
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
@@ -12,96 +11,7 @@ use crate::{
     registry::Registry,
 };
 
-/// Data models that are automatically generated from [OpenMetrics protobuf schema].
-///
-/// [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
-#[allow(missing_docs)]
-#[allow(clippy::all)]
-mod openmetrics_data_model {
-    include!(concat!(env!("OUT_DIR"), "/prost/openmetrics.rs"));
-}
-
-/// Encodes metrics from a registry into the [OpenMetrics protobuf format](https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format).
-///
-/// # Arguments
-///
-/// * `buffer` - A mutable reference to any type implementing `BufMut` trait where the encoded
-///   protobuf data will be written.
-/// * `registry` - A reference to the [`Registry`] containing the metrics to encode.
-///
-/// # Returns
-///
-/// Returns `Ok(())` if encoding was successful, or a [`Error`] if there was an error
-/// during protobuf encoding.
-///
-/// # Example
-///
-/// ```rust
-/// # use fastmetrics::{
-/// #     error::Result,
-/// #     format::prost,
-/// #     metrics::counter::Counter,
-/// #     registry::Registry,
-/// # };
-/// #
-/// # fn main() -> Result<()> {
-/// let mut registry = Registry::default();
-///
-/// // Register a counter
-/// let requests = <Counter>::default();
-/// registry.register(
-///     "http_requests_total",
-///     "Total number of HTTP requests",
-///     requests.clone()
-/// )?;
-/// // Update a counter
-/// requests.inc();
-///
-/// // Encode metrics in protobuf format
-/// let mut output = Vec::new();
-/// prost::encode(&mut output, &registry)?;
-/// assert!(!output.is_empty());
-/// # Ok(())
-/// # }
-/// ```
-pub fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Result<()> {
-    encode_with(buffer, registry, crate::metrics::lazy_group::scrape_ctx::enter)
-}
-
-/// Encodes metrics in protobuf format (prost), running a user-provided "scope/guard" for the
-/// duration of the encoding pass.
-///
-/// This is the underlying primitive used by [`encode`]. The `before` closure is called once before
-/// encoding starts, and the value it returns is kept alive for the duration of encoding and then
-/// dropped.
-///
-/// ## Scrape-scoped caching (grouped lazy metrics)
-///
-/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an
-/// expensive sampling operation within a single scrape. To enable this, pass a closure that enters
-/// a scrape scope (internally used by the crate's default [`encode`] implementation).
-///
-/// ## Example
-///
-/// ```rust
-/// # use fastmetrics::{error::Result, format::prost, registry::Registry};
-/// # fn main() -> Result<()> {
-/// let registry = Registry::default();
-/// let mut out = Vec::new();
-///
-/// // Encode without adding any additional per-encode scope:
-/// prost::encode_with(&mut out, &registry, || ())?;
-/// # Ok(())
-/// # }
-/// ```
-pub fn encode_with<G>(
-    buffer: &mut impl prost::bytes::BufMut,
-    registry: &Registry,
-    before: impl FnOnce() -> G,
-) -> Result<()> {
-    // The returned value is kept alive for the duration of encoding and then dropped.
-    let _guard = before();
-
+pub(super) fn encode(buffer: &mut impl prost::bytes::BufMut, registry: &Registry) -> Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();
     Encoder::new(&mut metric_set, registry).encode()?;
     prost::Message::encode(&metric_set, buffer)

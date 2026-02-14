@@ -5,10 +5,10 @@ use std::{
 };
 
 use actix_web::{
-    App, Error, HttpResponse, HttpServer, Responder,
+    App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     error::ErrorInternalServerError,
-    http::StatusCode,
+    http::{StatusCode, header},
     web::{self, Data},
 };
 use anyhow::Result;
@@ -21,9 +21,13 @@ use futures::future::{LocalBoxFuture, Ready, ready};
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
+    #[register(flatten)]
+    _release_info: metrics::release_info::ReleaseInfoMetrics,
+
     #[register(flatten)]
     pub http: metrics::http::HttpMetrics,
 
@@ -105,16 +109,25 @@ where
     }
 }
 
-async fn text_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
+async fn text_handler(state: Data<AppState>, req: HttpRequest) -> Result<impl Responder, Error> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry).map_err(ErrorInternalServerError)?;
-    Ok(HttpResponse::Ok().body(output))
+    let profile = negotiation::text_profile_from_accept(
+        req.headers().get(header::ACCEPT).and_then(|value| value.to_str().ok()),
+    );
+    text::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::CONTENT_TYPE, profile.content_type()))
+        .insert_header((header::VARY, "Accept"))
+        .body(output))
 }
 
 async fn protobuf_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry).map_err(ErrorInternalServerError)?;
-    Ok(HttpResponse::Ok().body(output))
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
+    Ok(HttpResponse::Ok()
+        .insert_header((header::CONTENT_TYPE, profile.content_type()))
+        .body(output))
 }
 
 #[actix_web::main]

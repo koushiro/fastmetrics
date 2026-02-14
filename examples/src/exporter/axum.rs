@@ -12,7 +12,7 @@ use axum::{
     ServiceExt,
     body::Body,
     extract::{Request, State},
-    http::{Method, StatusCode, Uri},
+    http::{HeaderMap, Method, StatusCode, Uri, header},
     response::{IntoResponse, Response},
     routing::{Router, get},
 };
@@ -28,9 +28,13 @@ use tower_http::normalize_path::NormalizePathLayer;
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
+    #[register(flatten)]
+    _release_info: metrics::release_info::ReleaseInfoMetrics,
+
     #[register(flatten)]
     pub http: metrics::http::HttpMetrics,
 
@@ -150,17 +154,31 @@ impl IntoResponse for AppError {
     }
 }
 
-async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
+async fn text_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, AppError> {
     let mut output = String::new();
-    text::encode(&mut output, &state.registry)?;
-    let response = Response::builder().status(StatusCode::OK).body(Body::from(output))?;
+    let profile = negotiation::text_profile_from_accept(
+        headers.get(header::ACCEPT).and_then(|value| value.to_str().ok()),
+    );
+    text::encode(&mut output, &state.registry, profile)?;
+    let response = Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .header(header::VARY, "Accept")
+        .status(StatusCode::OK)
+        .body(Body::from(output))?;
     Ok(response)
 }
 
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = Vec::new();
-    prost::encode(&mut output, &state.registry)?;
-    let response = Response::builder().status(StatusCode::OK).body(Body::from(output))?;
+    let profile = prost::ProtobufProfile::Prometheus;
+    prost::encode(&mut output, &state.registry, profile)?;
+    let response = Response::builder()
+        .header(header::CONTENT_TYPE, profile.content_type())
+        .status(StatusCode::OK)
+        .body(Body::from(output))?;
     Ok(response)
 }
 

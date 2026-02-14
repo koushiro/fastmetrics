@@ -1,6 +1,6 @@
 use fastmetrics::{
     error::Result,
-    format::text,
+    format::text::{self, TextProfile},
     metrics::{
         counter::Counter,
         gauge::Gauge,
@@ -8,7 +8,7 @@ use fastmetrics::{
     },
     registry::{Register, Registry},
 };
-use rand::Rng;
+use rand::RngExt;
 
 pub struct Metrics {
     counter: Counter,
@@ -66,7 +66,7 @@ fn main() -> Result<()> {
     }
 
     let mut output = String::new();
-    text::encode(&mut output, &registry)?;
+    text::encode(&mut output, &registry, TextProfile::default())?;
     println!("{}", &output);
 
     Ok(())

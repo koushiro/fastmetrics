@@ -42,12 +42,17 @@ where
     S: Fn(&mut crate::registry::Registry),
     H: Fn(String),
 {
-    let mut registry = crate::registry::Registry::default();
+    use crate::{
+        format::text::{self, TextProfile},
+        registry::Registry,
+    };
+
+    let mut registry = Registry::default();
 
     setup(&mut registry);
 
     let mut output = String::new();
-    crate::format::text::encode(&mut output, &registry).unwrap();
+    text::encode(&mut output, &registry, TextProfile::default()).unwrap();
 
     handle(output);
 }

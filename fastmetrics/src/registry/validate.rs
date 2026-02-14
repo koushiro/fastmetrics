@@ -1,5 +1,21 @@
 use std::fmt;
 
+/// Validation strategy for metric and label names at registry registration time.
+///
+/// - [`NameRule::Legacy`] enforces the legacy OpenMetrics ABNF name rules.
+/// - [`NameRule::Utf8`] accepts UTF-8 names and rejects control/whitespace and
+///   text-delimiter characters, while deferring escaping/scheme-specific
+///   compatibility checks to exposition-time encoding.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum NameRule {
+    /// Enforce legacy OpenMetrics name rules on registration.
+    #[default]
+    Legacy,
+    /// Accept UTF-8 names on registration.
+    Utf8,
+}
+
 /// Violations of the OpenMetrics ABNF for metric names.
 #[derive(Clone, Debug)]
 pub enum MetricNameViolation {
@@ -120,7 +136,7 @@ impl fmt::Display for UnitViolation {
     }
 }
 
-pub fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), MetricNameViolation> {
+fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), MetricNameViolation> {
     if name.is_empty() {
         return Err(MetricNameViolation::Empty);
     }
@@ -145,7 +161,39 @@ pub fn validate_metric_name(name: &str, require_initial: bool) -> Result<(), Met
     Ok(())
 }
 
-pub fn validate_label_name(name: &str) -> Result<(), LabelNameViolation> {
+fn validate_utf8_name(name: &str) -> Result<(), MetricNameViolation> {
+    if name.is_empty() {
+        return Err(MetricNameViolation::Empty);
+    }
+
+    let mut chars = name.chars();
+    let first = chars.next().expect("non-empty string has a first char");
+
+    if first.is_whitespace() || first.is_control() || is_text_delimiter_char(first) {
+        return Err(MetricNameViolation::InvalidFirstChar(first));
+    }
+
+    for ch in chars {
+        if ch.is_whitespace() || ch.is_control() || is_text_delimiter_char(ch) {
+            return Err(MetricNameViolation::InvalidSubsequentChar(ch));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_metric_name_with_rule(
+    name: &str,
+    require_initial: bool,
+    rule: NameRule,
+) -> Result<(), MetricNameViolation> {
+    match rule {
+        NameRule::Legacy => validate_metric_name(name, require_initial),
+        NameRule::Utf8 => validate_utf8_name(name),
+    }
+}
+
+fn validate_label_name(name: &str) -> Result<(), LabelNameViolation> {
     if name.is_empty() {
         return Err(LabelNameViolation::Empty);
     }
@@ -163,6 +211,47 @@ pub fn validate_label_name(name: &str) -> Result<(), LabelNameViolation> {
     }
 
     Ok(())
+}
+
+fn validate_utf8_label_name(name: &str) -> Result<(), LabelNameViolation> {
+    if name.is_empty() {
+        return Err(LabelNameViolation::Empty);
+    }
+
+    let mut chars = name.chars();
+    let first = chars.next().expect("non-empty string has a first char");
+
+    if first.is_whitespace() || first.is_control() || is_text_delimiter_char(first) {
+        return Err(LabelNameViolation::InvalidFirstChar(first));
+    }
+
+    for ch in chars {
+        if ch.is_whitespace() || ch.is_control() || is_text_delimiter_char(ch) {
+            return Err(LabelNameViolation::InvalidSubsequentChar(ch));
+        }
+    }
+
+    Ok(())
+}
+
+#[inline]
+fn is_text_delimiter_char(ch: char) -> bool {
+    matches!(ch, '{' | '}' | ',' | '=' | '"' | '\\')
+}
+
+pub fn validate_label_name_with_rule(name: &str, rule: NameRule) -> Result<(), LabelNameViolation> {
+    match rule {
+        NameRule::Legacy => validate_label_name(name),
+        NameRule::Utf8 => validate_utf8_label_name(name),
+    }
+}
+
+pub(crate) fn is_legacy_metric_name(name: &str, require_initial: bool) -> bool {
+    validate_metric_name(name, require_initial).is_ok()
+}
+
+pub(crate) fn is_legacy_label_name(name: &str) -> bool {
+    validate_label_name(name).is_ok()
 }
 
 pub fn validate_help_text(help: &str) -> Result<(), HelpTextViolation> {
@@ -208,19 +297,19 @@ pub fn validate_unit(unit: &str) -> Result<(), UnitViolation> {
     Ok(())
 }
 
-fn is_metricname_initial_char(ch: char) -> bool {
+const fn is_metricname_initial_char(ch: char) -> bool {
     ch.is_ascii_alphabetic() || ch == '_' || ch == ':'
 }
 
-fn is_metricname_char(ch: char) -> bool {
+const fn is_metricname_char(ch: char) -> bool {
     is_metricname_initial_char(ch) || ch.is_ascii_digit()
 }
 
-fn is_label_name_initial_char(ch: char) -> bool {
+const fn is_label_name_initial_char(ch: char) -> bool {
     ch.is_ascii_alphabetic() || ch == '_'
 }
 
-fn is_label_name_char(ch: char) -> bool {
+const fn is_label_name_char(ch: char) -> bool {
     is_label_name_initial_char(ch) || ch.is_ascii_digit()
 }
 
@@ -256,6 +345,44 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_metric_name_with_rule() {
+        assert!(validate_metric_name_with_rule("valid_metric", true, NameRule::Legacy).is_ok());
+        assert!(validate_metric_name_with_rule("utf8_指标", true, NameRule::Utf8).is_ok());
+        assert!(matches!(
+            validate_metric_name_with_rule("", true, NameRule::Utf8),
+            Err(MetricNameViolation::Empty)
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("with space", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar(' '))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("line\nbreak", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar('\n'))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("metric{name", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar('{'))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("metric=name", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar('='))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("metric\"name", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar('"'))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("metric,name", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar(','))
+        ));
+        assert!(matches!(
+            validate_metric_name_with_rule("metric\\name", true, NameRule::Utf8),
+            Err(MetricNameViolation::InvalidSubsequentChar('\\'))
+        ));
+    }
+
+    #[test]
     fn test_validate_label_name() {
         assert!(validate_label_name("label_name").is_ok());
         assert!(matches!(validate_label_name(""), Err(LabelNameViolation::Empty)));
@@ -266,6 +393,44 @@ mod tests {
         assert!(matches!(
             validate_label_name("bad-"),
             Err(LabelNameViolation::InvalidSubsequentChar('-'))
+        ));
+    }
+
+    #[test]
+    fn test_validate_label_name_with_rule() {
+        assert!(validate_label_name_with_rule("label_name", NameRule::Legacy).is_ok());
+        assert!(validate_label_name_with_rule("标签", NameRule::Utf8).is_ok());
+        assert!(matches!(
+            validate_label_name_with_rule("", NameRule::Utf8),
+            Err(LabelNameViolation::Empty)
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("with space", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar(' '))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("line\nbreak", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar('\n'))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("label{name", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar('{'))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("label=name", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar('='))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("label\"name", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar('"'))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("label,name", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar(','))
+        ));
+        assert!(matches!(
+            validate_label_name_with_rule("label\\name", NameRule::Utf8),
+            Err(LabelNameViolation::InvalidSubsequentChar('\\'))
         ));
     }
 

@@ -26,7 +26,7 @@ pub struct HttpMetrics {
     http_requests: Family<HttpLabels, Counter>,
 
     /// Latency of HTTP requests in seconds (histogram).
-    #[register(rename = "http_request_duration_seconds", unit(Seconds))]
+    #[register(unit(Seconds))]
     http_request_duration: Family<HttpLabels, Histogram>,
 
     /// Number of in-flight (currently processing) HTTP requests.

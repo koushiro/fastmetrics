@@ -18,7 +18,8 @@ use std::{
     },
 };
 
-pub use self::{global::*, register::*};
+pub(crate) use self::validate::{is_legacy_label_name, is_legacy_metric_name};
+pub use self::{global::*, register::*, validate::NameRule};
 pub use crate::raw::Unit;
 use crate::{
     encoder::EncodeMetric,
@@ -98,6 +99,7 @@ impl<T> Metric for T where T: TypedMetric + MetricLabelSet + EncodeMetric + 'sta
 #[derive(Default)]
 pub struct Registry {
     namespace: Option<Cow<'static, str>>,
+    name_rule: NameRule,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
     pub(crate) metrics: HashMap<Metadata, Box<dyn EncodeMetric + 'static>>,
     pub(crate) subsystems: HashMap<Cow<'static, str>, Registry>,
@@ -107,6 +109,7 @@ pub struct Registry {
 #[derive(Default)]
 pub struct RegistryBuilder {
     namespace: Option<Cow<'static, str>>,
+    name_rule: NameRule,
     const_labels: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
@@ -118,6 +121,14 @@ impl RegistryBuilder {
     /// The namespace cannot be an empty string and must satisfy the OpenMetrics metric name rules.
     pub fn with_namespace(mut self, namespace: impl Into<Cow<'static, str>>) -> Self {
         self.namespace = Some(namespace.into());
+        self
+    }
+
+    /// Sets the metric/label name rule at registration time.
+    ///
+    /// Defaults to [`NameRule::Legacy`].
+    pub fn with_name_rule(mut self, rule: NameRule) -> Self {
+        self.name_rule = rule;
         self
     }
 
@@ -146,7 +157,7 @@ impl RegistryBuilder {
             if namespace.is_empty() {
                 return Err(Error::invalid("namespace cannot be an empty string"));
             }
-            match validate_metric_name(namespace.as_ref(), true) {
+            match validate_metric_name_with_rule(namespace.as_ref(), true, self.name_rule) {
                 Ok(()) => Some(namespace),
                 Err(err) => {
                     return Err(
@@ -158,10 +169,11 @@ impl RegistryBuilder {
             None
         };
 
-        validate_const_labels_config(&self.const_labels)?;
+        validate_const_labels_config(&self.const_labels, self.name_rule)?;
 
         Ok(Registry {
             namespace,
+            name_rule: self.name_rule,
             const_labels: self.const_labels,
             metrics: HashMap::default(),
             subsystems: HashMap::default(),
@@ -183,6 +195,11 @@ impl Registry {
     /// Returns the `constant labels` of [`Registry`].
     pub fn constant_labels(&self) -> &[(Cow<'static, str>, Cow<'static, str>)] {
         &self.const_labels
+    }
+
+    /// Returns the configured register-time name rule.
+    pub fn name_rule(&self) -> NameRule {
+        self.name_rule
     }
 }
 
@@ -296,7 +313,7 @@ impl Registry {
     ) -> Result<&mut Self> {
         // Check the metric name
         let name: Cow<'static, str> = name.into();
-        validate_metric_name(&name, self.namespace().is_none())
+        validate_metric_name_with_rule(&name, self.namespace().is_none(), self.name_rule)
             .map_err(|err| Error::invalid(err.to_string()).with_context("metric", &name))?;
 
         // Check metric help text
@@ -354,7 +371,7 @@ impl Registry {
         let mut variable_label_names = HashSet::new();
         if let Some(names) = <M::LabelSet as LabelSetSchema>::names() {
             for name in names.iter().copied() {
-                if let Err(err) = validate_label_name(name) {
+                if let Err(err) = validate_label_name_with_rule(name, self.name_rule) {
                     return Err(Error::invalid(err.to_string()).with_context("label", name));
                 }
 
@@ -552,14 +569,14 @@ impl<'a> RegistrySubsystemBuilder<'a> {
         if name.is_empty() {
             return Err(Error::invalid("subsystem name cannot be an empty string"));
         }
-        validate_metric_name(&name, parent.namespace.is_none())
+        validate_metric_name_with_rule(&name, parent.namespace.is_none(), parent.name_rule)
             .map_err(|err| Error::invalid(err.to_string()).with_context("subsystem", &name))?;
 
         match parent.subsystems.entry(name.clone()) {
             hash_map::Entry::Occupied(entry) => match const_labels {
                 None => Ok(entry.into_mut()),
                 Some(subsystem_const_labels) => {
-                    validate_const_labels_config(&subsystem_const_labels)?;
+                    validate_const_labels_config(&subsystem_const_labels, parent.name_rule)?;
 
                     let merged = merge_const_labels(&parent.const_labels, subsystem_const_labels);
 
@@ -586,7 +603,7 @@ impl<'a> RegistrySubsystemBuilder<'a> {
                 // Handle constant labels of this subsystem
                 let const_labels = match const_labels {
                     Some(subsystem_const_labels) => {
-                        validate_const_labels_config(&subsystem_const_labels)?;
+                        validate_const_labels_config(&subsystem_const_labels, parent.name_rule)?;
                         merge_const_labels(&parent.const_labels, subsystem_const_labels)
                     },
                     None => parent.const_labels.clone(),
@@ -594,6 +611,7 @@ impl<'a> RegistrySubsystemBuilder<'a> {
 
                 let registry = Registry::builder()
                     .with_namespace(namespace)
+                    .with_name_rule(parent.name_rule)
                     .with_const_labels(const_labels)
                     .build()?;
 
@@ -622,11 +640,12 @@ fn merge_const_labels(
 
 fn validate_const_labels_config(
     const_labels: &[(Cow<'static, str>, Cow<'static, str>)],
+    name_rule: NameRule,
 ) -> Result<()> {
     let mut names = HashSet::new();
 
     for (name, _) in const_labels.iter() {
-        validate_label_name(name.as_ref())
+        validate_label_name_with_rule(name.as_ref(), name_rule)
             .map_err(|err| Error::invalid(err.to_string()).with_context("label", name))?;
 
         if !names.insert(name.clone()) {
@@ -666,6 +685,33 @@ mod tests {
         assert_eq!(nested_subsystem.namespace(), Some("myapp_subsystem1_subsystem2"));
         assert_eq!(nested_subsystem.constant_labels(), [("env".into(), "prod".into())]);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_name_rule_default_is_legacy() {
+        let registry = Registry::default();
+        assert_eq!(registry.name_rule(), NameRule::Legacy);
+    }
+
+    #[test]
+    fn test_legacy_mode_rejects_utf8_metric_name() {
+        let mut registry = Registry::default();
+        let result = registry.register("指标", "help", DummyCounter);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert_eq!(err.kind(), ErrorKind::Invalid);
+        }
+    }
+
+    #[test]
+    fn test_utf8_mode_accepts_utf8_names() -> Result<()> {
+        let mut registry = Registry::builder()
+            .with_name_rule(NameRule::Utf8)
+            .with_const_labels([("标签", "值")])
+            .build()?;
+
+        registry.register("指标", "help", DummyCounter)?;
         Ok(())
     }
 

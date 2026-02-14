@@ -1,7 +1,7 @@
 use anyhow::Result;
 use fastmetrics::{
     derive::*,
-    format::text,
+    format::text::{self, TextProfile},
     metrics::{
         counter::Counter,
         family::Family,
@@ -10,7 +10,7 @@ use fastmetrics::{
     registry::*,
 };
 use rand::{
-    Rng,
+    RngExt,
     distr::{Distribution, StandardUniform},
 };
 
@@ -47,7 +47,7 @@ enum Error {
 }
 
 impl Distribution<Labels> for StandardUniform {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Labels {
+    fn sample<R: RngExt + ?Sized>(&self, rng: &mut R) -> Labels {
         let operation = match rng.random_range(0..=3) {
             0 => Operation::Read,
             1 => Operation::Write,
@@ -98,7 +98,7 @@ fn main() -> Result<()> {
     }
 
     let mut output = String::new();
-    text::encode(&mut output, &registry)?;
+    text::encode(&mut output, &registry, TextProfile::default())?;
     println!("{}", &output);
 
     Ok(())
