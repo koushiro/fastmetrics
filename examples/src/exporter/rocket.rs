@@ -9,13 +9,14 @@ use fastmetrics::{
 use rocket::{
     Config, State,
     fairing::{Fairing, Info, Kind},
-    http::{ContentType, Status},
+    http::{Accept, ContentType, Status},
     request::Request,
     response::Response,
 };
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
@@ -64,9 +65,9 @@ impl Fairing for MetricsFairing {
 }
 
 #[rocket::get("/metrics")]
-async fn metrics_text(state: &State<AppState>) -> (Status, (ContentType, String)) {
+async fn metrics_text(state: &State<AppState>, accept: &Accept) -> (Status, (ContentType, String)) {
     let mut output = String::new();
-    let profile = text::TextProfile::PrometheusV0_0_4;
+    let profile = negotiation::text_profile_from_accept(Some(accept.to_string().as_str()));
     if let Err(e) = text::encode(&mut output, &state.registry, profile) {
         return (
             Status::InternalServerError,
@@ -80,8 +81,11 @@ async fn metrics_text(state: &State<AppState>) -> (Status, (ContentType, String)
 }
 
 #[rocket::get("/metrics/text")]
-async fn metrics_text_explicit(state: &State<AppState>) -> (Status, (ContentType, String)) {
-    metrics_text(state).await
+async fn metrics_text_explicit(
+    state: &State<AppState>,
+    accept: &Accept,
+) -> (Status, (ContentType, String)) {
+    metrics_text(state, accept).await
 }
 
 #[rocket::get("/metrics/protobuf")]

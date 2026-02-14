@@ -17,6 +17,7 @@ use warp::{
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
@@ -37,9 +38,12 @@ struct AppState {
 struct TextEncodeReject;
 impl warp::reject::Reject for TextEncodeReject {}
 
-fn metrics_encode_text(state: AppState) -> Result<impl Reply, TextEncodeReject> {
+fn metrics_encode_text(
+    accept: Option<String>,
+    state: AppState,
+) -> Result<impl Reply, TextEncodeReject> {
     let mut output = String::new();
-    let profile = text::TextProfile::PrometheusV0_0_4;
+    let profile = negotiation::text_profile_from_accept(accept.as_deref());
     text::encode(&mut output, &state.registry, profile).map_err(|_| TextEncodeReject)?;
     Ok(warp::reply::with_header(
         warp::reply::with_status(output, StatusCode::OK),
@@ -63,10 +67,14 @@ fn metrics_encode_protobuf(state: AppState) -> Result<impl Reply, ProtobufEncode
     ))
 }
 
-async fn text_endpoint(method: Method, state: AppState) -> Result<impl Reply, Rejection> {
+async fn text_endpoint(
+    method: Method,
+    accept: Option<String>,
+    state: AppState,
+) -> Result<impl Reply, Rejection> {
     let start = Instant::now();
     state.metrics.http.inc_in_flight();
-    let result = metrics_encode_text(state.clone());
+    let result = metrics_encode_text(accept, state.clone());
     match result {
         Ok(reply) => {
             state.metrics.http.observe(method, StatusCode::OK.as_u16(), start);
@@ -127,20 +135,22 @@ fn build_filters(
     // /metrics (text)
     let metrics_text_route = warp::path!("metrics")
         .and(warp::method())
+        .and(warp::header::optional::<String>("accept"))
         .and(warp::any().map({
             let state = state.clone();
             move || state.clone()
         }))
-        .and_then(text_endpoint);
+        .and_then(|method, accept, state| text_endpoint(method, accept, state));
 
     // /metrics/text
     let metrics_text_explicit = warp::path!("metrics" / "text")
         .and(warp::method())
+        .and(warp::header::optional::<String>("accept"))
         .and(warp::any().map({
             let state = state.clone();
             move || state.clone()
         }))
-        .and_then(text_endpoint);
+        .and_then(|method, accept, state| text_endpoint(method, accept, state));
 
     // /metrics/protobuf
     let metrics_protobuf_route = warp::path!("metrics" / "protobuf")

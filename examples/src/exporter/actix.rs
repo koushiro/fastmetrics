@@ -5,7 +5,7 @@ use std::{
 };
 
 use actix_web::{
-    App, Error, HttpResponse, HttpServer, Responder,
+    App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     error::ErrorInternalServerError,
     http::{StatusCode, header},
@@ -21,6 +21,7 @@ use futures::future::{LocalBoxFuture, Ready, ready};
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
@@ -105,9 +106,11 @@ where
     }
 }
 
-async fn text_handler(state: Data<AppState>) -> Result<impl Responder, Error> {
+async fn text_handler(state: Data<AppState>, req: HttpRequest) -> Result<impl Responder, Error> {
     let mut output = String::new();
-    let profile = text::TextProfile::PrometheusV0_0_4;
+    let profile = negotiation::text_profile_from_accept(
+        req.headers().get(header::ACCEPT).and_then(|value| value.to_str().ok()),
+    );
     text::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
     Ok(HttpResponse::Ok()
         .insert_header((header::CONTENT_TYPE, profile.content_type()))

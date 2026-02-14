@@ -12,7 +12,7 @@ use axum::{
     ServiceExt,
     body::Body,
     extract::{Request, State},
-    http::{Method, StatusCode, Uri, header},
+    http::{HeaderMap, Method, StatusCode, Uri, header},
     response::{IntoResponse, Response},
     routing::{Router, get},
 };
@@ -28,6 +28,7 @@ use tower_http::normalize_path::NormalizePathLayer;
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
@@ -150,9 +151,14 @@ impl IntoResponse for AppError {
     }
 }
 
-async fn text_handler(state: State<AppState>) -> Result<Response, AppError> {
+async fn text_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, AppError> {
     let mut output = String::new();
-    let profile = text::TextProfile::PrometheusV0_0_4;
+    let profile = negotiation::text_profile_from_accept(
+        headers.get(header::ACCEPT).and_then(|value| value.to_str().ok()),
+    );
     text::encode(&mut output, &state.registry, profile)?;
     let response = Response::builder()
         .header(header::CONTENT_TYPE, profile.content_type())

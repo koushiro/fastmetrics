@@ -23,6 +23,7 @@ use tokio::net::{TcpListener, TcpStream};
 
 #[path = "../metrics/mod.rs"]
 mod metrics;
+mod negotiation;
 
 #[derive(Clone, Default, Register)]
 pub struct Metrics {
@@ -59,9 +60,12 @@ impl AppError {
     }
 }
 
-fn text_response(state: &AppState) -> Result<MetricsResponse, AppError> {
+fn text_response_with_accept(
+    state: &AppState,
+    accept: Option<&str>,
+) -> Result<MetricsResponse, AppError> {
     let mut output = String::new();
-    let profile = text::TextProfile::PrometheusV0_0_4;
+    let profile = negotiation::text_profile_from_accept(accept);
     text::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 
@@ -111,8 +115,9 @@ async fn route_request(
     req: &Request<Incoming>,
     state: &AppState,
 ) -> Result<MetricsResponse, AppError> {
+    let accept = req.headers().get(header::ACCEPT).and_then(|value| value.to_str().ok());
     match classify_route(req.method(), req.uri().path()) {
-        MetricsRoute::Text => text_response(state),
+        MetricsRoute::Text => text_response_with_accept(state, accept),
         MetricsRoute::Protobuf => protobuf_response(state),
         MetricsRoute::NotFound(path) => not_found_response(path),
     }
