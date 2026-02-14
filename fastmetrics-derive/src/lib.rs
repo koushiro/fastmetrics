@@ -176,7 +176,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// ```rust
 /// # use std::marker::PhantomData;
 /// # use fastmetrics::{
-/// #    format::text,
+/// #     format::text::{self, TextProfile},
 /// #     metrics::{counter::Counter, gauge::Gauge, histogram::Histogram, family::Family},
 /// #     registry::{Register, Registry},
 /// # };
@@ -242,7 +242,7 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 /// metrics.register(&mut registry).unwrap();
 ///
 /// let mut output = String::new();
-/// text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1).unwrap();
+/// text::encode(&mut output, &registry, TextProfile::default()).unwrap();
 /// // println!("{}", output);
 /// ```
 #[proc_macro_derive(Register, attributes(register))]

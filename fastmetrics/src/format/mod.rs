@@ -15,8 +15,10 @@
 //! - `encode_with(buffer, registry, profile, enter_scope)`.
 //!
 //! Text profiles:
-//! - `OpenMetrics1` (default): [OpenMetrics text format]
-//! - `Prometheus004`: [Prometheus text format]
+//! - `PrometheusV0_0_4`: [Prometheus text format]
+//! - `PrometheusV1_0_0`: [Prometheus text format] + escaping scheme support
+//! - `OpenMetricsV0_0_1`: [OpenMetrics text format]
+//! - `OpenMetricsV1_0_0` (default): [OpenMetrics text format] + escaping scheme support
 //!
 //! ## Protobuf format
 //!

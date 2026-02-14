@@ -61,7 +61,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             group.sample_size(100).bench_function(id, |b| {
                 use fastmetrics::format::prost::{ProtobufProfile, encode};
 
-                let registry = setup_fastmetrics_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times, Default::default());
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();
@@ -74,7 +74,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             group.sample_size(100).bench_function(id, |b| {
                 use fastmetrics::format::prost::{ProtobufProfile, encode};
 
-                let registry = setup_fastmetrics_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times, Default::default());
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();
@@ -87,7 +87,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             group.sample_size(100).bench_function(id, |b| {
                 use fastmetrics::format::protobuf::{ProtobufProfile, encode};
 
-                let registry = setup_fastmetrics_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times, Default::default());
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();
@@ -100,7 +100,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
             group.sample_size(100).bench_function(id, |b| {
                 use fastmetrics::format::protobuf::{ProtobufProfile, encode};
 
-                let registry = setup_fastmetrics_registry(count, times);
+                let registry = setup_fastmetrics_registry(count, times, Default::default());
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();

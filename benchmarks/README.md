@@ -183,108 +183,204 @@ Each group of metrics includes a counter (u64) and a histogram.
 
 ```text
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 10 metrics * 100 times
-                        time:   [5.2281 ms 5.3138 ms 5.4316 ms]
+                        time:   [5.2102 ms 5.2926 ms 5.3685 ms]
 text::encode/measured (prometheus 0.0.4): 10 metrics * 100 times
-                        time:   [410.74 µs 413.58 µs 416.77 µs]
+                        time:   [406.23 µs 409.65 µs 413.77 µs]
 text::encode/prometheus (prometheus 0.0.4): 10 metrics * 100 times
-                        time:   [532.96 µs 535.41 µs 537.98 µs]
-text::encode/prometheus_client (openmetrics 1): 10 metrics * 100 times
-                        time:   [336.83 µs 338.54 µs 340.24 µs]
+                        time:   [528.63 µs 531.68 µs 534.79 µs]
+text::encode/prometheus_client (openmetrics 0.0.1): 10 metrics * 100 times
+                        time:   [332.85 µs 334.57 µs 336.25 µs]
 text::encode/fastmetrics (prometheus 0.0.4): 10 metrics * 100 times
-                        time:   [162.63 µs 163.74 µs 164.95 µs]
-text::encode/fastmetrics (openmetrics 1): 10 metrics * 100 times
-                        time:   [163.04 µs 164.15 µs 165.18 µs]
+                        time:   [170.50 µs 171.62 µs 172.68 µs]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 10 metrics * 100 times
+                        time:   [171.10 µs 173.05 µs 174.91 µs]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 10 metrics * 100 times
+                        time:   [159.32 µs 160.61 µs 161.79 µs]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 10 metrics * 100 times
+                        time:   [276.51 µs 279.79 µs 283.37 µs]
+text::encode/fastmetrics (openmetrics 0.0.1): 10 metrics * 100 times
+                        time:   [172.80 µs 174.40 µs 175.83 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 10 metrics * 100 times
+                        time:   [169.61 µs 170.85 µs 171.92 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 10 metrics * 100 times
+                        time:   [160.21 µs 161.14 µs 162.01 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 10 metrics * 100 times
+                        time:   [276.64 µs 278.66 µs 280.69 µs]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 10 metrics * 1000 times
-                        time:   [10.485 ms 10.594 ms 10.693 ms]
+                        time:   [10.439 ms 10.651 ms 10.868 ms]
 text::encode/measured (prometheus 0.0.4): 10 metrics * 1000 times
-                        time:   [440.27 µs 444.89 µs 453.71 µs]
+                        time:   [451.03 µs 462.21 µs 474.65 µs]
 text::encode/prometheus (prometheus 0.0.4): 10 metrics * 1000 times
-                        time:   [584.82 µs 587.41 µs 590.73 µs]
-text::encode/prometheus_client (openmetrics 1): 10 metrics * 1000 times
-                        time:   [363.03 µs 364.92 µs 368.37 µs]
+                        time:   [591.83 µs 607.48 µs 626.58 µs]
+text::encode/prometheus_client (openmetrics 0.0.1): 10 metrics * 1000 times
+                        time:   [360.08 µs 360.91 µs 361.80 µs]
 text::encode/fastmetrics (prometheus 0.0.4): 10 metrics * 1000 times
-                        time:   [176.74 µs 177.73 µs 179.50 µs]
-text::encode/fastmetrics (openmetrics 1): 10 metrics * 1000 times
-                        time:   [176.05 µs 176.87 µs 177.77 µs]
+                        time:   [183.50 µs 183.88 µs 184.27 µs]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 10 metrics * 1000 times
+                        time:   [183.65 µs 184.10 µs 184.58 µs]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 10 metrics * 1000 times
+                        time:   [173.79 µs 174.29 µs 174.86 µs]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 10 metrics * 1000 times
+                        time:   [298.65 µs 299.40 µs 300.47 µs]
+text::encode/fastmetrics (openmetrics 0.0.1): 10 metrics * 1000 times
+                        time:   [185.10 µs 186.34 µs 187.95 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 10 metrics * 1000 times
+                        time:   [183.42 µs 183.77 µs 184.18 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 10 metrics * 1000 times
+                        time:   [172.07 µs 172.44 µs 172.83 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 10 metrics * 1000 times
+                        time:   [297.99 µs 298.58 µs 299.30 µs]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 10 metrics * 10000 times
-                        time:   [10.928 ms 11.084 ms 11.253 ms]
+                        time:   [10.895 ms 11.024 ms 11.152 ms]
 text::encode/measured (prometheus 0.0.4): 10 metrics * 10000 times
-                        time:   [448.42 µs 450.78 µs 454.85 µs]
+                        time:   [446.91 µs 447.74 µs 448.64 µs]
 text::encode/prometheus (prometheus 0.0.4): 10 metrics * 10000 times
-                        time:   [595.20 µs 596.69 µs 598.30 µs]
-text::encode/prometheus_client (openmetrics 1): 10 metrics * 10000 times
-                        time:   [367.54 µs 368.21 µs 368.90 µs]
+                        time:   [596.18 µs 632.41 µs 675.91 µs]
+text::encode/prometheus_client (openmetrics 0.0.1): 10 metrics * 10000 times
+                        time:   [366.61 µs 367.44 µs 368.38 µs]
 text::encode/fastmetrics (prometheus 0.0.4): 10 metrics * 10000 times
-                        time:   [177.78 µs 179.02 µs 181.56 µs]
-text::encode/fastmetrics (openmetrics 1): 10 metrics * 10000 times
-                        time:   [177.97 µs 178.30 µs 178.65 µs]
+                        time:   [200.84 µs 215.37 µs 235.96 µs]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 10 metrics * 10000 times
+                        time:   [202.35 µs 216.30 µs 236.71 µs]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 10 metrics * 10000 times
+                        time:   [176.00 µs 176.93 µs 177.96 µs]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 10 metrics * 10000 times
+                        time:   [300.70 µs 311.18 µs 336.27 µs]
+text::encode/fastmetrics (openmetrics 0.0.1): 10 metrics * 10000 times
+                        time:   [187.15 µs 187.79 µs 188.58 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 10 metrics * 10000 times
+                        time:   [186.41 µs 187.14 µs 188.15 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 10 metrics * 10000 times
+                        time:   [175.68 µs 181.04 µs 191.83 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 10 metrics * 10000 times
+                        time:   [300.97 µs 301.70 µs 302.54 µs]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 10 metrics * 100000 times
-                        time:   [11.267 ms 11.413 ms 11.554 ms]
+                        time:   [12.192 ms 13.184 ms 14.530 ms]
 text::encode/measured (prometheus 0.0.4): 10 metrics * 100000 times
-                        time:   [452.88 µs 457.01 µs 464.36 µs]
+                        time:   [457.14 µs 494.79 µs 547.79 µs]
 text::encode/prometheus (prometheus 0.0.4): 10 metrics * 100000 times
-                        time:   [618.22 µs 622.05 µs 628.64 µs]
-text::encode/prometheus_client (openmetrics 1): 10 metrics * 100000 times
-                        time:   [357.63 µs 361.21 µs 367.90 µs]
+                        time:   [619.61 µs 622.39 µs 625.73 µs]
+text::encode/prometheus_client (openmetrics 0.0.1): 10 metrics * 100000 times
+                        time:   [360.93 µs 362.54 µs 364.28 µs]
 text::encode/fastmetrics (prometheus 0.0.4): 10 metrics * 100000 times
-                        time:   [180.42 µs 181.87 µs 184.35 µs]
-text::encode/fastmetrics (openmetrics 1): 10 metrics * 100000 times
-                        time:   [179.44 µs 179.88 µs 180.38 µs]
+                        time:   [187.31 µs 187.67 µs 188.12 µs]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 10 metrics * 100000 times
+                        time:   [187.47 µs 188.21 µs 189.03 µs]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 10 metrics * 100000 times
+                        time:   [176.61 µs 178.58 µs 182.49 µs]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 10 metrics * 100000 times
+                        time:   [307.30 µs 309.47 µs 311.67 µs]
+text::encode/fastmetrics (openmetrics 0.0.1): 10 metrics * 100000 times
+                        time:   [188.22 µs 188.98 µs 189.88 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 10 metrics * 100000 times
+                        time:   [187.79 µs 188.44 µs 189.15 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 10 metrics * 100000 times
+                        time:   [176.77 µs 177.44 µs 178.25 µs]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 10 metrics * 100000 times
+                        time:   [303.75 µs 304.94 µs 306.33 µs]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 100 metrics * 100 times
-                        time:   [53.436 ms 53.805 ms 54.174 ms]
+                        time:   [52.919 ms 53.509 ms 54.092 ms]
 text::encode/measured (prometheus 0.0.4): 100 metrics * 100 times
-                        time:   [4.1551 ms 4.1929 ms 4.2600 ms]
+                        time:   [4.1620 ms 4.4350 ms 4.8722 ms]
 text::encode/prometheus (prometheus 0.0.4): 100 metrics * 100 times
-                        time:   [5.7268 ms 5.8118 ms 5.9317 ms]
-text::encode/prometheus_client (openmetrics 1): 100 metrics * 100 times
-                        time:   [3.4162 ms 3.4748 ms 3.5614 ms]
+                        time:   [5.6643 ms 5.6968 ms 5.7332 ms]
+text::encode/prometheus_client (openmetrics 0.0.1): 100 metrics * 100 times
+                        time:   [3.4673 ms 3.5368 ms 3.6208 ms]
 text::encode/fastmetrics (prometheus 0.0.4): 100 metrics * 100 times
-                        time:   [1.6750 ms 1.6795 ms 1.6845 ms]
-text::encode/fastmetrics (openmetrics 1): 100 metrics * 100 times
-                        time:   [1.6712 ms 1.6780 ms 1.6850 ms]
+                        time:   [1.7476 ms 1.7534 ms 1.7598 ms]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 100 metrics * 100 times
+                        time:   [1.8304 ms 2.0152 ms 2.3290 ms]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 100 metrics * 100 times
+                        time:   [1.6426 ms 1.6484 ms 1.6548 ms]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 100 metrics * 100 times
+                        time:   [2.8335 ms 2.8493 ms 2.8653 ms]
+text::encode/fastmetrics (openmetrics 0.0.1): 100 metrics * 100 times
+                        time:   [1.7520 ms 1.7795 ms 1.8251 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 100 metrics * 100 times
+                        time:   [1.7437 ms 1.7546 ms 1.7651 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 100 metrics * 100 times
+                        time:   [1.6554 ms 1.6619 ms 1.6684 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 100 metrics * 100 times
+                        time:   [2.8582 ms 2.8761 ms 2.8989 ms]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 100 metrics * 1000 times
-                        time:   [105.19 ms 105.94 ms 106.81 ms]
+                        time:   [105.03 ms 105.84 ms 106.67 ms]
 text::encode/measured (prometheus 0.0.4): 100 metrics * 1000 times
-                        time:   [4.4668 ms 4.5146 ms 4.5990 ms]
+                        time:   [4.4879 ms 4.5071 ms 4.5293 ms]
 text::encode/prometheus (prometheus 0.0.4): 100 metrics * 1000 times
-                        time:   [6.2045 ms 6.2317 ms 6.2619 ms]
-text::encode/prometheus_client (openmetrics 1): 100 metrics * 1000 times
-                        time:   [3.7008 ms 3.7406 ms 3.8115 ms]
+                        time:   [6.1833 ms 6.3865 ms 6.6750 ms]
+text::encode/prometheus_client (openmetrics 0.0.1): 100 metrics * 1000 times
+                        time:   [3.6780 ms 3.6851 ms 3.6931 ms]
 text::encode/fastmetrics (prometheus 0.0.4): 100 metrics * 1000 times
-                        time:   [1.8035 ms 1.8086 ms 1.8140 ms]
-text::encode/fastmetrics (openmetrics 1): 100 metrics * 1000 times
-                        time:   [1.7914 ms 1.7976 ms 1.8041 ms]
+                        time:   [1.8819 ms 1.8901 ms 1.9001 ms]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 100 metrics * 1000 times
+                        time:   [1.8796 ms 1.8864 ms 1.8936 ms]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 100 metrics * 1000 times
+                        time:   [1.7639 ms 1.7730 ms 1.7832 ms]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 100 metrics * 1000 times
+                        time:   [3.0457 ms 3.0527 ms 3.0614 ms]
+text::encode/fastmetrics (openmetrics 0.0.1): 100 metrics * 1000 times
+                        time:   [1.8837 ms 1.8902 ms 1.8976 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 100 metrics * 1000 times
+                        time:   [1.8814 ms 1.8863 ms 1.8915 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 100 metrics * 1000 times
+                        time:   [1.7779 ms 1.8446 ms 1.9535 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 100 metrics * 1000 times
+                        time:   [3.0547 ms 3.0632 ms 3.0712 ms]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 100 metrics * 10000 times
-                        time:   [110.35 ms 110.81 ms 111.29 ms]
+                        time:   [111.03 ms 112.31 ms 113.80 ms]
 text::encode/measured (prometheus 0.0.4): 100 metrics * 10000 times
-                        time:   [4.5048 ms 4.5137 ms 4.5230 ms]
+                        time:   [4.5344 ms 4.5473 ms 4.5620 ms]
 text::encode/prometheus (prometheus 0.0.4): 100 metrics * 10000 times
-                        time:   [6.2554 ms 6.2713 ms 6.2878 ms]
-text::encode/prometheus_client (openmetrics 1): 100 metrics * 10000 times
-                        time:   [3.7042 ms 3.7109 ms 3.7180 ms]
+                        time:   [6.3273 ms 6.5598 ms 6.8978 ms]
+text::encode/prometheus_client (openmetrics 0.0.1): 100 metrics * 10000 times
+                        time:   [3.7417 ms 3.7512 ms 3.7618 ms]
 text::encode/fastmetrics (prometheus 0.0.4): 100 metrics * 10000 times
-                        time:   [1.8087 ms 1.8133 ms 1.8174 ms]
-text::encode/fastmetrics (openmetrics 1): 100 metrics * 10000 times
-                        time:   [1.8033 ms 1.8079 ms 1.8125 ms]
+                        time:   [1.9392 ms 2.0116 ms 2.1491 ms]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 100 metrics * 10000 times
+                        time:   [1.9030 ms 1.9805 ms 2.1063 ms]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 100 metrics * 10000 times
+                        time:   [1.7977 ms 1.8043 ms 1.8126 ms]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 100 metrics * 10000 times
+                        time:   [3.0758 ms 3.0846 ms 3.0920 ms]
+text::encode/fastmetrics (openmetrics 0.0.1): 100 metrics * 10000 times
+                        time:   [1.9122 ms 1.9215 ms 1.9329 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 100 metrics * 10000 times
+                        time:   [1.9006 ms 1.9079 ms 1.9170 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 100 metrics * 10000 times
+                        time:   [1.7908 ms 1.7976 ms 1.8055 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 100 metrics * 10000 times
+                        time:   [3.0767 ms 3.2276 ms 3.5564 ms]
 
 text::encode/metrics_exporter_prometheus (prometheus 0.0.4): 100 metrics * 100000 times
-                        time:   [115.58 ms 117.14 ms 119.37 ms]
+                        time:   [117.32 ms 118.50 ms 119.72 ms]
 text::encode/measured (prometheus 0.0.4): 100 metrics * 100000 times
-                        time:   [4.5890 ms 4.7871 ms 5.1389 ms]
+                        time:   [4.5643 ms 4.5779 ms 4.5926 ms]
 text::encode/prometheus (prometheus 0.0.4): 100 metrics * 100000 times
-                        time:   [6.5787 ms 6.5976 ms 6.6171 ms]
-text::encode/prometheus_client (openmetrics 1): 100 metrics * 100000 times
-                        time:   [3.6126 ms 3.6331 ms 3.6691 ms]
+                        time:   [6.5372 ms 6.7614 ms 7.1926 ms]
+text::encode/prometheus_client (openmetrics 0.0.1): 100 metrics * 100000 times
+                        time:   [3.6109 ms 3.6343 ms 3.6700 ms]
 text::encode/fastmetrics (prometheus 0.0.4): 100 metrics * 100000 times
-                        time:   [1.8395 ms 1.8438 ms 1.8478 ms]
-text::encode/fastmetrics (openmetrics 1): 100 metrics * 100000 times
-                        time:   [1.8409 ms 1.8570 ms 1.8825 ms]
+                        time:   [1.9206 ms 1.9393 ms 1.9668 ms]
+text::encode/fastmetrics (prometheus 1.0.0, legacy + underscores): 100 metrics * 100000 times
+                        time:   [1.9123 ms 1.9359 ms 1.9823 ms]
+text::encode/fastmetrics (prometheus 1.0.0, allow utf8): 100 metrics * 100000 times
+                        time:   [1.8024 ms 1.8090 ms 1.8161 ms]
+text::encode/fastmetrics (prometheus 1.0.0, utf8 + underscores): 100 metrics * 100000 times
+                        time:   [3.0946 ms 3.1061 ms 3.1189 ms]
+text::encode/fastmetrics (openmetrics 0.0.1): 100 metrics * 100000 times
+                        time:   [1.9179 ms 1.9263 ms 1.9351 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, legacy + underscores): 100 metrics * 100000 times
+                        time:   [1.9049 ms 1.9098 ms 1.9158 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, allow utf8): 100 metrics * 100000 times
+                        time:   [1.8043 ms 1.8109 ms 1.8171 ms]
+text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 100 metrics * 100000 times
+                        time:   [3.0815 ms 3.0899 ms 3.0996 ms]
 ```
 
 ## Protobuf Encoding

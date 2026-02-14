@@ -36,14 +36,17 @@ where
     S: Fn(&mut crate::registry::Registry),
     H: Fn(String),
 {
-    use crate::{format::text, registry::Registry};
+    use crate::{
+        format::text::{self, TextProfile},
+        registry::Registry,
+    };
 
     let mut registry = Registry::default();
 
     setup(&mut registry);
 
     let mut output = String::new();
-    text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1).unwrap();
+    text::encode(&mut output, &registry, TextProfile::default()).unwrap();
 
     handle(output);
 }

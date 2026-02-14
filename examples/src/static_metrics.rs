@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::Result;
 use fastmetrics::{
     derive::*,
-    format::text,
+    format::text::{self, TextProfile},
     metrics::{
         counter::Counter,
         family::Family,
@@ -125,9 +125,7 @@ fn main() -> Result<()> {
 
     // Export metrics
     let mut output = String::new();
-    with_global_registry(|registry| {
-        text::encode(&mut output, registry, text::TextProfile::OpenMetrics1)
-    })?;
+    with_global_registry(|registry| text::encode(&mut output, registry, TextProfile::default()))?;
 
     println!("\n=== Exported Metrics ===");
     println!("{output}");

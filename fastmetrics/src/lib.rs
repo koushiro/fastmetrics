@@ -23,13 +23,22 @@
 //!
 //! - Full support for [OpenMetrics] specification
 //! - Fast encoding in both text and protobuf exposition format
+//!   - Text
+//!     - Prometheus text: `0.0.4`, `1.0.0`
+//!     - OpenMetrics text: `0.0.1`, `1.0.0`
+//!     - V1 escaping schemes: `allow-utf-8`, `underscores`, `dots`, `values`
+//!   - Protobuf
+//!     - [Prometheus protobuf schema]
+//!     - [OpenMetrics protobuf schema]
 //! - Customizable metric types (currently a set of commonly used metric types are provided)
 //! - Hierarchical metric organization with namespaces and subsystems
 //! - Support for variable and constant labels
 //! - Derive macros to simplify code (e.g., like registering metrics, label handling, etc.)
 //!
-//! [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
 //! [Prometheus]: https://prometheus.io
+//! [OpenMetrics]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md
+//! [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
+//! [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 //!
 //! ## Example
 //!
@@ -37,7 +46,7 @@
 //! use fastmetrics::{
 //!     encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelSetEncoder, LabelEncoder},
 //!     error::Result,
-//!     format::text,
+//!     format::text::{self, TextProfile},
 //!     metrics::{counter::Counter, family::Family},
 //!     raw::LabelSetSchema,
 //!     registry::Registry,
@@ -111,7 +120,7 @@
 //!
 //! // Export metrics in text format
 //! let mut output = String::new();
-//! text::encode(&mut output, &registry, text::TextProfile::OpenMetrics1)?;
+//! text::encode(&mut output, &registry, TextProfile::default())?;
 //! // println!("{}", output);
 //! assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="Get",status="200"} 1"#));
 //! # Ok(())

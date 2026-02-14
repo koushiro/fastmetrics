@@ -39,7 +39,7 @@ impl warp::reject::Reject for TextEncodeReject {}
 
 fn metrics_encode_text(state: AppState) -> Result<impl Reply, TextEncodeReject> {
     let mut output = String::new();
-    let profile = text::TextProfile::Prometheus004;
+    let profile = text::TextProfile::PrometheusV0_0_4;
     text::encode(&mut output, &state.registry, profile).map_err(|_| TextEncodeReject)?;
     Ok(warp::reply::with_header(
         warp::reply::with_status(output, StatusCode::OK),

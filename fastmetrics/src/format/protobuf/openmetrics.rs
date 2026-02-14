@@ -1,5 +1,6 @@
 use std::{borrow::Cow, io, time::Duration};
 
+use super::generated_data_model::openmetrics_data_model;
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
@@ -9,8 +10,6 @@ use crate::{
     raw::{Metadata, MetricType, bucket::Bucket, quantile::Quantile},
     registry::Registry,
 };
-
-use super::generated_data_model::openmetrics_data_model;
 
 pub(super) fn encode(buffer: &mut dyn io::Write, registry: &Registry) -> Result<()> {
     let mut metric_set = openmetrics_data_model::MetricSet::default();

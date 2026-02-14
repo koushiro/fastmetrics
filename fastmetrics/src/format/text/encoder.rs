@@ -1,7 +1,9 @@
-//! Text exposition format.
+use std::{borrow::Cow, collections::HashMap, fmt, time::Duration};
 
-use std::{borrow::Cow, fmt, time::Duration};
-
+use super::{
+    config::{NamePolicy, ProfileConfig, TimestampFormat},
+    names::{escape_label_name, escape_metric_name},
+};
 use crate::{
     encoder::{
         self, EncodeCounterValue, EncodeExemplar, EncodeGaugeValue, EncodeLabel, EncodeLabelSet,
@@ -13,145 +15,15 @@ use crate::{
         bucket::{BUCKET_LABEL, Bucket},
         quantile::{QUANTILE_LABEL, Quantile},
     },
-    registry::Registry,
+    registry::{NameRule, Registry},
 };
 
-pub use super::profile::TextProfile;
-
-#[derive(Clone, Copy)]
-struct ProfileConfig {
-    emit_eof: bool,
-    emit_unit: bool,
-    append_unit_suffix: bool,
-    append_counter_total_suffix: bool,
-    emit_created_series: bool,
-    emit_exemplars: bool,
-    prometheus_type_compat: bool,
-    timestamp_format: TimestampFormat,
-}
-
-#[derive(Clone, Copy)]
-enum TimestampFormat {
-    SecondsMillis,
-    MillisecondsInteger,
-}
-
-impl From<TextProfile> for ProfileConfig {
-    fn from(profile: TextProfile) -> Self {
-        match profile {
-            TextProfile::OpenMetrics1 => Self {
-                emit_eof: true,
-                emit_unit: true,
-                append_unit_suffix: true,
-                append_counter_total_suffix: true,
-                emit_created_series: true,
-                emit_exemplars: true,
-                prometheus_type_compat: false,
-                timestamp_format: TimestampFormat::SecondsMillis,
-            },
-            TextProfile::Prometheus004 => Self {
-                emit_eof: false,
-                emit_unit: false,
-                append_unit_suffix: true,
-                append_counter_total_suffix: false,
-                emit_created_series: false,
-                emit_exemplars: false,
-                prometheus_type_compat: true,
-                timestamp_format: TimestampFormat::MillisecondsInteger,
-            },
-        }
-    }
-}
-
-/// Encodes metrics from a [`Registry`] into text format with an explicit profile.
-///
-/// This is the default text-encoding entrypoint for most users.
-/// It installs the standard scrape scope hook ([`crate::metrics::lazy_group::enter_scope`]) so
-/// grouped lazy metrics can use scrape-scoped caching.
-pub fn encode(
+pub(super) fn encode(
     writer: &mut impl fmt::Write,
     registry: &Registry,
-    profile: TextProfile,
+    config: ProfileConfig,
 ) -> Result<()> {
-    encode_with(writer, registry, profile, crate::metrics::lazy_group::enter_scope)
-}
-
-/// Encodes metrics from a [`Registry`] into text format with explicit profile and scope hook.
-///
-/// This is the advanced text-encoding entrypoint. The [`encode`] helper is a thin wrapper around
-/// this function:
-///
-/// - [`encode`] = `encode_with(..., lazy_group::enter_scope)`
-///
-/// The `enter_scope` closure runs once before encoding starts. Its return value is kept alive for
-/// the entire encoding pass and then dropped. This is used by grouped lazy metrics for
-/// scrape-scoped caching.
-///
-/// ## Scrape-scoped caching (grouped lazy metrics)
-///
-/// Grouped lazy metrics created via [`crate::metrics::lazy_group::LazyGroup`] can share an
-/// expensive sampling operation within a single scrape.
-///
-/// To enable this behavior, pass a closure that enters a scrape scope for the full encoding pass.
-/// The default wrapper [`encode`] already installs this scope hook internally.
-/// If you need the same default hook explicitly, use [`crate::metrics::lazy_group::enter_scope`].
-///
-/// # Arguments
-///
-/// - `writer`: Output destination implementing [`fmt::Write`].
-/// - `registry`: Source registry.
-/// - `profile`: Text format profile selection.
-/// - `enter_scope`: Pre-encode scope hook.
-///
-/// # Returns
-///
-/// Returns `Ok(())` on success, or an [`Error`](crate::error::Error) if writing fails.
-///
-/// # Examples
-///
-/// ```rust
-/// # use fastmetrics::{
-/// #     error::Result,
-/// #     format::text::{self, TextProfile},
-/// #     metrics::counter::Counter,
-/// #     registry::Registry,
-/// # };
-/// #
-/// # fn main() -> Result<()> {
-/// let mut registry = Registry::default();
-///
-/// // Register a counter
-/// let requests = <Counter>::default();
-/// registry.register(
-///     "http_requests_total",
-///     "Total number of HTTP requests",
-///     requests.clone()
-/// )?;
-/// // Update a counter
-/// requests.inc();
-///
-/// // Encode metrics in Prometheus text format
-/// let mut output = String::new();
-/// // Prometheus 0.0.4 profile, no additional scope:
-/// text::encode_with(&mut output, &registry, TextProfile::Prometheus004, || ())?;
-///
-/// // Encode metrics in OpenMetrics text format
-/// let mut output = String::new();
-/// // OpenMetrics 1.0.0 profile, no additional scope:
-/// text::encode_with(&mut output, &registry, TextProfile::OpenMetrics1, || ())?;
-/// # Ok(())
-/// # }
-/// ```
-pub fn encode_with<G>(
-    writer: &mut impl fmt::Write,
-    registry: &Registry,
-    profile: TextProfile,
-    enter_scope: impl FnOnce() -> G,
-) -> Result<()> {
-    // The returned value is kept alive for the duration of encoding and then dropped.
-    let _guard = enter_scope();
-
-    Encoder::new(writer, registry, profile.into()).encode()
+    Encoder::new(writer, registry, config).encode()
 }
 
 struct Encoder<'a, W> {
@@ -169,31 +41,109 @@ where
     }
 
     fn encode(&mut self) -> Result<()> {
-        self.encode_registry(self.registry)?;
+        // Family-name collision checks are only needed for UTF-8 identifiers,
+        // because lossy rewrites are injective for legacy identifiers.
+        let check_escaped_family_name_collisions =
+            self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
+        if check_escaped_family_name_collisions {
+            // mapping: escaped metric name => canonical metric name
+            let mut escaped_to_canonical = HashMap::new();
+            self.check_family_name_collisions(self.registry, &mut escaped_to_canonical)?;
+        }
+
+        // Label-name collisions need check only when lossy escaping is used in
+        // UTF-8 mode, because legacy identifiers are already non-lossy.
+        let check_label_name_collisions =
+            self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
+        // Exemplar labels are a self-contained set emitted after `#` and can be
+        // user-provided, so this check only validates collisions inside that
+        // exemplar label segment. It does not compare with metric labels.
+        let check_exemplar_label_name_collisions = self.config.name_policy.is_lossy();
+
+        self.encode_registry(
+            self.registry,
+            check_label_name_collisions,
+            check_exemplar_label_name_collisions,
+        )?;
+
         if self.config.emit_eof {
             self.encode_eof()?;
         }
+
         Ok(())
     }
 
-    fn encode_registry(&mut self, registry: &Registry) -> Result<()> {
+    fn encode_registry(
+        &mut self,
+        registry: &Registry,
+        check_label_name_collisions: bool,
+        check_exemplar_label_name_collisions: bool,
+    ) -> Result<()> {
         for (metadata, metric) in &registry.metrics {
             MetricFamilyEncoder {
                 writer: self.writer,
                 namespace: registry.namespace(),
                 const_labels: registry.constant_labels(),
                 config: self.config,
+                check_label_name_collisions,
+                check_exemplar_label_name_collisions,
             }
             .encode(metadata, metric)?;
         }
         for subsystem in registry.subsystems.values() {
-            self.encode_registry(subsystem)?;
+            self.encode_registry(
+                subsystem,
+                check_label_name_collisions,
+                check_exemplar_label_name_collisions,
+            )?;
         }
         Ok(())
     }
 
     fn encode_eof(&mut self) -> Result<()> {
         self.writer.write_str("# EOF\n")?;
+        Ok(())
+    }
+
+    fn check_family_name_collisions(
+        &self,
+        registry: &Registry,
+        escaped_to_canonical: &mut HashMap<String, String>,
+    ) -> Result<()> {
+        for (metadata, metric) in &registry.metrics {
+            if metric.is_empty() {
+                continue;
+            }
+
+            let canonical_name = metric_name(
+                registry.namespace(),
+                metadata.name(),
+                metadata.unit(),
+                self.config.append_unit_suffix,
+            )
+            .into_owned();
+            let escaped_name = escape_metric_name(
+                Cow::Borrowed(canonical_name.as_str()),
+                self.config.name_policy,
+            )?
+            .into_owned();
+
+            if let Some(existing_name) = escaped_to_canonical.get(&escaped_name) {
+                if existing_name != &canonical_name {
+                    return Err(Error::duplicated("metric family names collide after escaping")
+                        .with_context("escaped_metric", &escaped_name)
+                        .with_context("existing_metric", existing_name)
+                        .with_context("conflicting_metric", &canonical_name));
+                }
+            } else {
+                escaped_to_canonical.insert(escaped_name, canonical_name);
+            }
+        }
+
+        for subsystem in registry.subsystems.values() {
+            self.check_family_name_collisions(subsystem, escaped_to_canonical)?;
+        }
+
         Ok(())
     }
 }
@@ -203,6 +153,12 @@ struct MetricFamilyEncoder<'a, W> {
     namespace: Option<&'a str>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     config: ProfileConfig,
+
+    // Check label-name collisions only within the metric label segment
+    // (metric const labels, family labels, and extra built-in labels).
+    check_label_name_collisions: bool,
+    // Check label-name collisions only within exemplar labels.
+    check_exemplar_label_name_collisions: bool,
 }
 
 impl<W> MetricFamilyEncoder<'_, W>
@@ -324,6 +280,8 @@ where
             metadata.unit(),
             self.config.append_unit_suffix,
         );
+        let canonical_metric_name = metric_name.clone();
+        let metric_name = escape_metric_name(metric_name, self.config.name_policy)?;
         let ty = metric_type_name(metadata.metric_type(), self.config.prometheus_type_compat)?;
 
         self.encode_type(metric_name.as_ref(), ty)?;
@@ -333,24 +291,60 @@ where
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name,
+            canonical_metric_name,
             metric_type: metadata.metric_type(),
             timestamp: metric.timestamp(),
             const_labels: self.const_labels,
             family_labels: None,
             config: self.config,
+            check_label_name_collisions: self.check_label_name_collisions,
+            check_exemplar_label_name_collisions: self.check_exemplar_label_name_collisions,
         })
     }
 }
 
 struct MetricEncoder<'a, W> {
     writer: &'a mut W,
-    // [namespace_]name[_unit]
+
+    // Escaped [namespace_]name[_unit] used for rendering samples.
     metric_name: Cow<'a, str>,
+    // Canonical [namespace_]name[_unit] before profile escaping.
+    canonical_metric_name: Cow<'a, str>,
     metric_type: MetricType,
     timestamp: Option<Duration>,
+
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     family_labels: Option<&'a dyn EncodeLabelSet>,
+
     config: ProfileConfig,
+    check_label_name_collisions: bool,
+    check_exemplar_label_name_collisions: bool,
+}
+
+struct CommonLabels {
+    encoded: String,
+    // Escaped label names that were already emitted in `encoded`.
+    // We keep this map only when lossy escaping collision checks are enabled,
+    // so `encode_label_set_with_common` can perform incremental checks for
+    // additional labels (for example `le`/`quantile`/stateset labels).
+    escaped_to_canonical: Option<HashMap<String, String>>,
+}
+
+enum AdditionalLabelValue<'a> {
+    Str(&'a str),
+    F64(f64),
+}
+
+fn write_escaped_label_value(writer: &mut impl fmt::Write, value: &str) -> Result<()> {
+    for ch in value.chars() {
+        match ch {
+            '\\' => writer.write_str("\\\\")?,
+            '\n' => writer.write_str("\\n")?,
+            '"' => writer.write_str("\\\"")?,
+            _ => writer.write_char(ch)?,
+        }
+    }
+    Ok(())
 }
 
 impl<W> MetricEncoder<'_, W>
@@ -364,8 +358,27 @@ where
         Ok(())
     }
 
+    fn encode_labels<T: fmt::Write>(
+        writer: &mut T,
+        labels: &dyn EncodeLabelSet,
+        name_policy: NamePolicy,
+        collision_existing: Option<&HashMap<String, String>>,
+        collision_seen: Option<&mut HashMap<String, String>>,
+    ) -> Result<()> {
+        if let Some(collision_seen) = collision_seen {
+            labels.encode(&mut LabelSetEncoder::new_with_collision_tracking(
+                writer,
+                name_policy,
+                collision_existing,
+                collision_seen,
+            ))
+        } else {
+            labels.encode(&mut LabelSetEncoder::new(writer, name_policy))
+        }
+    }
+
     /// Pre-encode common labels (const_labels + family_labels) to a string buffer
-    fn encode_common_labels_to_string(&self) -> Result<Option<String>> {
+    fn encode_common_labels_to_string(&self) -> Result<Option<CommonLabels>> {
         let has_const_labels = !self.const_labels.is_empty();
         let has_family_labels = matches!(self.family_labels, Some(labels) if !labels.is_empty());
 
@@ -374,56 +387,82 @@ where
         }
 
         let mut common_labels = String::new();
+        // mapping: escaped label name => canonical label name
+        let mut escaped_to_canonical = self.check_label_name_collisions.then(HashMap::new);
 
         if has_const_labels {
-            self.const_labels.encode(&mut LabelSetEncoder::new(&mut common_labels))?;
+            Self::encode_labels(
+                &mut common_labels,
+                &self.const_labels,
+                self.config.name_policy,
+                None,
+                escaped_to_canonical.as_mut(),
+            )?;
         }
 
         if has_family_labels {
             if has_const_labels {
                 common_labels.push(',');
             }
-            self.family_labels
-                .expect("family_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(&mut common_labels))?;
+
+            Self::encode_labels(
+                &mut common_labels,
+                self.family_labels.expect("family_labels should be `Some` value"),
+                self.config.name_policy,
+                None,
+                escaped_to_canonical.as_mut(),
+            )?;
         }
 
-        Ok(Some(common_labels))
+        Ok(Some(CommonLabels { encoded: common_labels, escaped_to_canonical }))
     }
 
-    /// Encode label set with pre-computed common labels for better performance
+    /// Escape a single additional label name and check for collisions against
+    /// already-encoded common labels when collision checking is enabled.
+    fn prepare_additional_label_name<'n>(
+        &self,
+        common_labels: Option<&CommonLabels>,
+        canonical_label_name: &'n str,
+    ) -> Result<Cow<'n, str>> {
+        let escaped_label_name = escape_label_name(canonical_label_name, self.config.name_policy)?;
+        if self.check_label_name_collisions {
+            if let Some(existing_name) = common_labels
+                .and_then(|labels| labels.escaped_to_canonical.as_ref())
+                .and_then(|existing| existing.get(escaped_label_name.as_ref()))
+            {
+                return Err(Error::duplicated("label names collide after escaping")
+                    .with_context("escaped_label", escaped_label_name.as_ref())
+                    .with_context("existing_label", existing_name)
+                    .with_context("conflicting_label", canonical_label_name));
+            }
+        }
+        Ok(escaped_label_name)
+    }
+
+    /// Encode label set with pre-computed common labels plus exactly one
+    /// additional label, optimized for histogram/summary/stateset hot loops.
     fn encode_label_set_with_common(
         &mut self,
-        common_labels: Option<&str>,
-        additional_labels: Option<&dyn EncodeLabelSet>,
+        common_labels: Option<&CommonLabels>,
+        escaped_label_name: &str,
+        value: AdditionalLabelValue<'_>,
     ) -> Result<()> {
-        let has_common_labels = common_labels.is_some();
-        let has_additional_labels = matches!(additional_labels, Some(labels) if !labels.is_empty());
-
-        if !has_common_labels && !has_additional_labels {
-            self.writer.write_str(" ")?;
-            return Ok(());
-        }
-
         self.writer.write_str("{")?;
 
-        let mut wrote_any = false;
-        if has_common_labels {
-            let common_labels = common_labels.expect("common_labels should be `Some` value");
-            self.writer.write_str(common_labels)?;
-            wrote_any = true;
+        if let Some(common_labels) = common_labels {
+            self.writer.write_str(common_labels.encoded.as_str())?;
+            self.writer.write_str(",")?;
         }
 
-        if has_additional_labels {
-            if wrote_any {
-                self.writer.write_str(",")?;
-            }
-            additional_labels
-                .expect("additional_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(self.writer))?;
+        self.writer.write_str(escaped_label_name)?;
+        self.writer.write_str("=\"")?;
+        match value {
+            AdditionalLabelValue::Str(value) => write_escaped_label_value(self.writer, value)?,
+            AdditionalLabelValue::F64(value) => {
+                self.writer.write_str(zmij::Buffer::new().format(value))?;
+            },
         }
-
-        self.writer.write_str("} ")?;
+        self.writer.write_str("\"} ")?;
         Ok(())
     }
 
@@ -438,10 +477,18 @@ where
         }
 
         self.writer.write_str("{")?;
+        // mapping: escaped label name => canonical label name
+        let mut collision_seen = self.check_label_name_collisions.then(HashMap::new);
 
         let mut wrote_any = false;
         if has_const_labels {
-            self.const_labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+            Self::encode_labels(
+                self.writer,
+                &self.const_labels,
+                self.config.name_policy,
+                None,
+                collision_seen.as_mut(),
+            )?;
             wrote_any = true;
         }
 
@@ -449,9 +496,14 @@ where
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            self.family_labels
-                .expect("family_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(self.writer))?;
+
+            Self::encode_labels(
+                self.writer,
+                self.family_labels.expect("family_labels should be `Some` value"),
+                self.config.name_policy,
+                None,
+                collision_seen.as_mut(),
+            )?;
             wrote_any = true;
         }
 
@@ -459,9 +511,14 @@ where
             if wrote_any {
                 self.writer.write_str(",")?;
             }
-            additional_labels
-                .expect("additional_labels should be `Some` value")
-                .encode(&mut LabelSetEncoder::new(self.writer))?;
+
+            Self::encode_labels(
+                self.writer,
+                additional_labels.expect("additional_labels should be `Some` value"),
+                self.config.name_policy,
+                None,
+                collision_seen.as_mut(),
+            )?;
         }
 
         self.writer.write_str("} ")?;
@@ -479,6 +536,8 @@ where
 
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
+        let escaped_bucket_label_name =
+            self.prepare_additional_label_name(common_labels.as_ref(), BUCKET_LABEL)?;
 
         let mut cumulative_count = 0;
         for (idx, bucket) in buckets.iter().enumerate() {
@@ -491,13 +550,15 @@ where
             // use pre-computed common labels
             if upper_bound == f64::INFINITY {
                 self.encode_label_set_with_common(
-                    common_labels.as_deref(),
-                    Some(&[(BUCKET_LABEL, "+Inf")]),
+                    common_labels.as_ref(),
+                    escaped_bucket_label_name.as_ref(),
+                    AdditionalLabelValue::Str("+Inf"),
                 )?;
             } else {
                 self.encode_label_set_with_common(
-                    common_labels.as_deref(),
-                    Some(&[(BUCKET_LABEL, upper_bound)]),
+                    common_labels.as_ref(),
+                    escaped_bucket_label_name.as_ref(),
+                    AdditionalLabelValue::F64(upper_bound),
                 )?;
             }
 
@@ -510,6 +571,8 @@ where
                         exemplar.encode(&mut ExemplarEncoder {
                             writer: self.writer,
                             timestamp_format: self.config.timestamp_format,
+                            name_policy: self.config.name_policy,
+                            check_label_name_collisions: self.check_exemplar_label_name_collisions,
                         })?;
                     }
                 }
@@ -641,6 +704,8 @@ where
                 exemplar.encode(&mut ExemplarEncoder {
                     writer: self.writer,
                     timestamp_format: self.config.timestamp_format,
+                    name_policy: self.config.name_policy,
+                    check_label_name_collisions: self.check_exemplar_label_name_collisions,
                 })?;
             }
         }
@@ -659,12 +724,18 @@ where
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
-        // encode state metrics
+        let canonical_state_label = self.canonical_metric_name.clone();
+        let escaped_state_label = self.prepare_additional_label_name(
+            common_labels.as_ref(),
+            canonical_state_label.as_ref(),
+        )?;
+
         for (state, enabled) in states {
             self.encode_metric_name()?;
             self.encode_label_set_with_common(
-                common_labels.as_deref(),
-                Some(&[(self.metric_name.clone(), state)]),
+                common_labels.as_ref(),
+                escaped_state_label.as_ref(),
+                AdditionalLabelValue::Str(state),
             )?;
             if enabled {
                 self.writer.write_str("1")?;
@@ -735,12 +806,16 @@ where
         // pre-encode common labels once
         let common_labels = self.encode_common_labels_to_string()?;
 
+        let escaped_quantile_label =
+            self.prepare_additional_label_name(common_labels.as_ref(), QUANTILE_LABEL)?;
+
         // encode quantile metrics
         for quantile in quantiles {
             self.encode_metric_name()?;
             self.encode_label_set_with_common(
-                common_labels.as_deref(),
-                Some(&[(QUANTILE_LABEL, quantile.quantile())]),
+                common_labels.as_ref(),
+                escaped_quantile_label.as_ref(),
+                AdditionalLabelValue::F64(quantile.quantile()),
             )?;
             self.writer.write_str(zmij::Buffer::new().format(quantile.value()))?;
             self.encode_timestamp()?;
@@ -766,56 +841,115 @@ where
         metric.encode(&mut MetricEncoder {
             writer: self.writer,
             metric_name: self.metric_name.clone(),
+            canonical_metric_name: self.canonical_metric_name.clone(),
             metric_type: self.metric_type,
             timestamp: self.timestamp,
             const_labels: self.const_labels,
             family_labels: Some(label_set),
             config: self.config,
+            check_label_name_collisions: self.check_label_name_collisions,
+            check_exemplar_label_name_collisions: self.check_exemplar_label_name_collisions,
         })
     }
 }
 
-struct LabelSetEncoder<'a, W> {
+struct LabelSetEncoder<'a, 'b, W> {
     writer: &'a mut W,
     first: bool,
+
+    name_policy: NamePolicy,
+    // `existing`: escaped names that were already encoded earlier
+    // (used by the common-label fast path).
+    collision_existing: Option<&'b HashMap<String, String>>,
+    // `seen`: escaped names encoded in the current label segment.
+    collision_seen: Option<&'b mut HashMap<String, String>>,
 }
 
-impl<'a, W> LabelSetEncoder<'a, W> {
-    fn new(writer: &'a mut W) -> LabelSetEncoder<'a, W> {
-        Self { writer, first: true }
+impl<'a, 'b, W> LabelSetEncoder<'a, 'b, W> {
+    fn new(writer: &'a mut W, name_policy: NamePolicy) -> LabelSetEncoder<'a, 'b, W> {
+        Self { writer, first: true, name_policy, collision_existing: None, collision_seen: None }
+    }
+
+    fn new_with_collision_tracking(
+        writer: &'a mut W,
+        name_policy: NamePolicy,
+        collision_existing: Option<&'b HashMap<String, String>>,
+        collision_seen: &'b mut HashMap<String, String>,
+    ) -> LabelSetEncoder<'a, 'b, W> {
+        Self {
+            writer,
+            first: true,
+            name_policy,
+            collision_existing,
+            collision_seen: Some(collision_seen),
+        }
     }
 }
 
-impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, W>
+impl<W> encoder::LabelSetEncoder for LabelSetEncoder<'_, '_, W>
 where
     W: fmt::Write,
 {
     fn encode(&mut self, label: &dyn EncodeLabel) -> Result<()> {
         let first = self.first;
         self.first = false;
-        label.encode(&mut LabelEncoder { writer: self.writer, first })
+        let collision_guard =
+            self.collision_seen
+                .as_deref_mut()
+                .map(|collision_seen| LabelNameCollisionGuard {
+                    existing: self.collision_existing,
+                    seen: collision_seen,
+                });
+
+        label.encode(&mut LabelEncoder {
+            writer: self.writer,
+            first,
+            name_policy: self.name_policy,
+            collision_guard,
+        })
     }
 }
 
-struct LabelEncoder<'a, W> {
-    writer: &'a mut W,
-    first: bool,
+struct LabelNameCollisionGuard<'a> {
+    existing: Option<&'a HashMap<String, String>>,
+    seen: &'a mut HashMap<String, String>,
 }
 
-impl<W> LabelEncoder<'_, W>
+impl LabelNameCollisionGuard<'_> {
+    fn check_and_record(&mut self, canonical_name: &str, escaped_name: &str) -> Result<()> {
+        if let Some(existing_name) = self.existing.and_then(|existing| existing.get(escaped_name)) {
+            return Err(Error::duplicated("label names collide after escaping")
+                .with_context("escaped_label", escaped_name)
+                .with_context("existing_label", existing_name)
+                .with_context("conflicting_label", canonical_name));
+        }
+
+        if let Some(existing_name) = self.seen.get(escaped_name) {
+            return Err(Error::duplicated("label names collide after escaping")
+                .with_context("escaped_label", escaped_name)
+                .with_context("existing_label", existing_name)
+                .with_context("conflicting_label", canonical_name));
+        }
+
+        self.seen.insert(escaped_name.to_owned(), canonical_name.to_owned());
+        Ok(())
+    }
+}
+
+struct LabelEncoder<'a, 'b, W> {
+    writer: &'a mut W,
+    first: bool,
+
+    name_policy: NamePolicy,
+    collision_guard: Option<LabelNameCollisionGuard<'b>>,
+}
+
+impl<W> LabelEncoder<'_, '_, W>
 where
     W: fmt::Write,
 {
     fn encode_escaped_label_value(&mut self, value: &str) -> Result<()> {
-        for ch in value.chars() {
-            match ch {
-                '\\' => self.writer.write_str("\\\\")?,
-                '\n' => self.writer.write_str("\\n")?,
-                '"' => self.writer.write_str("\\\"")?,
-                _ => self.writer.write_char(ch)?,
-            }
-        }
-        Ok(())
+        write_escaped_label_value(self.writer, value)
     }
 }
 
@@ -847,7 +981,7 @@ macro_rules! encode_float_value_impls {
     )
 }
 
-impl<W> encoder::LabelEncoder for LabelEncoder<'_, W>
+impl<W> encoder::LabelEncoder for LabelEncoder<'_, '_, W>
 where
     W: fmt::Write,
 {
@@ -856,7 +990,14 @@ where
         if !self.first {
             self.writer.write_str(",")?;
         }
-        self.writer.write_str(name)?;
+
+        let escaped_name = escape_label_name(name, self.name_policy)?;
+
+        if let Some(collision_guard) = self.collision_guard.as_mut() {
+            collision_guard.check_and_record(name, escaped_name.as_ref())?;
+        }
+
+        self.writer.write_str(escaped_name.as_ref())?;
         Ok(())
     }
 
@@ -962,6 +1103,11 @@ where
 struct ExemplarEncoder<'a, W> {
     writer: &'a mut W,
     timestamp_format: TimestampFormat,
+
+    name_policy: NamePolicy,
+
+    // Check label-name collisions only within the exemplar label segment.
+    check_label_name_collisions: bool,
 }
 
 impl<W> encoder::ExemplarEncoder for ExemplarEncoder<'_, W>
@@ -976,7 +1122,19 @@ where
     ) -> Result<()> {
         // # { labels } value [timestamp]
         self.writer.write_str(" # {")?;
-        labels.encode(&mut LabelSetEncoder::new(self.writer))?;
+
+        if self.check_label_name_collisions {
+            let mut collision_seen = HashMap::new();
+            labels.encode(&mut LabelSetEncoder::new_with_collision_tracking(
+                self.writer,
+                self.name_policy,
+                None,
+                &mut collision_seen,
+            ))?;
+        } else {
+            labels.encode(&mut LabelSetEncoder::new(self.writer, self.name_policy))?;
+        }
+
         self.writer.write_str("} ")?;
 
         self.writer.write_str(zmij::Buffer::new().format(value))?;
@@ -986,115 +1144,5 @@ where
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        error::ErrorKind,
-        metrics::{
-            gauge_histogram::GaugeHistogram,
-            info::Info,
-            state_set::{StateSet, StateSetValue},
-            unknown::Unknown,
-        },
-        registry::Registry,
-    };
-
-    #[test]
-    fn escape_help_and_label_values() {
-        let mut registry = Registry::default();
-        let info = Info::new(vec![("quote", "a\"b"), ("slash", "a\\b"), ("newline", "a\nb")]);
-
-        registry
-            .register("build", r#"Help with \"quote\", \\ slash and \n newline"#, info)
-            .unwrap();
-
-        let mut output = String::new();
-        encode(&mut output, &registry, TextProfile::OpenMetrics1).unwrap();
-
-        assert!(
-            output.contains(r#"# HELP build Help with \"quote\", \\ slash and \n newline"#),
-            "help line should keep canonical escaping: {output}"
-        );
-        assert!(output.contains(r#"quote="a\"b""#), "quote label should be escaped: {output}");
-        assert!(output.contains(r#"slash="a\\b""#), "slash label should be escaped: {output}");
-        assert!(output.contains(r#"newline="a\nb""#), "newline label should be escaped: {output}");
-    }
-
-    #[test]
-    fn prometheus_profile_maps_unknown_to_untyped() {
-        let mut registry = Registry::default();
-        registry.register("raw_value", "Raw value", Unknown::new(42_i64)).unwrap();
-
-        let mut output = String::new();
-        encode(&mut output, &registry, TextProfile::Prometheus004).unwrap();
-
-        assert!(
-            output.contains("# TYPE raw_value untyped"),
-            "unknown should map to untyped: {output}"
-        );
-        assert!(output.contains("raw_value 42"), "unknown sample missing: {output}");
-    }
-
-    #[test]
-    fn prometheus_profile_rejects_info() {
-        let mut registry = Registry::default();
-
-        let info = Info::new(vec![("version", "1.0.0")]);
-        registry.register("release_version", "Build info", info).unwrap();
-
-        let mut output = String::new();
-        let err = encode(&mut output, &registry, TextProfile::Prometheus004).unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::Unsupported);
-    }
-
-    #[test]
-    fn prometheus_profile_rejects_stateset() {
-        let mut registry = Registry::default();
-
-        #[derive(Copy, Clone, Debug, PartialEq)]
-        enum TestState {
-            Ready,
-            Busy,
-        }
-
-        impl StateSetValue for TestState {
-            fn variants() -> &'static [Self] {
-                &[Self::Ready, Self::Busy]
-            }
-
-            fn as_str(&self) -> &str {
-                match self {
-                    Self::Ready => "ready",
-                    Self::Busy => "busy",
-                }
-            }
-        }
-
-        let stateset = StateSet::new(TestState::Ready);
-        registry.register("worker_state", "Worker state", stateset).unwrap();
-
-        let mut output = String::new();
-        let err = encode(&mut output, &registry, TextProfile::Prometheus004).unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::Unsupported);
-    }
-
-    #[test]
-    fn prometheus_profile_rejects_gauge_histogram() {
-        let mut registry = Registry::default();
-        registry
-            .register(
-                "temperature_distribution",
-                "Temperature distribution",
-                GaugeHistogram::default(),
-            )
-            .unwrap();
-
-        let mut output = String::new();
-        let err = encode(&mut output, &registry, TextProfile::Prometheus004).unwrap_err();
-        assert_eq!(err.kind(), ErrorKind::Unsupported);
     }
 }
