@@ -423,3 +423,45 @@ fn v1_underscores_rejects_exemplar_label_name_collisions_after_escaping() {
     assert_eq!(err.kind(), ErrorKind::Duplicated);
     assert_eq!(err.message(), "label names collide after escaping");
 }
+
+#[test]
+fn legacy_profiles_reject_exemplar_label_name_collisions_after_escaping() {
+    struct CollidingExemplar;
+
+    impl EncodeExemplar for CollidingExemplar {
+        fn encode(&self, encoder: &mut dyn ExemplarEncoder) -> Result<()> {
+            encoder.encode(&[("a-b", "x"), ("a/b", "y")], 1.0, None)
+        }
+    }
+
+    #[derive(Copy, Clone)]
+    struct ExemplarCounterMetric;
+
+    impl TypedMetric for ExemplarCounterMetric {
+        const TYPE: MetricType = MetricType::Counter;
+    }
+
+    impl MetricLabelSet for ExemplarCounterMetric {
+        type LabelSet = ();
+    }
+
+    impl EncodeMetric for ExemplarCounterMetric {
+        fn encode(&self, encoder: &mut dyn MetricEncoder) -> Result<()> {
+            encoder.encode_counter(&1_u64, Some(&CollidingExemplar), None)
+        }
+    }
+
+    let mut registry = Registry::default();
+    registry.register("exemplar_metric", "help", ExemplarCounterMetric).unwrap();
+
+    let mut output = String::new();
+    let err = encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Underscores },
+    )
+    .unwrap_err();
+
+    assert_eq!(err.kind(), ErrorKind::Duplicated);
+    assert_eq!(err.message(), "label names collide after escaping");
+}

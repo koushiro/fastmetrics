@@ -41,22 +41,37 @@ where
     }
 
     fn encode(&mut self) -> Result<()> {
-        // Registration validates canonical names. We only need extra checks in
-        // lossy profile escaping modes where different UTF-8 names can collapse
-        // to the same escaped identifier.
-        let check_escaped_name_collisions =
+        // Family-name collision checks are only needed for UTF-8 identifiers,
+        // because lossy rewrites are injective for legacy identifiers.
+        let check_escaped_family_name_collisions =
             self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
-
-        if check_escaped_name_collisions {
+        if check_escaped_family_name_collisions {
             // mapping: escaped metric name => canonical metric name
             let mut escaped_to_canonical = HashMap::new();
             self.check_family_name_collisions(self.registry, &mut escaped_to_canonical)?;
         }
 
-        self.encode_registry(self.registry, check_escaped_name_collisions)?;
+        // Metric label names are registry-validated and only need collision checks
+        // when UTF-8 names may be rewritten. This path checks names in the metric
+        // label segment (const labels, family labels, and built-in metric labels)
+        // against each other, not exemplar labels.
+        let check_label_name_collisions =
+            self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
+        // Exemplar labels are a self-contained set emitted after `#` and can be
+        // user-provided, so this check only validates collisions inside that
+        // exemplar label segment. It does not compare with metric labels.
+        let check_exemplar_label_name_collisions = self.config.name_policy.is_lossy();
+
+        self.encode_registry(
+            self.registry,
+            check_label_name_collisions,
+            check_exemplar_label_name_collisions,
+        )?;
+
         if self.config.emit_eof {
             self.encode_eof()?;
         }
+
         Ok(())
     }
 
@@ -64,6 +79,7 @@ where
         &mut self,
         registry: &Registry,
         check_label_name_collisions: bool,
+        check_exemplar_label_name_collisions: bool,
     ) -> Result<()> {
         for (metadata, metric) in &registry.metrics {
             MetricFamilyEncoder {
@@ -72,11 +88,16 @@ where
                 const_labels: registry.constant_labels(),
                 config: self.config,
                 check_label_name_collisions,
+                check_exemplar_label_name_collisions,
             }
             .encode(metadata, metric)?;
         }
         for subsystem in registry.subsystems.values() {
-            self.encode_registry(subsystem, check_label_name_collisions)?;
+            self.encode_registry(
+                subsystem,
+                check_label_name_collisions,
+                check_exemplar_label_name_collisions,
+            )?;
         }
         Ok(())
     }
@@ -134,7 +155,12 @@ struct MetricFamilyEncoder<'a, W> {
     namespace: Option<&'a str>,
     const_labels: &'a [(Cow<'static, str>, Cow<'static, str>)],
     config: ProfileConfig,
+
+    // Check label-name collisions only within the metric label segment
+    // (metric const labels, family labels, and extra built-in labels).
     check_label_name_collisions: bool,
+    // Check label-name collisions only within exemplar labels.
+    check_exemplar_label_name_collisions: bool,
 }
 
 impl<W> MetricFamilyEncoder<'_, W>
@@ -274,6 +300,7 @@ where
             family_labels: None,
             config: self.config,
             check_label_name_collisions: self.check_label_name_collisions,
+            check_exemplar_label_name_collisions: self.check_exemplar_label_name_collisions,
         })
     }
 }
@@ -293,6 +320,7 @@ struct MetricEncoder<'a, W> {
 
     config: ProfileConfig,
     check_label_name_collisions: bool,
+    check_exemplar_label_name_collisions: bool,
 }
 
 struct CommonLabels {
@@ -546,7 +574,7 @@ where
                             writer: self.writer,
                             timestamp_format: self.config.timestamp_format,
                             name_policy: self.config.name_policy,
-                            check_label_name_collisions: self.check_label_name_collisions,
+                            check_label_name_collisions: self.check_exemplar_label_name_collisions,
                         })?;
                     }
                 }
@@ -679,7 +707,7 @@ where
                     writer: self.writer,
                     timestamp_format: self.config.timestamp_format,
                     name_policy: self.config.name_policy,
-                    check_label_name_collisions: self.check_label_name_collisions,
+                    check_label_name_collisions: self.check_exemplar_label_name_collisions,
                 })?;
             }
         }
@@ -822,6 +850,7 @@ where
             family_labels: Some(label_set),
             config: self.config,
             check_label_name_collisions: self.check_label_name_collisions,
+            check_exemplar_label_name_collisions: self.check_exemplar_label_name_collisions,
         })
     }
 }
@@ -1078,6 +1107,8 @@ struct ExemplarEncoder<'a, W> {
     timestamp_format: TimestampFormat,
 
     name_policy: NamePolicy,
+
+    // Check label-name collisions only within the exemplar label segment.
     check_label_name_collisions: bool,
 }
 
