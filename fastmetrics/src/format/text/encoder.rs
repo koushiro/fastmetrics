@@ -51,10 +51,8 @@ where
             self.check_family_name_collisions(self.registry, &mut escaped_to_canonical)?;
         }
 
-        // Metric label names are registry-validated and only need collision checks
-        // when UTF-8 names may be rewritten. This path checks names in the metric
-        // label segment (const labels, family labels, and built-in metric labels)
-        // against each other, not exemplar labels.
+        // Label-name collisions need check only when lossy escaping is used in
+        // UTF-8 mode, because legacy identifiers are already non-lossy.
         let check_label_name_collisions =
             self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
         // Exemplar labels are a self-contained set emitted after `#` and can be
