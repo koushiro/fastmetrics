@@ -55,6 +55,7 @@ async fn metrics_text(req: &Request, Data(state): Data<&AppState>) -> Response {
             state.metrics.http.dec_in_flight();
 
             Response::builder()
+                .header("Vary", "Accept")
                 .content_type(profile.content_type())
                 .status(status)
                 .body(body)

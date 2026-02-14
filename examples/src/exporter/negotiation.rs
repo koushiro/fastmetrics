@@ -33,7 +33,7 @@ pub fn text_profile_from_accept_with_fallback(
 
     let mut selected = fallback;
     let mut best_q = 0.0_f32;
-    let mut selected_is_wildcard = true;
+    let mut selected_specificity = 0_u8;
 
     for segment in accept.split(',') {
         let segment = segment.trim();
@@ -88,12 +88,24 @@ pub fn text_profile_from_accept_with_fallback(
             _ => None,
         };
 
-        let is_wildcard = media_type == "*/*";
+        let specificity = if media_type == "*/*" {
+            0_u8
+        } else {
+            let mut value = 1_u8;
+            if version.is_some() {
+                value += 1;
+            }
+            if escaping.is_some() {
+                value += 1;
+            }
+            value
+        };
+
         if let Some(profile) = profile {
-            if quality > best_q || (quality == best_q && selected_is_wildcard && !is_wildcard) {
+            if quality > best_q || (quality == best_q && specificity > selected_specificity) {
                 selected = profile;
                 best_q = quality;
-                selected_is_wildcard = is_wildcard;
+                selected_specificity = specificity;
             }
         }
     }
@@ -174,6 +186,18 @@ mod tests {
         assert!(matches!(
             profile,
             TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Underscores }
+        ));
+    }
+
+    #[test]
+    fn prefer_more_specific_version_when_q_equal() {
+        let profile = text_profile_from_accept_with_fallback(
+            Some("text/plain; q=1, text/plain; version=1.0.0; q=1"),
+            TextProfile::PrometheusV0_0_4,
+        );
+        assert!(matches!(
+            profile,
+            TextProfile::PrometheusV1_0_0 { escaping_scheme: EscapingScheme::Underscores }
         ));
     }
 }

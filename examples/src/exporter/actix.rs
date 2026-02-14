@@ -114,6 +114,7 @@ async fn text_handler(state: Data<AppState>, req: HttpRequest) -> Result<impl Re
     text::encode(&mut output, &state.registry, profile).map_err(ErrorInternalServerError)?;
     Ok(HttpResponse::Ok()
         .insert_header((header::CONTENT_TYPE, profile.content_type()))
+        .insert_header((header::VARY, "Accept"))
         .body(output))
 }
 

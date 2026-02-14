@@ -1,6 +1,7 @@
 use std::{net::Ipv4Addr, sync::Arc, time::Instant};
 
 use anyhow::Result;
+
 use fastmetrics::{
     derive::*,
     format::{prost, text},
@@ -11,7 +12,7 @@ use rocket::{
     fairing::{Fairing, Info, Kind},
     http::{Accept, ContentType, Status},
     request::Request,
-    response::Response,
+    response::{Responder, Response},
 };
 
 #[path = "../metrics/mod.rs"]
@@ -64,31 +65,41 @@ impl Fairing for MetricsFairing {
     }
 }
 
+#[derive(Debug)]
+struct TextResponder {
+    body: String,
+    content_type: ContentType,
+    status: Status,
+}
+
+impl<'r> Responder<'r, 'static> for TextResponder {
+    fn respond_to(self, request: &'r Request<'_>) -> rocket::response::Result<'static> {
+        Response::build_from((self.content_type, self.body).respond_to(request)?)
+            .raw_header("Vary", "Accept")
+            .status(self.status)
+            .ok()
+    }
+}
+
 #[rocket::get("/metrics")]
-async fn metrics_text(
-    state: &State<AppState>,
-    accept: Option<&Accept>,
-) -> (Status, (ContentType, String)) {
+async fn metrics_text(state: &State<AppState>, accept: Option<&Accept>) -> TextResponder {
     let mut output = String::new();
     let accept = accept.map(|accept| accept.to_string());
     let profile = negotiation::text_profile_from_accept(accept.as_deref());
     if let Err(e) = text::encode(&mut output, &state.registry, profile) {
-        return (
-            Status::InternalServerError,
-            (ContentType::Plain, format!("text encode error: {e}")),
-        );
+        return TextResponder {
+            body: format!("text encode error: {e}"),
+            content_type: ContentType::Plain,
+            status: Status::InternalServerError,
+        };
     }
-    (
-        Status::Ok,
-        (ContentType::parse_flexible(profile.content_type()).unwrap_or(ContentType::Plain), output),
-    )
+    let content_type =
+        ContentType::parse_flexible(profile.content_type()).unwrap_or(ContentType::Plain);
+    TextResponder { body: output, content_type, status: Status::Ok }
 }
 
 #[rocket::get("/metrics/text")]
-async fn metrics_text_explicit(
-    state: &State<AppState>,
-    accept: Option<&Accept>,
-) -> (Status, (ContentType, String)) {
+async fn metrics_text_explicit(state: &State<AppState>, accept: Option<&Accept>) -> TextResponder {
     metrics_text(state, accept).await
 }
 

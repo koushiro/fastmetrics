@@ -162,6 +162,7 @@ async fn text_handler(
     text::encode(&mut output, &state.registry, profile)?;
     let response = Response::builder()
         .header(header::CONTENT_TYPE, profile.content_type())
+        .header(header::VARY, "Accept")
         .status(StatusCode::OK)
         .body(Body::from(output))?;
     Ok(response)

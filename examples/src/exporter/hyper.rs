@@ -71,6 +71,7 @@ fn text_response_with_accept(
 
     Ok(Response::builder()
         .header(header::CONTENT_TYPE, profile.content_type())
+        .header(header::VARY, "Accept")
         .status(StatusCode::OK)
         .body(body)?)
 }

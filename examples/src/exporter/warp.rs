@@ -45,8 +45,9 @@ fn metrics_encode_text(
     let mut output = String::new();
     let profile = negotiation::text_profile_from_accept(accept.as_deref());
     text::encode(&mut output, &state.registry, profile).map_err(|_| TextEncodeReject)?;
+    let response = warp::reply::with_status(output, StatusCode::OK);
     Ok(warp::reply::with_header(
-        warp::reply::with_status(output, StatusCode::OK),
+        warp::reply::with_header(response, header::VARY, "Accept"),
         header::CONTENT_TYPE,
         profile.content_type(),
     ))
