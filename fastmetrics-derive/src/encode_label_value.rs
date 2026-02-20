@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Error, Fields, Result};
+use syn::{Data, DeriveInput, Error, Fields, Result, parse_quote};
 
 use crate::utils::wrap_in_const;
 
@@ -52,6 +52,15 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
         },
         Data::Struct(data_struct) => match &data_struct.fields {
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                let field_ty = &fields.unnamed[0].ty;
+                let mut generics_with_bound = input.generics.clone();
+                generics_with_bound
+                    .make_where_clause()
+                    .predicates
+                    .push(parse_quote!(#field_ty: ::fastmetrics::encoder::EncodeLabelValue));
+                let (impl_generics, ty_generics, where_clause) =
+                    generics_with_bound.split_for_impl();
+
                 quote! {
                     #[automatically_derived]
                     impl #impl_generics ::fastmetrics::encoder::EncodeLabelValue for #name #ty_generics #where_clause {
