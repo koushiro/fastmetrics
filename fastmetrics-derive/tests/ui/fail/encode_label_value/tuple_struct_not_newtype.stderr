@@ -1,0 +1,5 @@
+error: #[derive(EncodeLabelValue)] on structs requires a single-field tuple struct (newtype)
+ --> tests/ui/fail/encode_label_value/tuple_struct_not_newtype.rs:5:8
+  |
+5 | struct InvalidTupleStruct(u16, u16);
+  |        ^^^^^^^^^^^^^^^^^^

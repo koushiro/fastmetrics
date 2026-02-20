@@ -116,11 +116,10 @@ pub fn derive_label_set_schema(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Derive the `EncodeLabelValue` trait for enums.
+/// Derive the `EncodeLabelValue` trait for enums or single-field tuple structs.
 ///
 /// This macro generates an implementation of the `EncodeLabelValue` trait,
-/// which allows them to be used as values in metric labels.
-/// This is useful for ensuring type safety when using enumerated values as labels.
+/// which allows values to be used as metric label values.
 ///
 /// # Example
 ///
@@ -132,6 +131,9 @@ pub fn derive_label_set_schema(input: TokenStream) -> TokenStream {
 ///     Error,
 ///     Pending,
 /// }
+///
+/// #[derive(EncodeLabelValue)]
+/// struct HttpStatus(u16);
 /// ```
 #[proc_macro_derive(EncodeLabelValue)]
 pub fn derive_encode_label_value(input: TokenStream) -> TokenStream {
