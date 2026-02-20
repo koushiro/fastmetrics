@@ -7,7 +7,7 @@ use syn::{
 
 use crate::utils::{StringValue, wrap_in_const};
 
-pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
+pub fn expand_derive(input: &DeriveInput) -> Result<TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 

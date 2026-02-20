@@ -1,0 +1,5 @@
+error: unrecognized label attribute
+ --> tests/ui/fail/label_set/unrecognized_attr.rs:5:13
+  |
+5 |     #[label(unknown)]
+  |             ^^^^^^^
