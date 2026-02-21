@@ -1,0 +1,6 @@
+error: `skip` attribute cannot coexist with other label attributes
+ --> tests/ui/fail/label_set/exclusive_attr_conflicts.rs:5:5
+  |
+5 | /     #[label(skip, rename = "value")]
+6 | |     value: u64,
+  | |______________^

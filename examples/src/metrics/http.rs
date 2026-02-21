@@ -12,7 +12,7 @@ use fastmetrics::{
 
 /// Labels attached to HTTP request metrics.
 /// `method` is canonical uppercase (GET/POST/PUT/DELETE/...) or "OTHER".
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
+#[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
 pub struct HttpLabels {
     pub status: u16,
     pub method: &'static str,

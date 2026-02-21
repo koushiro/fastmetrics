@@ -4,10 +4,10 @@ use syn::{Data, DeriveInput, Error, Fields, FieldsNamed, Result, parse_quote};
 
 use crate::{label_attributes::LabelAttributes, utils::wrap_in_const};
 
-pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
+pub fn expand_derive(input: &DeriveInput) -> Result<TokenStream> {
     match &input.data {
-        Data::Enum(data) => expand_enum(input.clone(), data),
-        Data::Struct(data) => expand_struct(input.clone(), data),
+        Data::Enum(data) => expand_enum(input, data),
+        Data::Struct(data) => expand_struct(input, data),
         _ => {
             let error = "#[derive(LabelIndexMapping)] can only be used for enums or structs with named fields";
             Err(Error::new_spanned(&input.ident, error))
@@ -15,7 +15,7 @@ pub fn expand_derive(input: DeriveInput) -> Result<TokenStream> {
     }
 }
 
-fn expand_enum(input: DeriveInput, data: &syn::DataEnum) -> Result<TokenStream> {
+fn expand_enum(input: &DeriveInput, data: &syn::DataEnum) -> Result<TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
@@ -84,7 +84,7 @@ fn expand_enum(input: DeriveInput, data: &syn::DataEnum) -> Result<TokenStream> 
     Ok(wrap_in_const(input, impl_block))
 }
 
-fn expand_struct(input: DeriveInput, data: &syn::DataStruct) -> Result<TokenStream> {
+fn expand_struct(input: &DeriveInput, data: &syn::DataStruct) -> Result<TokenStream> {
     let name = &input.ident;
     let fields = match &data.fields {
         Fields::Named(FieldsNamed { named, .. }) => named,

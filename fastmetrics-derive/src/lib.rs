@@ -10,6 +10,7 @@ mod encode_label_set;
 mod encode_label_value;
 mod label_attributes;
 mod label_index_mapping;
+mod label_set;
 mod label_set_schema;
 mod register;
 mod state_set_value;
@@ -63,7 +64,7 @@ use syn::{DeriveInput, Error, parse_macro_input};
 #[proc_macro_derive(EncodeLabelSet, attributes(label))]
 pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    encode_label_set::expand_derive(input)
+    encode_label_set::expand_derive(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
@@ -112,16 +113,62 @@ pub fn derive_encode_label_set(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LabelSetSchema, attributes(label))]
 pub fn derive_label_set_schema(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    label_set_schema::expand_derive(input)
+    label_set_schema::expand_derive(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
 
-/// Derive the `EncodeLabelValue` trait for enums.
+/// Derive both `EncodeLabelSet` and `LabelSetSchema` for structs with named fields.
+///
+/// This macro is a convenience wrapper that emits both trait implementations so
+/// users can derive the complete label-set contract with one attribute.
+///
+/// # Example
+///
+/// ```rust
+/// # use fastmetrics_derive::{EncodeLabelValue, LabelSet};
+/// #[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
+/// struct Labels {
+///     #[label(rename = "op")]
+///     operation: Operation,
+///     error: Option<Error>,
+///
+///     #[label(flatten)]
+///     extra: ExtraLabels,
+///
+///     #[label(skip)]
+///     _skip: u64,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
+/// struct ExtraLabels {
+///     region: &'static str,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// enum Operation {
+///     Read,
+///     Write,
+/// }
+///
+/// #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
+/// enum Error {
+///     NotFound,
+///     Fail,
+/// }
+/// ```
+#[proc_macro_derive(LabelSet, attributes(label))]
+pub fn derive_label_set(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    label_set::expand_derive(&input)
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
+}
+
+/// Derive the `EncodeLabelValue` trait for enums or single-field tuple structs.
 ///
 /// This macro generates an implementation of the `EncodeLabelValue` trait,
-/// which allows them to be used as values in metric labels.
-/// This is useful for ensuring type safety when using enumerated values as labels.
+/// which allows values to be used as metric label values.
 ///
 /// # Example
 ///
@@ -133,11 +180,14 @@ pub fn derive_label_set_schema(input: TokenStream) -> TokenStream {
 ///     Error,
 ///     Pending,
 /// }
+///
+/// #[derive(EncodeLabelValue)]
+/// struct HttpStatus(u16);
 /// ```
 #[proc_macro_derive(EncodeLabelValue)]
 pub fn derive_encode_label_value(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    encode_label_value::expand_derive(input)
+    encode_label_value::expand_derive(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
@@ -166,7 +216,7 @@ pub fn derive_encode_label_value(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LabelIndexMapping, attributes(label))]
 pub fn derive_label_index_mapping(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    label_index_mapping::expand_derive(input)
+    label_index_mapping::expand_derive(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
@@ -190,7 +240,7 @@ pub fn derive_label_index_mapping(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(StateSetValue)]
 pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    state_set_value::expand_derive(input)
+    state_set_value::expand_derive(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
@@ -278,5 +328,5 @@ pub fn derive_state_set_value(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Register, attributes(register))]
 pub fn derive_register_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    register::expand_derive(input).unwrap_or_else(Error::into_compile_error).into()
+    register::expand_derive(&input).unwrap_or_else(Error::into_compile_error).into()
 }
