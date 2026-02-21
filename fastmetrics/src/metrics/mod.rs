@@ -13,6 +13,9 @@
 //! The module also provides:
 //!
 //! - [Family]: Collections of metrics with the same name but different labels
+//! - [IndexedFamily]: Fixed-cardinality metric families indexed by label values
+//! - [LabelIndexMapping]: Trait for stable label-to-index mapping
+//! - [LabelIndex]: Reusable index token for indexed family lookups
 //!
 //! [Counter]: self::counter
 //! [Gauge]: self::gauge
@@ -22,6 +25,9 @@
 //! [GaugeHistogram]: self::gauge_histogram
 //! [Summary]: self::summary
 //! [Family]: self::family::Family
+//! [IndexedFamily]: self::family::IndexedFamily
+//! [LabelIndexMapping]: self::family::LabelIndexMapping
+//! [LabelIndex]: self::family::LabelIndex
 
 pub mod family;
 mod internal;

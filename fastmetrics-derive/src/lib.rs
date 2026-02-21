@@ -9,6 +9,7 @@
 mod encode_label_set;
 mod encode_label_value;
 mod label_attributes;
+mod label_index_mapping;
 mod label_set;
 mod label_set_schema;
 mod register;
@@ -187,6 +188,35 @@ pub fn derive_label_set(input: TokenStream) -> TokenStream {
 pub fn derive_encode_label_value(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     encode_label_value::expand_derive(&input)
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
+}
+
+/// Derive the `LabelIndexMapping` trait for enums and structs with named fields.
+///
+/// For enums, the macro supports unit variants and generates a compact index
+/// mapping based on declaration order.
+///
+/// For structs with named fields, each field must implement
+/// `LabelIndexMapping`, except fields marked with `#[label(skip)]`.
+/// Skipped fields are excluded from index composition and are reconstructed in
+/// `from_index` via `Default::default()`, so their field types must implement
+/// `Default`.
+///
+/// # Example
+///
+/// ```rust
+/// # use fastmetrics_derive::LabelIndexMapping;
+/// #[derive(LabelIndexMapping)]
+/// enum Method {
+///     Get,
+///     Put,
+/// }
+/// ```
+#[proc_macro_derive(LabelIndexMapping, attributes(label))]
+pub fn derive_label_index_mapping(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    label_index_mapping::expand_derive(&input)
         .unwrap_or_else(Error::into_compile_error)
         .into()
 }
