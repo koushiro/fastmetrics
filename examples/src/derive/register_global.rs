@@ -12,7 +12,7 @@ use fastmetrics::{
 };
 use rand::RngExt;
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
+#[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
 struct Labels {
     number: Number,
 }
