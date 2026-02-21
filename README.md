@@ -51,8 +51,9 @@ use fastmetrics::{
 };
 
 // Define label types
-// Need to enable `derive` feature to use `#[derive(EncodeLabelSet, LabelSetSchema)]`
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
+// Need to enable `derive` feature to use `#[derive(LabelSet)]`
+// or `#[derive(EncodeLabelSet, LabelSetSchema)]`
+#[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
 struct Labels {
     method: Method,
     status: u16,

@@ -58,7 +58,8 @@
 //!     status: u16,
 //! }
 //!
-//! // Can use `#[derive(EncodeLabelSet, LabelSetSchema)]` to simplify the code, but need to enable `derive` feature
+//! // Can use `#[derive(LabelSet)]` or `#[derive(EncodeLabelSet, LabelSetSchema)]`
+//! // to simplify the code, but need to enable `derive` feature
 //!
 //! impl LabelSetSchema for Labels {
 //!     fn names() -> Option<&'static [&'static str]> {

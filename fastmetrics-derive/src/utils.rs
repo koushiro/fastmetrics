@@ -3,8 +3,8 @@ use quote::quote;
 use syn::{Attribute, DeriveInput, Expr, ExprLit, Lit, LitStr, Result};
 
 /// Wraps the impl block in a "dummy const"
-pub fn wrap_in_const(input: DeriveInput, impl_block: TokenStream) -> TokenStream {
-    let attrs = input.attrs.into_iter().filter(is_lint_attribute);
+pub fn wrap_in_const(input: &DeriveInput, impl_block: TokenStream) -> TokenStream {
+    let attrs = input.attrs.iter().filter(|attr| is_lint_attribute(attr));
 
     quote! {
         #[doc(hidden)]

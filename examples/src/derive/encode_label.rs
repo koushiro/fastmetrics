@@ -14,7 +14,7 @@ use rand::{
     distr::{Distribution, StandardUniform},
 };
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
+#[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
 struct Labels {
     #[label(rename = "op")]
     operation: Operation,
@@ -27,7 +27,7 @@ struct Labels {
     _skip: u64,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, EncodeLabelSet, LabelSetSchema)]
+#[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
 struct ExtraLabels {
     region: &'static str,
 }
