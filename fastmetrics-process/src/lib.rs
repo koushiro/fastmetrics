@@ -61,10 +61,9 @@ impl Default for ProcessMetrics {
 impl Register for ProcessMetrics {
     fn register(&self, registry: &mut Registry) -> Result<()> {
         registry.register("pid", "Process ID.", self.pid.clone())?;
-        registry.register_with_unit(
-            "cpu",
+        registry.register(
+            "cpu_seconds_total",
             "Total user and system CPU time spent in seconds.",
-            Unit::Seconds,
             self.cpu_seconds_total.clone(),
         )?;
         registry.register(
