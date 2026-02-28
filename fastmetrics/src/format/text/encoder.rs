@@ -45,10 +45,20 @@ where
         // because lossy rewrites are injective for legacy identifiers.
         let check_escaped_family_name_collisions =
             self.registry.name_rule() == NameRule::Utf8 && self.config.name_policy.is_lossy();
-        if check_escaped_family_name_collisions {
-            // mapping: escaped metric name => canonical metric name
-            let mut escaped_to_canonical = HashMap::new();
-            self.check_family_name_collisions(self.registry, &mut escaped_to_canonical)?;
+        let check_counter_sample_name_collisions = self.config.append_counter_total_suffix;
+
+        if check_escaped_family_name_collisions || check_counter_sample_name_collisions {
+            // mapping: escaped metric family name => canonical metric family name
+            let mut escaped_family_to_canonical = HashMap::new();
+            // mapping: emitted counter sample metric name => canonical metric family name
+            let mut counter_sample_to_canonical = HashMap::new();
+            self.check_family_name_collisions(
+                self.registry,
+                &mut escaped_family_to_canonical,
+                &mut counter_sample_to_canonical,
+                check_escaped_family_name_collisions,
+                check_counter_sample_name_collisions,
+            )?;
         }
 
         // Label-name collisions need check only when lossy escaping is used in
@@ -108,7 +118,10 @@ where
     fn check_family_name_collisions(
         &self,
         registry: &Registry,
-        escaped_to_canonical: &mut HashMap<String, String>,
+        escaped_family_to_canonical: &mut HashMap<String, String>,
+        counter_sample_to_canonical: &mut HashMap<String, String>,
+        check_escaped_family_name_collisions: bool,
+        check_counter_sample_name_collisions: bool,
     ) -> Result<()> {
         for (metadata, metric) in &registry.metrics {
             if metric.is_empty() {
@@ -117,26 +130,75 @@ where
 
             let canonical_name =
                 metric_name(registry.namespace(), metadata.name(), metadata.unit()).into_owned();
-            let escaped_name = escape_metric_name(
-                Cow::Borrowed(canonical_name.as_str()),
-                self.config.name_policy,
-            )?
-            .into_owned();
+            let is_counter = metadata.metric_type() == MetricType::Counter;
+            let needs_escaped_name = check_escaped_family_name_collisions
+                || (check_counter_sample_name_collisions && is_counter);
+            let escaped_name = if needs_escaped_name {
+                let escaped = escape_metric_name(
+                    Cow::Borrowed(canonical_name.as_str()),
+                    self.config.name_policy,
+                )?;
+                Some(escaped.into_owned())
+            } else {
+                None
+            };
 
-            if let Some(existing_name) = escaped_to_canonical.get(&escaped_name) {
-                if existing_name != &canonical_name {
-                    return Err(Error::duplicated("metric family names collide after escaping")
-                        .with_context("escaped_metric", &escaped_name)
+            if check_escaped_family_name_collisions {
+                let escaped_name = escaped_name
+                    .as_ref()
+                    .expect("escaped name required for family collision check");
+                if let Some(existing_name) = escaped_family_to_canonical.get(escaped_name) {
+                    if existing_name != &canonical_name {
+                        return Err(Error::duplicated(
+                            "metric family names collide after escaping",
+                        )
+                        .with_context("escaped_metric", escaped_name)
                         .with_context("existing_metric", existing_name)
                         .with_context("conflicting_metric", &canonical_name));
+                    }
+                } else {
+                    escaped_family_to_canonical
+                        .insert(escaped_name.clone(), canonical_name.clone());
                 }
-            } else {
-                escaped_to_canonical.insert(escaped_name, canonical_name);
+            }
+
+            if check_counter_sample_name_collisions && is_counter {
+                // In OpenMetrics profiles counters append `_total` unless
+                // already present. Distinct families like `requests` and
+                // `requests_total` would otherwise emit the same sample metric
+                // name and produce duplicate samples.
+                let escaped_name = escaped_name
+                    .as_ref()
+                    .expect("escaped name required for counter collision check");
+                let sample_name = if canonical_name.ends_with("_total") {
+                    escaped_name.clone()
+                } else {
+                    format!("{escaped_name}_total")
+                };
+
+                if let Some(existing_name) = counter_sample_to_canonical.get(&sample_name) {
+                    if existing_name != &canonical_name {
+                        return Err(Error::duplicated(
+                            "counter sample names collide after suffix normalization",
+                        )
+                        .with_context("sample_metric", &sample_name)
+                        .with_context("existing_metric", existing_name)
+                        .with_context("conflicting_metric", &canonical_name));
+                    }
+                } else {
+                    counter_sample_to_canonical.insert(sample_name, canonical_name);
+                }
             }
         }
 
         for subsystem in registry.subsystems.values() {
-            self.check_family_name_collisions(subsystem, escaped_to_canonical)?;
+            self.check_family_name_collisions(
+                subsystem,
+                escaped_family_to_canonical,
+                counter_sample_to_canonical,
+                check_escaped_family_name_collisions,
+                check_counter_sample_name_collisions,
+            )?;
         }
 
         Ok(())
