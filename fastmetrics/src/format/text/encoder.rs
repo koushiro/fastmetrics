@@ -115,13 +115,8 @@ where
                 continue;
             }
 
-            let canonical_name = metric_name(
-                registry.namespace(),
-                metadata.name(),
-                metadata.unit(),
-                self.config.append_unit_suffix,
-            )
-            .into_owned();
+            let canonical_name =
+                metric_name(registry.namespace(), metadata.name(), metadata.unit()).into_owned();
             let escaped_name = escape_metric_name(
                 Cow::Borrowed(canonical_name.as_str()),
                 self.config.name_policy,
@@ -218,19 +213,7 @@ where
     }
 }
 
-fn metric_name<'a>(
-    namespace: Option<&str>,
-    name: &'a str,
-    unit: Option<&Unit>,
-    append_unit_suffix: bool,
-) -> Cow<'a, str> {
-    if !append_unit_suffix {
-        return match namespace {
-            Some(namespace) => Cow::Owned(format!("{namespace}_{name}")),
-            None => Cow::Borrowed(name),
-        };
-    }
-
+fn metric_name<'a>(namespace: Option<&str>, name: &'a str, unit: Option<&Unit>) -> Cow<'a, str> {
     match (namespace, unit) {
         (Some(namespace), Some(unit)) => {
             Cow::Owned(format!("{namespace}_{}_{}", name, unit.as_str()))
@@ -274,12 +257,7 @@ where
             return Ok(());
         }
 
-        let metric_name = metric_name(
-            self.namespace,
-            metadata.name(),
-            metadata.unit(),
-            self.config.append_unit_suffix,
-        );
+        let metric_name = metric_name(self.namespace, metadata.name(), metadata.unit());
         let canonical_metric_name = metric_name.clone();
         let metric_name = escape_metric_name(metric_name, self.config.name_policy)?;
         let ty = metric_type_name(metadata.metric_type(), self.config.prometheus_type_compat)?;
@@ -693,7 +671,9 @@ where
         created: Option<Duration>,
     ) -> Result<()> {
         self.encode_metric_name()?;
-        if self.config.append_counter_total_suffix {
+        if self.config.append_counter_total_suffix
+            && !self.canonical_metric_name.ends_with("_total")
+        {
             self.writer.write_str("_total")?;
         }
         self.encode_label_set(None)?;

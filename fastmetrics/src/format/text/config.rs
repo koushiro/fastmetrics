@@ -4,7 +4,6 @@ use super::{EscapingScheme, TextProfile};
 pub(super) struct ProfileConfig {
     pub(super) emit_eof: bool,
     pub(super) emit_unit: bool,
-    pub(super) append_unit_suffix: bool,
     pub(super) append_counter_total_suffix: bool,
     pub(super) emit_created_series: bool,
     pub(super) emit_exemplars: bool,
@@ -37,7 +36,6 @@ impl From<TextProfile> for ProfileConfig {
             TextProfile::PrometheusV0_0_4 => Self {
                 emit_eof: false,
                 emit_unit: false,
-                append_unit_suffix: true,
                 append_counter_total_suffix: false,
                 emit_created_series: false,
                 emit_exemplars: false,
@@ -48,7 +46,6 @@ impl From<TextProfile> for ProfileConfig {
             TextProfile::PrometheusV1_0_0 { escaping_scheme } => Self {
                 emit_eof: false,
                 emit_unit: false,
-                append_unit_suffix: true,
                 append_counter_total_suffix: false,
                 emit_created_series: false,
                 emit_exemplars: false,
@@ -59,7 +56,6 @@ impl From<TextProfile> for ProfileConfig {
             TextProfile::OpenMetricsV0_0_1 => Self {
                 emit_eof: true,
                 emit_unit: true,
-                append_unit_suffix: true,
                 append_counter_total_suffix: true,
                 emit_created_series: true,
                 emit_exemplars: true,
@@ -70,7 +66,6 @@ impl From<TextProfile> for ProfileConfig {
             TextProfile::OpenMetricsV1_0_0 { escaping_scheme } => Self {
                 emit_eof: true,
                 emit_unit: true,
-                append_unit_suffix: true,
                 append_counter_total_suffix: true,
                 emit_created_series: true,
                 emit_exemplars: true,

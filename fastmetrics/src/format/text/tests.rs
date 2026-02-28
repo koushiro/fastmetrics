@@ -53,6 +53,31 @@ fn prometheus_profile_maps_unknown_to_untyped() {
 }
 
 #[test]
+fn openmetrics_counter_does_not_double_total_suffix() {
+    let mut registry = Registry::default();
+    let counter = <Counter>::default();
+    registry.register("request_total", "Total requests", counter.clone()).unwrap();
+    counter.inc();
+
+    let mut output = String::new();
+    encode(
+        &mut output,
+        &registry,
+        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: Default::default() },
+    )
+    .unwrap();
+
+    assert!(
+        output.contains("request_total 1"),
+        "counter sample should keep existing _total suffix: {output}"
+    );
+    assert!(
+        !output.contains("request_total_total"),
+        "counter sample should not duplicate _total suffix: {output}"
+    );
+}
+
+#[test]
 fn prometheus_profile_rejects_info() {
     let mut registry = Registry::default();
 
