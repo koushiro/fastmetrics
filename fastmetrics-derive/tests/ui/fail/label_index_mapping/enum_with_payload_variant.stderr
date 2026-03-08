@@ -1,0 +1,5 @@
+error: #[derive(LabelIndexMapping)] can only be used for enums with unit variants
+ --> tests/ui/fail/label_index_mapping/enum_with_payload_variant.rs:5:5
+  |
+5 |     A(u8),
+  |     ^^^^^
