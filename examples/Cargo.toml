@@ -28,7 +28,7 @@ rocket = { version = "0.5", features = ["json"] }
 thiserror = "2.0"
 tokio = { version = "1.48", features = ["net", "macros", "rt-multi-thread"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["normalize-path"] }
+tower-http = { version = "0.7", features = ["normalize-path"] }
 warp = { version = "0.4", features = ["server"] }
 
 [[example]]
