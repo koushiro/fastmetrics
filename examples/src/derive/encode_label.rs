@@ -99,7 +99,7 @@ fn main() -> Result<()> {
 
     let mut output = String::new();
     text::encode(&mut output, &registry, TextProfile::default())?;
-    println!("{}", &output);
+    println!("{}", output);
 
     Ok(())
 }
