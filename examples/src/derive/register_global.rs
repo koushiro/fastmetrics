@@ -134,7 +134,7 @@ fn main() -> Result<()> {
 
     let mut output = String::new();
     with_global_registry(|registry| text::encode(&mut output, registry, TextProfile::default()))?;
-    println!("{}", &output);
+    println!("{}", output);
 
     Ok(())
 }
