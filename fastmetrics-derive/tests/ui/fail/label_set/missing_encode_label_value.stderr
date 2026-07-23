@@ -20,8 +20,8 @@ help: the trait `EncodeLabelValue` is not implemented for `HttpStatus`
             String
           and $N others
   = note: required for `&HttpStatus` to implement `EncodeLabelValue`
-  = note: required for `(&'static str, &HttpStatus)` to implement `EncodeLabel`
-  = note: required for the cast from `&(&'static str, &HttpStatus)` to `&dyn EncodeLabel`
+  = note: required for `(&str, &HttpStatus)` to implement `EncodeLabel`
+  = note: required for the cast from `&(&str, &HttpStatus)` to `&dyn EncodeLabel`
   = note: this error originates in the derive macro `LabelSet` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: the trait bound `HttpStatus: EncodeLabelValue` is not satisfied

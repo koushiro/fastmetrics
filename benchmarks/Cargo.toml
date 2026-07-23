@@ -23,8 +23,8 @@ pprof = { version = "0.15.0", default-features = false, features = [
     "frame-pointer",
 ] }
 prometheus = "0.14"
-prometheus-client = { version = "0.24", features = ["protobuf"] }
-prost_0_12 = { package = "prost", version = "0.12" }
+prometheus-client = { version = "0.25", features = ["prometheus_protobuf"] }
+prost = "0.14"
 rand = "0.10"
 
 [[bench]]

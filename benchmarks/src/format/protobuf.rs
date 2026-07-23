@@ -45,14 +45,22 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("prometheus_client (prost/openmetrics): {metric_id}");
+            let id = format!("prometheus_client (prost/prometheus): {metric_id}");
             group.sample_size(100).bench_function(id, |b| {
                 let registry = setup_prometheus_client_registry(count, times);
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();
-                    let set = prometheus_client::encoding::protobuf::encode(&registry).unwrap();
-                    prost_0_12::Message::encode(&set, &mut buffer).unwrap();
+
+                    let metric_families =
+                        prometheus_client::encoding::prometheus_protobuf::encode(&registry)
+                            .unwrap();
+
+                    for metric_family in metric_families {
+                        prost::Message::encode_length_delimited(&metric_family, &mut buffer)
+                            .unwrap();
+                    }
+
                     black_box(&mut buffer);
                 });
             });
