@@ -131,7 +131,7 @@ jobs:
         run: rustup toolchain install ${MSRV} --no-self-update
 
       - name: Check code
-        run: cargo +${MSRV} check --workspace --all-targets --all-features
+        run: cargo +${MSRV} check --workspace --exclude fastmetrics-benchmarks --all-targets --all-features
 
   run-tests:
     runs-on: ${{ matrix.os }}
