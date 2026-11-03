@@ -5,7 +5,7 @@
 [![](https://img.shields.io/crates/v/fastmetrics)][crates.io]
 [![](https://img.shields.io/crates/l/fastmetrics)][crates.io]
 [![](https://img.shields.io/crates/d/fastmetrics)][crates.io]
-[![](https://img.shields.io/badge/MSRV-1.85.0-green?logo=rust)][whatrustisit]
+[![](https://img.shields.io/badge/MSRV-1.95.0-green?logo=rust)][whatrustisit]
 [![](https://deepwiki.com/badge.svg)][deepwiki]
 
 [actions]: https://github.com/koushiro/fastmetrics/actions
@@ -41,7 +41,96 @@ and it's compatible with [Prometheus].
 
 ## Usage
 
+### Implementing traits
+
+Implement the label traits explicitly and register each metric with `Registry`:
+
 ```rust
+use fastmetrics::{
+    encoder::{EncodeLabel, EncodeLabelSet, EncodeLabelValue, LabelEncoder, LabelSetEncoder},
+    error::Result,
+    format::text::{self, TextProfile},
+    metrics::{counter::Counter, family::Family},
+    raw::LabelSetSchema,
+    registry::Registry,
+};
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+struct Labels {
+    method: Method,
+    status: u16,
+}
+
+impl LabelSetSchema for Labels {
+    fn names() -> Option<&'static [&'static str]> {
+        Some(&["method", "status"])
+    }
+}
+
+impl EncodeLabelSet for Labels {
+    fn encode(&self, encoder: &mut dyn LabelSetEncoder) -> Result<()> {
+        encoder.encode(&("method", &self.method))?;
+        encoder.encode(&("status", &self.status))?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+enum Method {
+    Get,
+    Put,
+}
+
+impl EncodeLabelValue for Method {
+    fn encode(&self, encoder: &mut dyn LabelEncoder) -> Result<()> {
+        match self {
+            Self::Get => encoder.encode_str_value("Get"),
+            Self::Put => encoder.encode_str_value("Put"),
+        }
+    }
+}
+
+fn main() -> Result<()> {
+    // Create a registry with a namespace and some constant labels
+    let mut registry = Registry::builder()
+        .with_namespace("myapp")
+        .with_const_labels([("env", "prod")])
+        .build()?;
+
+    // Register a simple counter
+    let requests = <Counter>::default();
+    registry.register("requests", "Total requests processed", requests.clone())?;
+
+    // Register a counter family for tracking requests with labels
+    let http_requests = Family::<Labels, Counter>::default();
+    registry.register("http_requests", "Total HTTP requests", http_requests.clone())?;
+
+    // Update the simple counter
+    requests.inc();
+    assert_eq!(requests.total(), 1);
+
+    // Update the counter family
+    let labels = Labels { method: Method::Get, status: 200 };
+    http_requests.with_or_new(&labels, |req| req.inc());
+    assert_eq!(http_requests.with(&labels, |req| req.total()), Some(1));
+
+    // Export metrics in text format
+    let mut output = String::new();
+    text::encode(&mut output, &registry, TextProfile::default())?;
+    assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="Get",status="200"} 1"#));
+    println!("{}", output);
+
+    Ok(())
+}
+```
+
+### Using derive macros
+
+Enable the `derive` feature to generate the label and registration trait implementations.
+This example produces the same metrics as the manual implementation above:
+
+```rust
+# #[cfg(feature = "derive")]
 use fastmetrics::{
     derive::*,
     error::Result,
@@ -51,22 +140,21 @@ use fastmetrics::{
 };
 
 // Define label types
-// Need to enable `derive` feature to use `#[derive(LabelSet)]`
-// or `#[derive(EncodeLabelSet, LabelSetSchema)]`
+# #[cfg(feature = "derive")]
 #[derive(Clone, Eq, PartialEq, Hash, LabelSet)]
 struct Labels {
     method: Method,
     status: u16,
 }
 
-// Need to enable `derive` feature to use `#[derive(EncodeLabelValue)]`
+# #[cfg(feature = "derive")]
 #[derive(Clone, Eq, PartialEq, Hash, EncodeLabelValue)]
 enum Method {
     Get,
     Put,
 }
 
-// Need to enable `derive` feature to use `#[derive(Register)]`
+# #[cfg(feature = "derive")]
 #[derive(Default, Register)]
 struct Metrics {
     /// Total requests processed
@@ -75,6 +163,7 @@ struct Metrics {
     http_requests: Family<Labels, Counter>,
 }
 
+# #[cfg(feature = "derive")]
 fn main() -> Result<()> {
     // Create a registry with a namespace and some constant labels
     let mut registry = Registry::builder()
@@ -98,10 +187,13 @@ fn main() -> Result<()> {
     // Export metrics in text format
     let mut output = String::new();
     text::encode(&mut output, &registry, TextProfile::default())?;
+    assert!(output.contains(r#"myapp_http_requests_total{env="prod",method="Get",status="200"} 1"#));
     println!("{}", output);
 
     Ok(())
 }
+# #[cfg(not(feature = "derive"))]
+# fn main() {}
 ```
 
 See [documentation](https://docs.rs/fastmetrics) and [examples](https://github.com/koushiro/fastmetrics/tree/main/examples) for more details.
@@ -120,4 +212,4 @@ I drew a lot of inspiration from the following libraries, retaining the designs 
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](LICENSE) file for details.
+Licensed under the Apache License, Version 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
