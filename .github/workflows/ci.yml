@@ -117,7 +117,7 @@ jobs:
   check-msrv:
     runs-on: ubuntu-latest
     env:
-      MSRV: 1.85.0
+      MSRV: 1.95.0
     steps:
       - uses: actions/checkout@v7
 
@@ -131,7 +131,7 @@ jobs:
         run: rustup toolchain install ${MSRV} --no-self-update
 
       - name: Check code
-        run: cargo +${MSRV} check --all-features
+        run: cargo +${MSRV} check --workspace --all-targets --all-features
 
   run-tests:
     runs-on: ${{ matrix.os }}

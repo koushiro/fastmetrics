@@ -5,7 +5,7 @@
 [![](https://img.shields.io/crates/v/fastmetrics-process)][crates.io]
 [![](https://img.shields.io/crates/l/fastmetrics-process)][crates.io]
 [![](https://img.shields.io/crates/d/fastmetrics-process)][crates.io]
-[![](https://img.shields.io/badge/MSRV-1.88.0-green?logo=rust)][whatrustisit]
+[![](https://img.shields.io/badge/MSRV-1.95.0-green?logo=rust)][whatrustisit]
 
 [actions]: https://github.com/koushiro/fastmetrics/actions
 [docs.rs]: https://docs.rs/fastmetrics-process
@@ -80,6 +80,4 @@ Standard names when registered into a `process` subsystem:
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 - see the [LICENSE] file for details.
-
-[LICENSE]: https://github.com/koushiro/fastmetrics/blob/main/LICENSE
+Licensed under the Apache License, Version 2.0: <http://www.apache.org/licenses/LICENSE-2.0>
