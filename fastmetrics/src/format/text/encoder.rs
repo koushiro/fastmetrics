@@ -237,12 +237,12 @@ where
 
     #[inline]
     fn encode_unit(&mut self, metric_name: &str, unit: Option<&Unit>) -> Result<()> {
-        if self.config.emit_unit {
-            if let Some(unit) = unit {
-                let unit = unit.as_str();
-                self.writer.write_fmt(format_args!("# UNIT {metric_name} {unit}"))?;
-                self.encode_newline()?;
-            }
+        if self.config.emit_unit
+            && let Some(unit) = unit
+        {
+            let unit = unit.as_str();
+            self.writer.write_fmt(format_args!("# UNIT {metric_name} {unit}"))?;
+            self.encode_newline()?;
         }
         Ok(())
     }
@@ -465,16 +465,15 @@ where
         canonical_label_name: &'n str,
     ) -> Result<Cow<'n, str>> {
         let escaped_label_name = escape_label_name(canonical_label_name, self.config.name_policy)?;
-        if self.check_label_name_collisions {
-            if let Some(existing_name) = common_labels
+        if self.check_label_name_collisions
+            && let Some(existing_name) = common_labels
                 .and_then(|labels| labels.escaped_to_canonical.as_ref())
                 .and_then(|existing| existing.get(escaped_label_name.as_ref()))
-            {
-                return Err(Error::duplicated("label names collide after escaping")
-                    .with_context("escaped_label", escaped_label_name.as_ref())
-                    .with_context("existing_label", existing_name)
-                    .with_context("conflicting_label", canonical_label_name));
-            }
+        {
+            return Err(Error::duplicated("label names collide after escaping")
+                .with_context("escaped_label", escaped_label_name.as_ref())
+                .with_context("existing_label", existing_name)
+                .with_context("conflicting_label", canonical_label_name));
         }
         Ok(escaped_label_name)
     }
@@ -605,17 +604,16 @@ where
             cumulative_count += bucket_count;
             self.writer.write_str(itoa::Buffer::new().format(cumulative_count))?;
             self.encode_timestamp()?;
-            if self.config.emit_exemplars {
-                if let Some(exemplars) = exemplars {
-                    if let Some(exemplar) = exemplars[idx] {
-                        exemplar.encode(&mut ExemplarEncoder {
-                            writer: self.writer,
-                            timestamp_format: self.config.timestamp_format,
-                            name_policy: self.config.name_policy,
-                            check_label_name_collisions: self.check_exemplar_label_name_collisions,
-                        })?;
-                    }
-                }
+            if self.config.emit_exemplars
+                && let Some(exemplars) = exemplars
+                && let Some(exemplar) = exemplars[idx]
+            {
+                exemplar.encode(&mut ExemplarEncoder {
+                    writer: self.writer,
+                    timestamp_format: self.config.timestamp_format,
+                    name_policy: self.config.name_policy,
+                    check_label_name_collisions: self.check_exemplar_label_name_collisions,
+                })?;
             }
             self.encode_newline()?;
         }
@@ -741,22 +739,22 @@ where
         self.encode_label_set(None)?;
         total.encode(&mut CounterValueEncoder { writer: self.writer })?;
         self.encode_timestamp()?;
-        if self.config.emit_exemplars {
-            if let Some(exemplar) = exemplar {
-                exemplar.encode(&mut ExemplarEncoder {
-                    writer: self.writer,
-                    timestamp_format: self.config.timestamp_format,
-                    name_policy: self.config.name_policy,
-                    check_label_name_collisions: self.check_exemplar_label_name_collisions,
-                })?;
-            }
+        if self.config.emit_exemplars
+            && let Some(exemplar) = exemplar
+        {
+            exemplar.encode(&mut ExemplarEncoder {
+                writer: self.writer,
+                timestamp_format: self.config.timestamp_format,
+                name_policy: self.config.name_policy,
+                check_label_name_collisions: self.check_exemplar_label_name_collisions,
+            })?;
         }
         self.encode_newline()?;
 
-        if self.config.emit_created_series {
-            if let Some(created) = created {
-                self.encode_created(created)?;
-            }
+        if self.config.emit_created_series
+            && let Some(created) = created
+        {
+            self.encode_created(created)?;
         }
 
         Ok(())
@@ -814,10 +812,10 @@ where
         // encode `*_sum` metric
         self.encode_sum(sum)?;
 
-        if self.config.emit_created_series {
-            if let Some(created) = created {
-                self.encode_created(created)?;
-            }
+        if self.config.emit_created_series
+            && let Some(created) = created
+        {
+            self.encode_created(created)?;
         }
 
         Ok(())
@@ -869,10 +867,10 @@ where
         // encode `*_sum` metric
         self.encode_sum(sum)?;
 
-        if self.config.emit_created_series {
-            if let Some(created) = created {
-                self.encode_created(created)?;
-            }
+        if self.config.emit_created_series
+            && let Some(created) = created
+        {
+            self.encode_created(created)?;
         }
 
         Ok(())

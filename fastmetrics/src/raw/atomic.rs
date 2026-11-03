@@ -46,11 +46,11 @@ macro_rules! impl_atomic_for_integer {
             }
 
             #[inline]
-            fn update<F>(&self, mut f: F)
+            fn update<F>(&self, f: F)
             where
                 F: FnMut($ty) -> $ty,
             {
-                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old| Some(f(old)));
+                $atomic::update(self, Ordering::Relaxed, Ordering::Relaxed, f);
             }
 
             #[inline(always)]
@@ -81,17 +81,17 @@ macro_rules! impl_atomic_for_float  {
         impl Atomic<$ty> for $atomic {
             #[inline(always)]
             fn inc_by(&self, v: $ty) {
-                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                $atomic::update(self, Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
                     let old_value = $ty::from_bits(old_bits);
-                    Some($ty::to_bits(old_value + v))
+                    $ty::to_bits(old_value + v)
                 });
             }
 
             #[inline(always)]
             fn dec_by(&self, v: $ty) {
-                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                $atomic::update(self, Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
                     let old_value = $ty::from_bits(old_bits);
-                    Some($ty::to_bits(old_value - v))
+                    $ty::to_bits(old_value - v)
                 });
             }
 
@@ -100,10 +100,10 @@ macro_rules! impl_atomic_for_float  {
             where
                 F: FnMut($ty) -> $ty,
             {
-                let _ = self.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
+                $atomic::update(self, Ordering::Relaxed, Ordering::Relaxed, |old_bits| {
                     let old_value = $ty::from_bits(old_bits);
                     let new_value = f(old_value);
-                    Some($ty::to_bits(new_value))
+                    $ty::to_bits(new_value)
                 });
             }
 
