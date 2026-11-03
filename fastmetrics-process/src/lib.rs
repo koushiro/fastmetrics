@@ -131,7 +131,7 @@ struct ProcessSampler {
 impl ProcessSampler {
     fn new() -> Self {
         let pid = Pid::from_u32(process::id());
-        let mut system = System::new();
+        let mut system = System::new().expect("sysinfo does not support this platform");
 
         sample(&mut system, pid);
 
