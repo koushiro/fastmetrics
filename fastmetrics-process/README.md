@@ -44,6 +44,9 @@ This crate uses [`sysinfo`](https://crates.io/crates/sysinfo) to collect process
 Some values may be unavailable on certain platforms or blocked by permissions; unavailable values
 fall back to `0`.
 
+System information is initialized once per process. Constructing `ProcessMetrics` panics if
+`sysinfo` cannot initialize its system backend, for example on an unsupported platform.
+
 ## Exposed metrics
 
 This crate registers **base names** so you can choose your prefixing strategy
