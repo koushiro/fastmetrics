@@ -32,5 +32,16 @@ If there are any breaking changes to public APIs, please add the `breaking-chang
 # AI usage statement
 
 <!--
-If you are using AI tools to build this PR, please include a statement specifying the tool and models you are using.
+If AI materially assisted this PR, list each harness/model/effort combination
+that materially contributed, and briefly describe its role:
+
+- Harness: Application or agent framework used to run the model.
+- Model: Model name or identifier shown by the harness, with version if available.
+- Effort: Reasoning effort setting as named by the harness.
+- Role: AI's contribution and any assumptions or unknowns that affect review.
+
+Do not include routine command output or repeat information provided elsewhere.
+
+The author remains responsible for every submitted claim and change. If AI did
+not materially assist this PR, write "None".
 -->
