@@ -30,7 +30,7 @@ and it's compatible with [Prometheus].
     - V1 escaping schemes: `allow-utf-8`, `underscores`, `dots`, `values`
   - Protobuf
     - [Prometheus protobuf schema]
-    - [OpenMetrics protobuf schema]
+    - [OpenMetrics protobuf schema] (deprecated; retained for compatibility)
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
@@ -38,6 +38,9 @@ and it's compatible with [Prometheus].
 
 [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
 [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
+
+OpenMetrics protobuf (`ProtobufProfile::OpenMetrics1`) is deprecated. Use
+`ProtobufProfile::Prometheus` for protobuf exposition. OpenMetrics text remains supported.
 
 ## Usage
 

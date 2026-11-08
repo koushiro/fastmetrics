@@ -34,9 +34,12 @@
 //! - `Prometheus` (default): length-delimited `io.prometheus.client.MetricFamily` stream
 //!   - [Prometheus protobuf format]
 //!   - [Prometheus protobuf schema]
-//! - `OpenMetrics1`: single `openmetrics.MetricSet` message
+//! - `OpenMetrics1` (deprecated): single `openmetrics.MetricSet` message, retained for
+//!   compatibility
 //!   - [OpenMetrics protobuf format]
 //!   - [OpenMetrics protobuf schema]
+//!
+//! Prefer `Prometheus` for protobuf exposition.
 //!
 //! [OpenMetrics text format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format
 //! [Prometheus text format]: https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details

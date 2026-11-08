@@ -62,8 +62,8 @@ While working on this codebase, please remember:
 - Default features: `foldhash`.
 - Optional features:
   - `derive` – enables `fastmetrics-derive`.
-  - `prost` – protobuf (openmetrics) via `prost`/`prost-build`.
-  - `protobuf` – protobuf (openmetrics) via `protobuf`/`protobuf-codegen`.
+  - `prost` – protobuf via `prost`/`prost-build`.
+  - `protobuf` – protobuf via `protobuf`/`protobuf-codegen`.
 - Avoid feature regressions: test with and without optional features when feasible.
 
 ## PR expectations

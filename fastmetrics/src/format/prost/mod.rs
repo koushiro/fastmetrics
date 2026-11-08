@@ -44,7 +44,8 @@ pub fn encode_with<G>(
     let _guard = enter_scope();
 
     match profile {
-        ProtobufProfile::OpenMetrics1 => openmetrics::encode(buffer, registry),
         ProtobufProfile::Prometheus => prometheus::encode(buffer, registry),
+        #[allow(deprecated)]
+        ProtobufProfile::OpenMetrics1 => openmetrics::encode(buffer, registry),
     }
 }

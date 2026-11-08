@@ -29,7 +29,7 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("measured (prometheus): {metric_id}");
+            let id = format!("measured (self/prometheus): {metric_id}");
             group.sample_size(100).bench_function(id, |b| {
                 use measured::MetricGroup;
 
@@ -102,11 +102,13 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 use fastmetrics::format::prost::{ProtobufProfile, encode};
 
                 let registry = setup_fastmetrics_registry(count, times, Default::default());
+                #[allow(deprecated)]
+                let profile = ProtobufProfile::OpenMetrics1;
 
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode(&mut buffer, &registry, ProtobufProfile::OpenMetrics1).unwrap();
+                    encode(&mut buffer, &registry, profile).unwrap();
                     black_box(&mut buffer);
                 });
             });
@@ -130,11 +132,13 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 use fastmetrics::format::protobuf::{ProtobufProfile, encode};
 
                 let registry = setup_fastmetrics_registry(count, times, Default::default());
+                #[allow(deprecated)]
+                let profile = ProtobufProfile::OpenMetrics1;
 
                 let mut buffer = Vec::new();
                 b.iter(|| {
                     buffer.clear();
-                    encode(&mut buffer, &registry, ProtobufProfile::OpenMetrics1).unwrap();
+                    encode(&mut buffer, &registry, profile).unwrap();
                     black_box(&mut buffer);
                 });
             });

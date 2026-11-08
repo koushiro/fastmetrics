@@ -128,6 +128,9 @@ pub enum ProtobufProfile {
     #[default]
     Prometheus,
     /// OpenMetrics protobuf profile (`openmetrics.MetricSet`).
+    ///
+    /// Retained for compatibility. Prefer [`Self::Prometheus`] for protobuf exposition.
+    #[deprecated(note = "Use ProtobufProfile::Prometheus instead.")]
     OpenMetrics1,
 }
 
@@ -139,6 +142,7 @@ impl ProtobufProfile {
             Self::Prometheus => {
                 "application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited"
             },
+            #[allow(deprecated)]
             Self::OpenMetrics1 => {
                 "application/openmetrics-protobuf; version=1.0.0; proto=openmetrics.MetricSet"
             },
