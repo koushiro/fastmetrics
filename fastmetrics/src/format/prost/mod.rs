@@ -1,19 +1,9 @@
-//! Protobuf exposition format using [prost](https://github.com/tokio-rs/prost) crate.
+//! Prometheus protobuf exposition format using [prost](https://github.com/tokio-rs/prost) crate.
 
-mod openmetrics;
 mod prometheus;
 
 pub use super::profile::ProtobufProfile;
 use crate::{error::Result, registry::Registry};
-
-/// Data models that are automatically generated from [OpenMetrics protobuf schema].
-///
-/// [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
-#[allow(missing_docs)]
-#[allow(clippy::all)]
-mod openmetrics_data_model {
-    include!(concat!(env!("OUT_DIR"), "/prost/openmetrics.rs"));
-}
 
 /// Data models that are automatically generated from [Prometheus protobuf schema].
 ///
@@ -45,7 +35,5 @@ pub fn encode_with<G>(
 
     match profile {
         ProtobufProfile::Prometheus => prometheus::encode(buffer, registry),
-        #[allow(deprecated)]
-        ProtobufProfile::OpenMetrics1 => openmetrics::encode(buffer, registry),
     }
 }

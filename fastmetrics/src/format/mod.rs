@@ -30,21 +30,13 @@
 //! - `encode(buffer, registry, profile)`
 //! - `encode_with(buffer, registry, profile, enter_scope)`
 //!
-//! Protobuf profiles:
-//! - `Prometheus` (default): length-delimited `io.prometheus.client.MetricFamily` stream
-//!   - [Prometheus protobuf format]
-//!   - [Prometheus protobuf schema]
-//! - `OpenMetrics1` (deprecated): single `openmetrics.MetricSet` message, retained for
-//!   compatibility
-//!   - [OpenMetrics protobuf format]
-//!   - [OpenMetrics protobuf schema]
-//!
-//! Prefer `Prometheus` for protobuf exposition.
+//! Both backends support `ProtobufProfile::Prometheus`, which encodes a length-delimited
+//! `io.prometheus.client.MetricFamily` stream:
+//! - [Prometheus protobuf format]
+//! - [Prometheus protobuf schema]
 //!
 //! [OpenMetrics text format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#text-format
 //! [Prometheus text format]: https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details
-//! [OpenMetrics protobuf format]: https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md#protobuf-format
-//! [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 //! [Prometheus protobuf format]: https://prometheus.io/docs/instrumenting/exposition_formats/#protobuf-format
 //! [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
 

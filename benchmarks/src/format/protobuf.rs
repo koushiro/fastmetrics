@@ -97,22 +97,6 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 });
             });
 
-            let id = format!("fastmetrics (prost/openmetrics): {metric_id}");
-            group.sample_size(100).bench_function(id, |b| {
-                use fastmetrics::format::prost::{ProtobufProfile, encode};
-
-                let registry = setup_fastmetrics_registry(count, times, Default::default());
-                #[allow(deprecated)]
-                let profile = ProtobufProfile::OpenMetrics1;
-
-                let mut buffer = Vec::new();
-                b.iter(|| {
-                    buffer.clear();
-                    encode(&mut buffer, &registry, profile).unwrap();
-                    black_box(&mut buffer);
-                });
-            });
-
             let id = format!("fastmetrics (protobuf/promtheus): {metric_id}");
             group.sample_size(100).bench_function(id, |b| {
                 use fastmetrics::format::protobuf::{ProtobufProfile, encode};
@@ -123,22 +107,6 @@ fn bench_protobuf_encoding(c: &mut Criterion) {
                 b.iter(|| {
                     buffer.clear();
                     encode(&mut buffer, &registry, ProtobufProfile::Prometheus).unwrap();
-                    black_box(&mut buffer);
-                });
-            });
-
-            let id = format!("fastmetrics(protobuf/openmetrics): {metric_id}");
-            group.sample_size(100).bench_function(id, |b| {
-                use fastmetrics::format::protobuf::{ProtobufProfile, encode};
-
-                let registry = setup_fastmetrics_registry(count, times, Default::default());
-                #[allow(deprecated)]
-                let profile = ProtobufProfile::OpenMetrics1;
-
-                let mut buffer = Vec::new();
-                b.iter(|| {
-                    buffer.clear();
-                    encode(&mut buffer, &registry, profile).unwrap();
                     black_box(&mut buffer);
                 });
             });

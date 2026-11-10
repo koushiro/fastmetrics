@@ -18,13 +18,7 @@ fn generate_prost() {
     // generate `out/prost/*.rs`
     prost_build::Config::new()
         .out_dir(prost_out_dir)
-        .compile_protos(
-            &[
-                "src/format/proto/openmetrics_data_model.proto",
-                "src/format/proto/prometheus_data_model.proto",
-            ],
-            &[""],
-        )
+        .compile_protos(&["src/format/proto/prometheus_data_model.proto"], &[""])
         .unwrap();
 }
 
@@ -33,10 +27,7 @@ fn generate_protobuf() {
     // generate `out/protobuf/*.rs`
     protobuf_codegen::Codegen::new()
         .includes([""])
-        .inputs([
-            "src/format/proto/openmetrics_data_model.proto",
-            "src/format/proto/prometheus_data_model.proto",
-        ])
+        .inputs(["src/format/proto/prometheus_data_model.proto"])
         .customize(protobuf_codegen::Customize::default())
         .pure()
         .cargo_out_dir("protobuf")

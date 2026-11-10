@@ -1,6 +1,5 @@
-//! Protobuf exposition format using [protobuf](https://github.com/stepancheg/rust-protobuf) crate.
+//! Prometheus protobuf exposition format using [protobuf](https://github.com/stepancheg/rust-protobuf) crate.
 
-mod openmetrics;
 mod prometheus;
 
 use std::io;
@@ -8,13 +7,8 @@ use std::io;
 pub use super::profile::ProtobufProfile;
 use crate::{error::Result, registry::Registry};
 
-/// Data models that are automatically generated from protobuf schemas.
+/// Data models that are automatically generated from [Prometheus protobuf schema].
 ///
-/// This module includes generated models for both:
-/// - [OpenMetrics protobuf schema]
-/// - [Prometheus protobuf schema]
-///
-/// [OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 /// [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
 #[allow(missing_docs)]
 #[allow(clippy::all)]
@@ -43,7 +37,5 @@ pub fn encode_with<G>(
 
     match profile {
         ProtobufProfile::Prometheus => prometheus::encode(buffer, registry),
-        #[allow(deprecated)]
-        ProtobufProfile::OpenMetrics1 => openmetrics::encode(buffer, registry),
     }
 }
