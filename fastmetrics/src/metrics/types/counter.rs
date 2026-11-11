@@ -562,9 +562,8 @@ mod tests {
             },
         );
 
-        let created = std::time::SystemTime::UNIX_EPOCH
-            .elapsed()
-            .expect("SystemTime when the counter was created");
+        // Sub-second part below 100ms must be zero-padded to three digits.
+        let created = Duration::from_millis(1_700_000_000_005);
         check_text_encoding(
             |registry| {
                 let counter = <Counter>::with_created(created);
@@ -572,16 +571,13 @@ mod tests {
                 counter.inc_by(100);
             },
             |output| {
-                let expected = indoc::formatdoc! {r#"
+                let expected = indoc::indoc! {r#"
                     # TYPE my_counter counter
                     # HELP my_counter My counter help
                     my_counter_total 100
-                    my_counter_created {}.{}
+                    my_counter_created 1700000000.005
                     # EOF
-                    "#,
-                    created.as_secs(),
-                    created.as_millis() % 1000
-                };
+                "#};
                 assert_eq!(expected, output);
             },
         );

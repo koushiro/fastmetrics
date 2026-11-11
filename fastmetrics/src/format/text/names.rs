@@ -117,6 +117,10 @@ fn escape_dots<'a>(name: Cow<'a, str>, kind: NameKind) -> Cow<'a, str> {
 }
 
 fn escape_values<'a>(name: Cow<'a, str>, kind: NameKind) -> Cow<'a, str> {
+    if kind.is_legacy_name(name.as_ref()) {
+        return name;
+    }
+
     let mut escaped = String::with_capacity(name.len() + 8);
     escaped.push_str("U__");
 

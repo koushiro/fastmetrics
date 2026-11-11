@@ -660,11 +660,7 @@ where
         self.encode_metric_name()?;
         self.writer.write_str("_created")?;
         self.encode_label_set(None)?;
-        self.writer.write_fmt(format_args!(
-            "{}.{}",
-            created.as_secs(),
-            created.as_millis() % 1000
-        ))?;
+        write_timestamp(&mut self.writer, created, self.config.timestamp_format)?;
         self.encode_timestamp()?;
         self.encode_newline()
     }
@@ -692,9 +688,9 @@ fn write_timestamp(
     match format {
         TimestampFormat::SecondsMillis => {
             writer.write_fmt(format_args!(
-                " {}.{}",
+                " {}.{:03}",
                 duration.as_secs(),
-                duration.as_millis() % 1000
+                duration.subsec_millis()
             ))?;
         },
         TimestampFormat::MillisecondsInteger => {
