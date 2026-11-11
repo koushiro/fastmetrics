@@ -7,7 +7,7 @@ use std::{
 use anyhow::Result;
 use fastmetrics::{
     derive::*,
-    format::{prost, text},
+    format::{protobuf, text},
     registry::{Register, Registry},
 };
 use warp::{
@@ -62,8 +62,8 @@ impl warp::reject::Reject for ProtobufEncodeReject {}
 
 fn metrics_encode_protobuf(state: AppState) -> Result<impl Reply, ProtobufEncodeReject> {
     let mut output = Vec::new();
-    let profile = prost::ProtobufProfile::Prometheus;
-    prost::encode(&mut output, &state.registry, profile).map_err(|_| ProtobufEncodeReject)?;
+    let profile = protobuf::ProtobufProfile::Prometheus;
+    protobuf::encode(&mut output, &state.registry, profile).map_err(|_| ProtobufEncodeReject)?;
     Ok(warp::reply::with_header(
         warp::reply::with_status(output, StatusCode::OK),
         header::CONTENT_TYPE,

@@ -28,7 +28,7 @@ and it's compatible with [Prometheus].
     - Prometheus text: `0.0.4`, `1.0.0`
     - OpenMetrics text: `0.0.1`, `1.0.0`
     - V1 escaping schemes: `allow-utf-8`, `underscores`, `dots`, `values`
-  - Protobuf
+  - Protobuf (with the optional `protobuf` feature)
     - [Prometheus protobuf schema]
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems

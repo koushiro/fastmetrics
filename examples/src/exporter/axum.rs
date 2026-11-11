@@ -18,7 +18,7 @@ use axum::{
 };
 use fastmetrics::{
     derive::*,
-    format::{prost, text},
+    format::{protobuf, text},
     registry::{Register, Registry},
 };
 use pin_project::pin_project;
@@ -173,8 +173,8 @@ async fn text_handler(
 
 async fn protobuf_handler(state: State<AppState>) -> Result<Response, AppError> {
     let mut output = Vec::new();
-    let profile = prost::ProtobufProfile::Prometheus;
-    prost::encode(&mut output, &state.registry, profile)?;
+    let profile = protobuf::ProtobufProfile::Prometheus;
+    protobuf::encode(&mut output, &state.registry, profile)?;
     let response = Response::builder()
         .header(header::CONTENT_TYPE, profile.content_type())
         .status(StatusCode::OK)

@@ -1,8 +1,9 @@
-//! Prometheus protobuf exposition format using [protobuf](https://github.com/stepancheg/rust-protobuf) crate.
+//! Prometheus protobuf exposition format using [prost](https://github.com/tokio-rs/prost) crate.
 
-mod prometheus;
-
-use std::io;
+mod encoder;
+#[cfg(test)]
+mod tests;
+mod wire;
 
 pub use super::profile::ProtobufProfile;
 use crate::{error::Result, registry::Registry};
@@ -12,13 +13,13 @@ use crate::{error::Result, registry::Registry};
 /// [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
 #[allow(missing_docs)]
 #[allow(clippy::all)]
-mod generated_data_model {
-    include!(concat!(env!("OUT_DIR"), "/protobuf/mod.rs"));
+mod prometheus_data_model {
+    include!(concat!(env!("OUT_DIR"), "/io.prometheus.client.rs"));
 }
 
 /// Encodes metrics from a registry into protobuf format with an explicit profile.
 pub fn encode(
-    buffer: &mut dyn io::Write,
+    buffer: &mut impl prost::bytes::BufMut,
     registry: &Registry,
     profile: ProtobufProfile,
 ) -> Result<()> {
@@ -27,15 +28,13 @@ pub fn encode(
 
 /// Encodes metrics in protobuf format with explicit profile and scope hook.
 pub fn encode_with<G>(
-    buffer: &mut dyn io::Write,
+    buffer: &mut impl prost::bytes::BufMut,
     registry: &Registry,
     profile: ProtobufProfile,
     enter_scope: impl FnOnce() -> G,
 ) -> Result<()> {
-    // The returned value is kept alive for the duration of encoding and then dropped.
     let _guard = enter_scope();
-
     match profile {
-        ProtobufProfile::Prometheus => prometheus::encode(buffer, registry),
+        ProtobufProfile::Prometheus => encoder::encode(buffer, registry),
     }
 }

@@ -8,7 +8,7 @@ publish = false
 
 [dev-dependencies]
 criterion = "0.8"
-fastmetrics = { path = "../fastmetrics", features = ["derive", "prost", "protobuf"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
 measured = "0.1.0"
 measured-prometheus-protobuf = "0.1.0"
 measured-prometheus-text = "0.1.0"

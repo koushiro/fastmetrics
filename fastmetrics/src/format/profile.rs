@@ -117,10 +117,10 @@ impl TextProfile {
     }
 }
 
-/// Protobuf exposition profile shared by protobuf backends.
+/// Protobuf exposition profile.
 ///
-/// This type is re-exported by both `format::prost` and `format::protobuf`.
-#[cfg(any(feature = "prost", feature = "protobuf"))]
+/// This type is re-exported by `format::protobuf`.
+#[cfg(feature = "protobuf")]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ProtobufProfile {
@@ -129,7 +129,7 @@ pub enum ProtobufProfile {
     Prometheus,
 }
 
-#[cfg(any(feature = "prost", feature = "protobuf"))]
+#[cfg(feature = "protobuf")]
 impl ProtobufProfile {
     /// Returns the HTTP content type for this profile.
     pub const fn content_type(self) -> &'static str {

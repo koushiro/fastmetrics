@@ -5,7 +5,6 @@
 //! ## Availability
 //!
 //! - [`text`] is always available.
-//! - [`prost`] is available with feature `prost`.
 //! - [`protobuf`] is available with feature `protobuf`.
 //!
 //! ## Text format
@@ -22,15 +21,13 @@
 //!
 //! ## Protobuf format
 //!
-//! Protobuf support is feature-gated and provided by two interchangeable backends:
-//! - [`prost`] (feature `prost`)
-//! - [`protobuf`] (feature `protobuf`)
+//! Protobuf support is provided by [`protobuf`] with feature `protobuf`.
 //!
-//! Both backends expose the same API shape:
+//! The [`protobuf`] module exposes the API:
 //! - `encode(buffer, registry, profile)`
 //! - `encode_with(buffer, registry, profile, enter_scope)`
 //!
-//! Both backends support `ProtobufProfile::Prometheus`, which encodes a length-delimited
+//! The backend supports `ProtobufProfile::Prometheus`, which encodes a length-delimited
 //! `io.prometheus.client.MetricFamily` stream:
 //! - [Prometheus protobuf format]
 //! - [Prometheus protobuf schema]
@@ -42,8 +39,6 @@
 
 mod profile;
 
-#[cfg(feature = "prost")]
-pub mod prost;
 #[cfg(feature = "protobuf")]
 pub mod protobuf;
 pub mod text;

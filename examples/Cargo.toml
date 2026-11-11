@@ -14,7 +14,7 @@ actix-web = { version = "4", default-features = false, features = ["macros", "ru
 anyhow = "1.0"
 axum = "0.8"
 bytes = "1.7"
-fastmetrics = { path = "../fastmetrics", features = ["derive", "prost"] }
+fastmetrics = { path = "../fastmetrics", features = ["derive", "protobuf"] }
 fastmetrics-process = { path = "../fastmetrics-process" }
 futures = "0.3"
 http-body-util = "0.1"

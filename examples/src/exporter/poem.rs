@@ -7,7 +7,7 @@ use std::{
 use anyhow::Result;
 use fastmetrics::{
     derive::*,
-    format::{prost, text},
+    format::{protobuf, text},
     registry::{Register, Registry},
 };
 use poem::{
@@ -81,8 +81,8 @@ async fn metrics_protobuf(req: &Request, Data(state): Data<&AppState>) -> Respon
     state.metrics.http.inc_in_flight();
 
     let mut output = Vec::new();
-    let profile = prost::ProtobufProfile::Prometheus;
-    let result = prost::encode(&mut output, &state.registry, profile);
+    let profile = protobuf::ProtobufProfile::Prometheus;
+    let result = protobuf::encode(&mut output, &state.registry, profile);
 
     match result {
         Ok(()) => {
