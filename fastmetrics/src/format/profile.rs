@@ -61,7 +61,8 @@ pub enum EscapingScheme {
     Dots,
     /// `escaping=values`
     ///
-    /// Encode names in a fully round-trippable form:
+    /// Names that are already valid legacy names are kept unchanged. Other names
+    /// are encoded in a fully round-trippable form:
     /// - Prefix with `U__`
     /// - Legacy-invalid characters become `_HEX_` (Unicode code point in hex)
     /// - `_` -> `__`

@@ -660,11 +660,7 @@ where
         self.encode_metric_name()?;
         self.writer.write_str("_created")?;
         self.encode_label_set(None)?;
-        self.writer.write_fmt(format_args!(
-            "{}.{}",
-            created.as_secs(),
-            created.as_millis() % 1000
-        ))?;
+        write_timestamp(&mut self.writer, created, self.config.timestamp_format)?;
         self.encode_timestamp()?;
         self.encode_newline()
     }
@@ -672,6 +668,7 @@ where
     #[inline]
     fn encode_timestamp(&mut self) -> Result<()> {
         if let Some(timestamp) = self.timestamp {
+            self.writer.write_str(" ")?;
             write_timestamp(self.writer, timestamp, self.config.timestamp_format)?;
         }
         Ok(())
@@ -692,13 +689,13 @@ fn write_timestamp(
     match format {
         TimestampFormat::SecondsMillis => {
             writer.write_fmt(format_args!(
-                " {}.{}",
+                "{}.{:03}",
                 duration.as_secs(),
-                duration.as_millis() % 1000
+                duration.subsec_millis()
             ))?;
         },
         TimestampFormat::MillisecondsInteger => {
-            writer.write_fmt(format_args!(" {}", duration.as_millis()))?;
+            writer.write_fmt(format_args!("{}", duration.as_millis()))?;
         },
     }
     Ok(())
@@ -1180,6 +1177,7 @@ where
         self.writer.write_str(zmij::Buffer::new().format(value))?;
 
         if let Some(timestamp) = timestamp {
+            self.writer.write_str(" ")?;
             write_timestamp(self.writer, timestamp, self.timestamp_format)?;
         }
 
