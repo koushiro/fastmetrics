@@ -2,8 +2,8 @@
 name = "fastmetrics"
 version = "0.7.1"
 authors = ["Qinxuan Chen <https://github.com/koushiro>"]
-description = "OpenMetrics / Prometheus client library in Rust."
-keywords = ["openmetrics", "metrics", "prometheus"]
+description = "Prometheus / OpenMetrics client library in Rust."
+keywords = ["metrics", "prometheus", "openmetrics"]
 documentation = "https://docs.rs/fastmetrics"
 readme = "../README.md"
 edition.workspace = true
@@ -19,12 +19,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["foldhash"]
 derive = ["dep:fastmetrics-derive"]
-prost = ["dep:prost", "dep:prost-build", "dep:prost-types"]
-protobuf = ["dep:protobuf", "dep:protobuf-codegen"]
+protobuf = ["dep:prost", "dep:prost-build", "dep:prost-types"]
 
 [build-dependencies]
 prost-build = { version = "0.14", optional = true }
-protobuf-codegen = { version = "3.7", optional = true }
 
 [dependencies]
 anyhow = "1.0"
@@ -38,7 +36,6 @@ fastmetrics-derive = { path = "../fastmetrics-derive", version = "0.7.0", option
 foldhash = { version = "0.2", optional = true }
 prost = { version = "0.14", optional = true }
 prost-types = { version = "0.14", optional = true }
-protobuf = { version = "3.7", optional = true }
 
 [dev-dependencies]
 indoc = "2.0"

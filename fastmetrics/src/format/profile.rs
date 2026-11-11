@@ -117,30 +117,25 @@ impl TextProfile {
     }
 }
 
-/// Protobuf exposition profile shared by protobuf backends.
+/// Protobuf exposition profile.
 ///
-/// This type is re-exported by both `format::prost` and `format::protobuf`.
-#[cfg(any(feature = "prost", feature = "protobuf"))]
+/// This type is re-exported by `format::protobuf`.
+#[cfg(feature = "protobuf")]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ProtobufProfile {
     /// Prometheus protobuf profile (`io.prometheus.client.MetricFamily`, length-delimited).
     #[default]
     Prometheus,
-    /// OpenMetrics protobuf profile (`openmetrics.MetricSet`).
-    OpenMetrics1,
 }
 
-#[cfg(any(feature = "prost", feature = "protobuf"))]
+#[cfg(feature = "protobuf")]
 impl ProtobufProfile {
     /// Returns the HTTP content type for this profile.
     pub const fn content_type(self) -> &'static str {
         match self {
             Self::Prometheus => {
                 "application/vnd.google.protobuf; proto=io.prometheus.client.MetricFamily; encoding=delimited"
-            },
-            Self::OpenMetrics1 => {
-                "application/openmetrics-protobuf; version=1.0.0; proto=openmetrics.MetricSet"
             },
         }
     }

@@ -28,16 +28,14 @@ and it's compatible with [Prometheus].
     - Prometheus text: `0.0.4`, `1.0.0`
     - OpenMetrics text: `0.0.1`, `1.0.0`
     - V1 escaping schemes: `allow-utf-8`, `underscores`, `dots`, `values`
-  - Protobuf
+  - Protobuf (with the optional `protobuf` feature)
     - [Prometheus protobuf schema]
-    - [OpenMetrics protobuf schema]
 - Customizable metric types (currently a set of commonly used metric types are provided)
 - Hierarchical metric organization with namespaces and subsystems
 - Support for variable and constant labels
 - Derive macros to simplify code (e.g., like registering metrics, label handling, etc.)
 
 [Prometheus protobuf schema]: https://github.com/prometheus/client_model/blob/master/io/prometheus/client/metrics.proto
-[OpenMetrics protobuf schema]: https://github.com/prometheus/OpenMetrics/blob/main/proto/openmetrics_data_model.proto
 
 ## Usage
 

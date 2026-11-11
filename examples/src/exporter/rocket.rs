@@ -3,7 +3,7 @@ use std::{net::Ipv4Addr, sync::Arc, time::Instant};
 use anyhow::Result;
 use fastmetrics::{
     derive::*,
-    format::{prost, text},
+    format::{protobuf, text},
     registry::{Register, Registry},
 };
 use rocket::{
@@ -108,8 +108,8 @@ async fn metrics_text_explicit(state: &State<AppState>, accept: Option<&Accept>)
 #[rocket::get("/metrics/protobuf")]
 async fn metrics_protobuf(state: &State<AppState>) -> (Status, (ContentType, Vec<u8>)) {
     let mut output = Vec::new();
-    let profile = prost::ProtobufProfile::Prometheus;
-    if let Err(e) = prost::encode(&mut output, &state.registry, profile) {
+    let profile = protobuf::ProtobufProfile::Prometheus;
+    if let Err(e) = protobuf::encode(&mut output, &state.registry, profile) {
         return (
             Status::InternalServerError,
             (ContentType::Plain, format!("protobuf encode error: {e}").into_bytes()),

@@ -9,7 +9,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use fastmetrics::{
     derive::*,
-    format::{prost, text},
+    format::{protobuf, text},
     registry::{Register, Registry},
 };
 use http_body_util::Full;
@@ -81,8 +81,8 @@ fn text_response_with_accept(
 
 fn protobuf_response(state: &AppState) -> Result<MetricsResponse, AppError> {
     let mut output = Vec::new();
-    let profile = prost::ProtobufProfile::Prometheus;
-    prost::encode(&mut output, &state.registry, profile)?;
+    let profile = protobuf::ProtobufProfile::Prometheus;
+    protobuf::encode(&mut output, &state.registry, profile)?;
     let body = Full::new(Bytes::from(output));
 
     Ok(Response::builder()

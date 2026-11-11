@@ -389,7 +389,7 @@ text::encode/fastmetrics (openmetrics 1.0.0, utf8 + underscores): 100 metrics * 
 - measured: use [measured-prometheus-protobuf] for (prometheus) protobuf encoding
 - prometheus: use the [protobuf] crate for (prometheus) protobuf encoding
 - prometheus-client: use the [prost] crate for (prometheus) protobuf encoding
-- fastmetrics: use [prost] or [protobuf] crate for both (prometheus) and (openmetrics) protobuf encoding
+- fastmetrics: use the [prost] crate for (prometheus) protobuf encoding
 
 [prost]: https://crates.io/crates/prost
 [protobuf]: https://crates.io/crates/protobuf
@@ -404,138 +404,90 @@ Each group of metrics includes a counter (u64) and a histogram.
 
 ```text
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 10 metrics * 100 times
-                        time:   [3.9701 ms 4.1616 ms 4.2857 ms]
-protobuf::encode/measured (prometheus): 10 metrics * 100 times
-                        time:   [42.995 µs 43.186 µs 43.372 µs]
+                        time:   [3.8789 ms 4.2672 ms 4.6656 ms]
+protobuf::encode/measured (self/prometheus): 10 metrics * 100 times
+                        time:   [47.757 µs 48.221 µs 48.836 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 10 metrics * 100 times
-                        time:   [178.58 µs 180.03 µs 181.37 µs]
+                        time:   [180.58 µs 182.13 µs 183.88 µs]
 protobuf::encode/prometheus_client (prost/prometheus): 10 metrics * 100 times
-                        time:   [264.66 µs 267.98 µs 272.20 µs]
+                        time:   [251.50 µs 254.45 µs 258.61 µs]
 protobuf::encode/fastmetrics (prost/prometheus): 10 metrics * 100 times
-                        time:   [236.14 µs 237.28 µs 238.39 µs]
-protobuf::encode/fastmetrics (prost/openmetrics): 10 metrics * 100 times
-                        time:   [256.87 µs 260.43 µs 266.66 µs]
-protobuf::encode/fastmetrics (protobuf/promtheus): 10 metrics * 100 times
-                        time:   [243.68 µs 245.47 µs 247.31 µs]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 10 metrics * 100 times
-                        time:   [254.55 µs 256.05 µs 257.53 µs]
+                        time:   [66.610 µs 68.485 µs 71.392 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 10 metrics * 1000 times
-                        time:   [8.8301 ms 8.9582 ms 9.1405 ms]
-protobuf::encode/measured (prometheus): 10 metrics * 1000 times
-                        time:   [46.010 µs 46.168 µs 46.365 µs]
+                        time:   [8.9071 ms 9.6011 ms 11.266 ms]
+protobuf::encode/measured (self/prometheus): 10 metrics * 1000 times
+                        time:   [50.795 µs 51.022 µs 51.357 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 10 metrics * 1000 times
-                        time:   [192.62 µs 194.94 µs 198.44 µs]
+                        time:   [194.11 µs 195.20 µs 196.36 µs]
 protobuf::encode/prometheus_client (prost/prometheus): 10 metrics * 1000 times
-                        time:   [281.31 µs 282.17 µs 283.07 µs]
+                        time:   [269.73 µs 270.59 µs 271.47 µs]
 protobuf::encode/fastmetrics (prost/prometheus): 10 metrics * 1000 times
-                        time:   [250.64 µs 253.55 µs 259.04 µs]
-protobuf::encode/fastmetrics (prost/openmetrics): 10 metrics * 1000 times
-                        time:   [276.95 µs 277.85 µs 278.80 µs]
-protobuf::encode/fastmetrics (protobuf/promtheus): 10 metrics * 1000 times
-                        time:   [260.68 µs 261.73 µs 262.88 µs]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 10 metrics * 1000 times
-                        time:   [276.89 µs 277.95 µs 279.09 µs]
+                        time:   [71.118 µs 71.418 µs 71.741 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 10 metrics * 10000 times
-                        time:   [9.1794 ms 9.4832 ms 9.6374 ms]
-protobuf::encode/measured (prometheus): 10 metrics * 10000 times
-                        time:   [46.137 µs 46.229 µs 46.328 µs]
+                        time:   [9.5258 ms 9.6746 ms 9.8450 ms]
+protobuf::encode/measured (self/prometheus): 10 metrics * 10000 times
+                        time:   [51.009 µs 51.134 µs 51.279 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 10 metrics * 10000 times
-                        time:   [191.84 µs 192.87 µs 193.90 µs]
+                        time:   [194.87 µs 196.10 µs 197.51 µs]
 protobuf::encode/prometheus_client (prost/prometheus): 10 metrics * 10000 times
-                        time:   [284.64 µs 285.75 µs 286.92 µs]
+                        time:   [273.32 µs 274.31 µs 275.50 µs]
 protobuf::encode/fastmetrics (prost/prometheus): 10 metrics * 10000 times
-                        time:   [250.62 µs 251.44 µs 252.34 µs]
-protobuf::encode/fastmetrics (prost/openmetrics): 10 metrics * 10000 times
-                        time:   [280.84 µs 285.03 µs 292.73 µs]
-protobuf::encode/fastmetrics (protobuf/promtheus): 10 metrics * 10000 times
-                        time:   [261.70 µs 263.49 µs 265.70 µs]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 10 metrics * 10000 times
-                        time:   [279.34 µs 280.39 µs 281.41 µs]
+                        time:   [71.472 µs 75.529 µs 80.747 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 10 metrics * 100000 times
-                        time:   [9.7501 ms 10.039 ms 10.273 ms]
-protobuf::encode/measured (prometheus): 10 metrics * 100000 times
-                        time:   [46.881 µs 47.251 µs 47.678 µs]
+                        time:   [9.5757 ms 9.9116 ms 10.221 ms]
+protobuf::encode/measured (self/prometheus): 10 metrics * 100000 times
+                        time:   [51.367 µs 51.761 µs 52.221 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 10 metrics * 100000 times
-                        time:   [193.91 µs 195.37 µs 196.90 µs]
+                        time:   [199.54 µs 205.92 µs 214.57 µs]
 protobuf::encode/prometheus_client (prost/prometheus): 10 metrics * 100000 times
-                        time:   [287.80 µs 289.56 µs 292.18 µs]
+                        time:   [276.59 µs 277.76 µs 279.07 µs]
 protobuf::encode/fastmetrics (prost/prometheus): 10 metrics * 100000 times
-                        time:   [255.05 µs 257.17 µs 259.54 µs]
-protobuf::encode/fastmetrics (prost/openmetrics): 10 metrics * 100000 times
-                        time:   [298.75 µs 310.72 µs 326.10 µs]
-protobuf::encode/fastmetrics (protobuf/promtheus): 10 metrics * 100000 times
-                        time:   [262.60 µs 264.01 µs 265.82 µs]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 10 metrics * 100000 times
-                        time:   [284.38 µs 285.80 µs 287.24 µs]
+                        time:   [73.293 µs 74.666 µs 76.339 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 100 metrics * 100 times
-                        time:   [41.987 ms 42.227 ms 42.383 ms]
-protobuf::encode/measured (prometheus): 100 metrics * 100 times
-                        time:   [436.98 µs 440.39 µs 445.64 µs]
+                        time:   [42.819 ms 43.355 ms 43.824 ms]
+protobuf::encode/measured (self/prometheus): 100 metrics * 100 times
+                        time:   [484.72 µs 487.51 µs 490.46 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 100 metrics * 100 times
-                        time:   [1.9558 ms 1.9753 ms 1.9980 ms]
+                        time:   [1.9580 ms 1.9821 ms 2.0150 ms]
 protobuf::encode/prometheus_client (prost/prometheus): 100 metrics * 100 times
-                        time:   [2.8708 ms 2.8912 ms 2.9170 ms]
+                        time:   [2.7693 ms 2.7891 ms 2.8123 ms]
 protobuf::encode/fastmetrics (prost/prometheus): 100 metrics * 100 times
-                        time:   [2.5473 ms 2.5756 ms 2.6141 ms]
-protobuf::encode/fastmetrics (prost/openmetrics): 100 metrics * 100 times
-                        time:   [2.8028 ms 2.8364 ms 2.8773 ms]
-protobuf::encode/fastmetrics (protobuf/promtheus): 100 metrics * 100 times
-                        time:   [2.5787 ms 2.5939 ms 2.6121 ms]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 100 metrics * 100 times
-                        time:   [2.6779 ms 2.7044 ms 2.7383 ms]
+                        time:   [641.69 µs 644.80 µs 648.35 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 100 metrics * 1000 times
-                        time:   [88.492 ms 89.825 ms 91.371 ms]
-protobuf::encode/measured (prometheus): 100 metrics * 1000 times
-                        time:   [467.78 µs 470.65 µs 476.19 µs]
+                        time:   [92.273 ms 106.19 ms 126.09 ms]
+protobuf::encode/measured (self/prometheus): 100 metrics * 1000 times
+                        time:   [516.71 µs 519.11 µs 522.09 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 100 metrics * 1000 times
-                        time:   [2.0899 ms 2.1021 ms 2.1156 ms]
+                        time:   [2.1547 ms 2.1948 ms 2.2457 ms]
 protobuf::encode/prometheus_client (prost/prometheus): 100 metrics * 1000 times
-                        time:   [3.1004 ms 3.1388 ms 3.1987 ms]
+                        time:   [2.9070 ms 2.9255 ms 2.9454 ms]
 protobuf::encode/fastmetrics (prost/prometheus): 100 metrics * 1000 times
-                        time:   [2.7232 ms 2.7369 ms 2.7548 ms]
-protobuf::encode/fastmetrics (prost/openmetrics): 100 metrics * 1000 times
-                        time:   [2.9822 ms 2.9933 ms 3.0060 ms]
-protobuf::encode/fastmetrics (protobuf/promtheus): 100 metrics * 1000 times
-                        time:   [2.7508 ms 2.7713 ms 2.8043 ms]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 100 metrics * 1000 times
-                        time:   [2.8939 ms 2.9087 ms 2.9256 ms]
+                        time:   [686.45 µs 688.81 µs 691.24 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 100 metrics * 10000 times
-                        time:   [94.372 ms 96.017 ms 97.567 ms]
-protobuf::encode/measured (prometheus): 100 metrics * 10000 times
-                        time:   [470.88 µs 472.25 µs 473.89 µs]
+                        time:   [97.430 ms 101.28 ms 107.80 ms]
+protobuf::encode/measured (self/prometheus): 100 metrics * 10000 times
+                        time:   [513.72 µs 516.06 µs 519.13 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 100 metrics * 10000 times
-                        time:   [2.1254 ms 2.1496 ms 2.1766 ms]
+                        time:   [2.0334 ms 2.0630 ms 2.1063 ms]
 protobuf::encode/prometheus_client (prost/prometheus): 100 metrics * 10000 times
-                        time:   [3.1218 ms 3.1353 ms 3.1504 ms]
+                        time:   [3.0177 ms 3.1230 ms 3.2813 ms]
 protobuf::encode/fastmetrics (prost/prometheus): 100 metrics * 10000 times
-                        time:   [2.7533 ms 2.7814 ms 2.8202 ms]
-protobuf::encode/fastmetrics (prost/openmetrics): 100 metrics * 10000 times
-                        time:   [3.0101 ms 3.0199 ms 3.0303 ms]
-protobuf::encode/fastmetrics (protobuf/promtheus): 100 metrics * 10000 times
-                        time:   [2.7656 ms 2.7981 ms 2.8509 ms]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 100 metrics * 10000 times
-                        time:   [2.9498 ms 2.9645 ms 2.9819 ms]
+                        time:   [715.42 µs 718.57 µs 721.90 µs]
 
 protobuf::encode/metrics_exporter_prometheus (prost/prometheus): 100 metrics * 100000 times
-                        time:   [99.842 ms 101.66 ms 103.36 ms]
-protobuf::encode/measured (prometheus): 100 metrics * 100000 times
-                        time:   [470.89 µs 473.41 µs 476.94 µs]
+                        time:   [104.60 ms 107.39 ms 110.87 ms]
+protobuf::encode/measured (self/prometheus): 100 metrics * 100000 times
+                        time:   [514.76 µs 516.61 µs 519.12 µs]
 protobuf::encode/prometheus (protobuf/prometheus): 100 metrics * 100000 times
-                        time:   [2.1079 ms 2.1251 ms 2.1471 ms]
+                        time:   [2.1381 ms 2.2218 ms 2.3449 ms]
 protobuf::encode/prometheus_client (prost/prometheus): 100 metrics * 100000 times
-                        time:   [3.1551 ms 3.1667 ms 3.1788 ms]
+                        time:   [2.9824 ms 3.0190 ms 3.0678 ms]
 protobuf::encode/fastmetrics (prost/prometheus): 100 metrics * 100000 times
-                        time:   [2.7175 ms 2.7405 ms 2.7692 ms]
-protobuf::encode/fastmetrics (prost/openmetrics): 100 metrics * 100000 times
-                        time:   [3.0094 ms 3.0228 ms 3.0365 ms]
-protobuf::encode/fastmetrics (protobuf/promtheus): 100 metrics * 100000 times
-                        time:   [2.7323 ms 2.7442 ms 2.7566 ms]
-protobuf::encode/fastmetrics(protobuf/openmetrics): 100 metrics * 100000 times
-                        time:   [2.9488 ms 2.9596 ms 2.9708 ms]
+                        time:   [683.64 µs 685.19 µs 687.14 µs]
 ```
