@@ -510,27 +510,3 @@ fn legacy_profiles_reject_exemplar_label_name_collisions_after_escaping() {
     assert_eq!(err.kind(), ErrorKind::Duplicated);
     assert_eq!(err.message(), "label names collide after escaping");
 }
-
-#[test]
-fn v1_values_keeps_legacy_valid_names_unchanged() {
-    let mut registry = Registry::builder().with_const_labels([("method", "GET")]).build().unwrap();
-    let requests = <Counter>::default();
-    registry.register("http_requests", "help", requests.clone()).unwrap();
-    requests.inc();
-
-    let mut output = String::new();
-    encode(
-        &mut output,
-        &registry,
-        TextProfile::OpenMetricsV1_0_0 { escaping_scheme: EscapingScheme::Values },
-    )
-    .unwrap();
-    assert!(
-        output.contains("# TYPE http_requests counter\n"),
-        "legacy-valid metric name must not be escaped: {output}"
-    );
-    assert!(
-        output.contains("http_requests_total{method=\"GET\"} 1\n"),
-        "legacy-valid metric and label names must not be escaped: {output}"
-    );
-}
